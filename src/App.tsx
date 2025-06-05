@@ -1,0 +1,106 @@
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider } from './context/AuthContext';
+import Layout from './components/layout/Layout';
+import Login from './pages/auth/Login';
+import Dashboard from './pages/dashboard/Dashboard';
+import Members from './pages/members/Members';
+import MemberDetail from './pages/members/MemberDetail';
+import Training from './pages/training/Training';
+import Friendlies from './pages/friendlies/Friendlies';
+import Leadership from './pages/leadership/Leadership';
+import Contributions from './pages/contributions/Contributions';
+import Profile from './pages/profile/Profile';
+import NotFound from './pages/NotFound';
+import ProtectedRoute from './components/auth/ProtectedRoute';
+
+function App() {
+  return (
+    <AuthProvider>
+      <Router>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          
+          <Route element={<Layout />}>
+            <Route 
+              path="/" 
+              element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              } 
+            />
+            
+            <Route 
+              path="/members" 
+              element={
+                <ProtectedRoute>
+                  <Members />
+                </ProtectedRoute>
+              } 
+            />
+            
+            <Route 
+              path="/members/:id" 
+              element={
+                <ProtectedRoute>
+                  <MemberDetail />
+                </ProtectedRoute>
+              } 
+            />
+            
+            <Route 
+              path="/training" 
+              element={
+                <ProtectedRoute>
+                  <Training />
+                </ProtectedRoute>
+              } 
+            />
+            
+            <Route 
+              path="/friendlies" 
+              element={
+                <ProtectedRoute>
+                  <Friendlies />
+                </ProtectedRoute>
+              } 
+            />
+            
+            <Route 
+              path="/leadership" 
+              element={
+                <ProtectedRoute>
+                  <Leadership />
+                </ProtectedRoute>
+              } 
+            />
+            
+            <Route 
+              path="/contributions" 
+              element={
+                <ProtectedRoute>
+                  <Contributions />
+                </ProtectedRoute>
+              } 
+            />
+            
+            <Route 
+              path="/profile" 
+              element={
+                <ProtectedRoute>
+                  <Profile />
+                </ProtectedRoute>
+              } 
+            />
+          </Route>
+          
+          <Route path="/404" element={<NotFound />} />
+          <Route path="*" element={<Navigate to="/404\" replace />} />
+        </Routes>
+      </Router>
+    </AuthProvider>
+  );
+}
+
+export default App;
