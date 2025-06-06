@@ -212,9 +212,22 @@ export class EventService {
   }
 
   static async getEventsByType(type: 'training' | 'friendly'): Promise<Event[]> {
-    return FirestoreService.query<Event>(this.collection, [
-      { field: 'type', operator: '==', value: type }
-    ], 'date', 'asc');
+    try {
+      // Query only by type to avoid composite index requirement
+      const events = await FirestoreService.query<Event>(this.collection, [
+        { field: 'type', operator: '==', value: type }
+      ]);
+      
+      // Sort by date in JavaScript instead of Firestore
+      return events.sort((a, b) => {
+        const dateA = new Date(a.date);
+        const dateB = new Date(b.date);
+        return dateA.getTime() - dateB.getTime();
+      });
+    } catch (error) {
+      console.error(`Error fetching events by type ${type}:`, error);
+      throw error;
+    }
   }
 
   static async getUpcomingEvents(): Promise<Event[]> {
