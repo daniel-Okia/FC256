@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Calendar, Plus, Edit, Trash2, MapPin, Clock } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
+import { EventService } from '../../services/firestore';
 import PageHeader from '../../components/layout/PageHeader';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
@@ -8,7 +10,7 @@ import Modal from '../../components/ui/Modal';
 import Input from '../../components/ui/Input';
 import Select from '../../components/ui/Select';
 import EmptyState from '../../components/common/EmptyState';
-import { useAuth } from '../../context/AuthContext';
+import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { Event } from '../../types';
 import { formatDate } from '../../utils/date-utils';
 import { canUserAccess, Permissions } from '../../utils/permissions';
@@ -24,33 +26,9 @@ interface FriendlyFormData {
 
 const Friendlies: React.FC = () => {
   const { user } = useAuth();
-  const [friendlies, setFriendlies] = useState<Event[]>([
-    {
-      id: '1',
-      type: 'friendly',
-      date: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
-      time: '15:00',
-      location: 'Victory Park',
-      description: 'Preparation match',
-      opponent: 'FC Victory',
-      createdBy: '1',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    },
-    {
-      id: '2',
-      type: 'friendly',
-      date: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString(),
-      time: '16:30',
-      location: 'Central Stadium',
-      description: 'Tactical practice match',
-      opponent: 'United FC',
-      createdBy: '1',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    },
-  ]);
-
+  const [friendlies, setFriendlies] = useState<Event[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingFriendly, setEditingFriendly] = useState<Event | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -75,6 +53,32 @@ const Friendlies: React.FC = () => {
     { value: 'Sports Complex', label: 'Sports Complex' },
     { value: 'Away Ground', label: 'Away Ground' },
   ];
+
+  // Load friendlies from Firestore
+  useEffect(() => {
+    const loadFriendlies = async () => {
+      try {
+        setLoading(true);
+        const events = await EventService.getEventsByType('friendly');
+        setFriendlies(events);
+      } catch (error) {
+        console.error('Error loading friendlies:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadFriendlies();
+
+    // Set up real-time listener for friendly events
+    const unsubscribe = EventService.subscribeToEvents((events) => {
+      const friendlyEvents = events.filter(event => event.type === 'friendly');
+      setFriendlies(friendlyEvents);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   const columns = [
     {
@@ -169,39 +173,54 @@ const Friendlies: React.FC = () => {
     setIsDeleteModalOpen(true);
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (friendlyToDelete) {
-      setFriendlies(prev => prev.filter(f => f.id !== friendlyToDelete.id));
-      setIsDeleteModalOpen(false);
-      setFriendlyToDelete(null);
+      try {
+        await EventService.deleteEvent(friendlyToDelete.id);
+        setIsDeleteModalOpen(false);
+        setFriendlyToDelete(null);
+      } catch (error) {
+        console.error('Error deleting friendly:', error);
+      }
     }
   };
 
-  const onSubmit = (data: FriendlyFormData) => {
-    const friendlyData: Event = {
-      id: editingFriendly?.id || Date.now().toString(),
-      type: 'friendly',
-      date: new Date(data.date).toISOString(),
-      time: data.time,
-      location: data.location,
-      opponent: data.opponent,
-      description: data.description,
-      createdBy: user?.id || '1',
-      createdAt: editingFriendly?.createdAt || new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
+  const onSubmit = async (data: FriendlyFormData) => {
+    try {
+      setSubmitting(true);
+      
+      const friendlyData = {
+        type: 'friendly' as const,
+        date: new Date(data.date).toISOString(),
+        time: data.time,
+        location: data.location,
+        opponent: data.opponent,
+        description: data.description,
+        createdBy: user?.id || '',
+      };
 
-    if (editingFriendly) {
-      setFriendlies(prev => 
-        prev.map(f => f.id === editingFriendly.id ? friendlyData : f)
-      );
-    } else {
-      setFriendlies(prev => [...prev, friendlyData]);
+      if (editingFriendly) {
+        await EventService.updateEvent(editingFriendly.id, friendlyData);
+      } else {
+        await EventService.createEvent(friendlyData);
+      }
+
+      setIsModalOpen(false);
+      reset();
+    } catch (error) {
+      console.error('Error saving friendly:', error);
+    } finally {
+      setSubmitting(false);
     }
-
-    setIsModalOpen(false);
-    reset();
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-64">
+        <LoadingSpinner size="lg" />
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -294,7 +313,7 @@ const Friendlies: React.FC = () => {
             >
               Cancel
             </Button>
-            <Button type="submit">
+            <Button type="submit" isLoading={submitting}>
               {editingFriendly ? 'Update Match' : 'Schedule Match'}
             </Button>
           </div>

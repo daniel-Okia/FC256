@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import { Calendar, Plus, Edit, Trash2, Users, MapPin, Clock } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Calendar, Plus, Edit, Trash2, MapPin, Clock } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { EventService } from '../../services/firestore';
 import PageHeader from '../../components/layout/PageHeader';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
@@ -8,8 +9,8 @@ import Table from '../../components/ui/Table';
 import Modal from '../../components/ui/Modal';
 import Input from '../../components/ui/Input';
 import Select from '../../components/ui/Select';
-import Badge from '../../components/ui/Badge';
 import EmptyState from '../../components/common/EmptyState';
+import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { Event } from '../../types';
 import { formatDate } from '../../utils/date-utils';
 import { canUserAccess, Permissions } from '../../utils/permissions';
@@ -24,31 +25,9 @@ interface TrainingFormData {
 
 const Training: React.FC = () => {
   const { user } = useAuth();
-  const [trainingSessions, setTrainingSessions] = useState<Event[]>([
-    {
-      id: '1',
-      type: 'training',
-      date: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString(),
-      time: '19:00',
-      location: 'Main Field',
-      description: 'Focus on passing and tactical play',
-      createdBy: '1',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    },
-    {
-      id: '2',
-      type: 'training',
-      date: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
-      time: '19:00',
-      location: 'Main Field',
-      description: 'Fitness and conditioning',
-      createdBy: '1',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    },
-  ]);
-
+  const [trainingSessions, setTrainingSessions] = useState<Event[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSession, setEditingSession] = useState<Event | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -73,6 +52,32 @@ const Training: React.FC = () => {
     { value: 'Indoor Facility', label: 'Indoor Facility' },
     { value: 'Victory Park', label: 'Victory Park' },
   ];
+
+  // Load training sessions from Firestore
+  useEffect(() => {
+    const loadTrainingSessions = async () => {
+      try {
+        setLoading(true);
+        const events = await EventService.getEventsByType('training');
+        setTrainingSessions(events);
+      } catch (error) {
+        console.error('Error loading training sessions:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadTrainingSessions();
+
+    // Set up real-time listener for training events
+    const unsubscribe = EventService.subscribeToEvents((events) => {
+      const trainingEvents = events.filter(event => event.type === 'training');
+      setTrainingSessions(trainingEvents);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   const columns = [
     {
@@ -154,38 +159,53 @@ const Training: React.FC = () => {
     setIsDeleteModalOpen(true);
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (sessionToDelete) {
-      setTrainingSessions(prev => prev.filter(s => s.id !== sessionToDelete.id));
-      setIsDeleteModalOpen(false);
-      setSessionToDelete(null);
+      try {
+        await EventService.deleteEvent(sessionToDelete.id);
+        setIsDeleteModalOpen(false);
+        setSessionToDelete(null);
+      } catch (error) {
+        console.error('Error deleting training session:', error);
+      }
     }
   };
 
-  const onSubmit = (data: TrainingFormData) => {
-    const sessionData: Event = {
-      id: editingSession?.id || Date.now().toString(),
-      type: 'training',
-      date: new Date(data.date).toISOString(),
-      time: data.time,
-      location: data.location,
-      description: data.description,
-      createdBy: user?.id || '1',
-      createdAt: editingSession?.createdAt || new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
+  const onSubmit = async (data: TrainingFormData) => {
+    try {
+      setSubmitting(true);
+      
+      const sessionData = {
+        type: 'training' as const,
+        date: new Date(data.date).toISOString(),
+        time: data.time,
+        location: data.location,
+        description: data.description,
+        createdBy: user?.id || '',
+      };
 
-    if (editingSession) {
-      setTrainingSessions(prev => 
-        prev.map(s => s.id === editingSession.id ? sessionData : s)
-      );
-    } else {
-      setTrainingSessions(prev => [...prev, sessionData]);
+      if (editingSession) {
+        await EventService.updateEvent(editingSession.id, sessionData);
+      } else {
+        await EventService.createEvent(sessionData);
+      }
+
+      setIsModalOpen(false);
+      reset();
+    } catch (error) {
+      console.error('Error saving training session:', error);
+    } finally {
+      setSubmitting(false);
     }
-
-    setIsModalOpen(false);
-    reset();
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-64">
+        <LoadingSpinner size="lg" />
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -269,7 +289,7 @@ const Training: React.FC = () => {
             >
               Cancel
             </Button>
-            <Button type="submit">
+            <Button type="submit" isLoading={submitting}>
               {editingSession ? 'Update Session' : 'Schedule Session'}
             </Button>
           </div>

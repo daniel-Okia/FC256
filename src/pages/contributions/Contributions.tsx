@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { CreditCard, Plus, Edit, Trash2, DollarSign } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { ContributionService, MemberService } from '../../services/firestore';
 import PageHeader from '../../components/layout/PageHeader';
 import Card from '../../components/ui/Card';
 import Table from '../../components/ui/Table';
@@ -10,6 +11,7 @@ import Select from '../../components/ui/Select';
 import Badge from '../../components/ui/Badge';
 import Button from '../../components/ui/Button';
 import EmptyState from '../../components/common/EmptyState';
+import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { Contribution, Member, ContributionType, PaymentMethod } from '../../types';
 import { formatDate } from '../../utils/date-utils';
 import { canUserAccess, Permissions } from '../../utils/permissions';
@@ -26,54 +28,10 @@ interface ContributionFormData {
 
 const Contributions: React.FC = () => {
   const { user } = useAuth();
-  
-  // Mock members data
-  const [members] = useState<Member[]>([
-    {
-      id: '1',
-      name: 'John Doe',
-      position: 'Forward',
-      jerseyNumber: 10,
-      email: 'john@example.com',
-      phone: '+1234567890',
-      status: 'active',
-      dateJoined: '2023-01-15',
-    },
-    {
-      id: '2',
-      name: 'Jane Smith',
-      position: 'Midfielder',
-      jerseyNumber: 8,
-      email: 'jane@example.com',
-      phone: '+1234567891',
-      status: 'active',
-      dateJoined: '2023-02-20',
-    },
-  ]);
-
-  const [contributions, setContributions] = useState<Contribution[]>([
-    {
-      id: '1',
-      memberId: '1',
-      type: 'monetary',
-      amount: 100,
-      description: 'Monthly Dues',
-      paymentMethod: 'bank transfer',
-      date: new Date().toISOString(),
-      recordedBy: '1',
-      recordedAt: new Date().toISOString(),
-    },
-    {
-      id: '2',
-      memberId: '2',
-      type: 'in-kind',
-      description: 'Training Equipment',
-      date: new Date().toISOString(),
-      recordedBy: '1',
-      recordedAt: new Date().toISOString(),
-    },
-  ]);
-
+  const [members, setMembers] = useState<Member[]>([]);
+  const [contributions, setContributions] = useState<Contribution[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingContribution, setEditingContribution] = useState<Contribution | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -93,6 +51,39 @@ const Contributions: React.FC = () => {
   } = useForm<ContributionFormData>();
 
   const watchType = watch('type');
+
+  // Load data from Firestore
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        const [membersData, contributionsData] = await Promise.all([
+          MemberService.getAllMembers(),
+          ContributionService.getAllContributions(),
+        ]);
+        setMembers(membersData);
+        setContributions(contributionsData);
+      } catch (error) {
+        console.error('Error loading data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+
+    // Set up real-time listeners
+    const unsubscribeMembers = MemberService.subscribeToMembers(setMembers);
+    const unsubscribeContributions = ContributionService.subscribeToContributions((contributions) => {
+      setContributions(contributions);
+      setLoading(false);
+    });
+
+    return () => {
+      unsubscribeMembers();
+      unsubscribeContributions();
+    };
+  }, []);
 
   const memberOptions = members.map(member => ({
     value: member.id,
@@ -223,38 +214,54 @@ const Contributions: React.FC = () => {
     setIsDeleteModalOpen(true);
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (contributionToDelete) {
-      setContributions(prev => prev.filter(c => c.id !== contributionToDelete.id));
-      setIsDeleteModalOpen(false);
-      setContributionToDelete(null);
+      try {
+        await ContributionService.deleteContribution(contributionToDelete.id);
+        setIsDeleteModalOpen(false);
+        setContributionToDelete(null);
+      } catch (error) {
+        console.error('Error deleting contribution:', error);
+      }
     }
   };
 
-  const onSubmit = (data: ContributionFormData) => {
-    const contributionData: Contribution = {
-      id: editingContribution?.id || Date.now().toString(),
-      memberId: data.memberId,
-      type: data.type,
-      amount: data.type === 'monetary' ? data.amount : undefined,
-      description: data.description,
-      paymentMethod: data.type === 'monetary' ? data.paymentMethod : undefined,
-      date: new Date(data.date).toISOString(),
-      recordedBy: user?.id || '1',
-      recordedAt: new Date().toISOString(),
-    };
+  const onSubmit = async (data: ContributionFormData) => {
+    try {
+      setSubmitting(true);
+      
+      const contributionData = {
+        memberId: data.memberId,
+        type: data.type,
+        amount: data.type === 'monetary' ? data.amount : undefined,
+        description: data.description,
+        paymentMethod: data.type === 'monetary' ? data.paymentMethod : undefined,
+        date: new Date(data.date).toISOString(),
+        recordedBy: user?.id || '',
+      };
 
-    if (editingContribution) {
-      setContributions(prev => 
-        prev.map(c => c.id === editingContribution.id ? contributionData : c)
-      );
-    } else {
-      setContributions(prev => [...prev, contributionData]);
+      if (editingContribution) {
+        await ContributionService.updateContribution(editingContribution.id, contributionData);
+      } else {
+        await ContributionService.createContribution(contributionData);
+      }
+
+      setIsModalOpen(false);
+      reset();
+    } catch (error) {
+      console.error('Error saving contribution:', error);
+    } finally {
+      setSubmitting(false);
     }
-
-    setIsModalOpen(false);
-    reset();
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-64">
+        <LoadingSpinner size="lg" />
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -365,7 +372,7 @@ const Contributions: React.FC = () => {
             >
               Cancel
             </Button>
-            <Button type="submit">
+            <Button type="submit" isLoading={submitting}>
               {editingContribution ? 'Update Contribution' : 'Add Contribution'}
             </Button>
           </div>

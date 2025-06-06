@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Crown, Plus, Edit, Trash2, User, Calendar } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { LeadershipService, MemberService } from '../../services/firestore';
 import PageHeader from '../../components/layout/PageHeader';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
@@ -10,6 +11,7 @@ import Input from '../../components/ui/Input';
 import Select from '../../components/ui/Select';
 import Badge from '../../components/ui/Badge';
 import EmptyState from '../../components/common/EmptyState';
+import LoadingSpinner from '../../components/common/LoadingSpinner';
 import Avatar from '../../components/ui/Avatar';
 import { Leadership as LeadershipType, Member, LeadershipRole } from '../../types';
 import { formatDate } from '../../utils/date-utils';
@@ -25,66 +27,10 @@ interface LeadershipFormData {
 
 const Leadership: React.FC = () => {
   const { user } = useAuth();
-  
-  // Mock members data
-  const [members] = useState<Member[]>([
-    {
-      id: '1',
-      name: 'John Doe',
-      position: 'Forward',
-      jerseyNumber: 10,
-      email: 'john@example.com',
-      phone: '+1234567890',
-      status: 'active',
-      dateJoined: '2023-01-15',
-    },
-    {
-      id: '2',
-      name: 'Jane Smith',
-      position: 'Midfielder',
-      jerseyNumber: 8,
-      email: 'jane@example.com',
-      phone: '+1234567891',
-      status: 'active',
-      dateJoined: '2023-02-20',
-    },
-    {
-      id: '3',
-      name: 'Mike Johnson',
-      position: 'Defender',
-      jerseyNumber: 4,
-      email: 'mike@example.com',
-      phone: '+1234567892',
-      status: 'active',
-      dateJoined: '2023-03-10',
-    },
-  ]);
-
-  const [leadershipRoles, setLeadershipRoles] = useState<LeadershipType[]>([
-    {
-      id: '1',
-      memberId: '1',
-      role: 'Captain',
-      startDate: '2024-01-01',
-      isActive: true,
-    },
-    {
-      id: '2',
-      memberId: '2',
-      role: 'Vice Captain',
-      startDate: '2024-01-01',
-      isActive: true,
-    },
-    {
-      id: '3',
-      memberId: '3',
-      role: 'Team Manager',
-      startDate: '2024-01-01',
-      endDate: '2024-06-30',
-      isActive: false,
-    },
-  ]);
-
+  const [members, setMembers] = useState<Member[]>([]);
+  const [leadershipRoles, setLeadershipRoles] = useState<LeadershipType[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRole, setEditingRole] = useState<LeadershipType | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -108,6 +54,39 @@ const Leadership: React.FC = () => {
     { value: 'Vice Captain', label: 'Vice Captain' },
     { value: 'Fitness Trainer', label: 'Fitness Trainer' },
   ];
+
+  // Load data from Firestore
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        const [membersData, leadershipData] = await Promise.all([
+          MemberService.getAllMembers(),
+          LeadershipService.getAllLeadership(),
+        ]);
+        setMembers(membersData);
+        setLeadershipRoles(leadershipData);
+      } catch (error) {
+        console.error('Error loading data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+
+    // Set up real-time listeners
+    const unsubscribeMembers = MemberService.subscribeToMembers(setMembers);
+    const unsubscribeLeadership = LeadershipService.subscribeToLeadership((leadership) => {
+      setLeadershipRoles(leadership);
+      setLoading(false);
+    });
+
+    return () => {
+      unsubscribeMembers();
+      unsubscribeLeadership();
+    };
+  }, []);
 
   const memberOptions = members.map(member => ({
     value: member.id,
@@ -141,7 +120,7 @@ const Leadership: React.FC = () => {
         const member = getMemberById(leadership.memberId);
         return member ? (
           <div className="flex items-center">
-            <Avatar size="sm\" className="mr-3" />
+            <Avatar size="sm" className="mr-3" />
             <div>
               <div className="font-medium text-gray-900 dark:text-white">
                 {member.name}
@@ -239,35 +218,52 @@ const Leadership: React.FC = () => {
     setIsDeleteModalOpen(true);
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (roleToDelete) {
-      setLeadershipRoles(prev => prev.filter(r => r.id !== roleToDelete.id));
-      setIsDeleteModalOpen(false);
-      setRoleToDelete(null);
+      try {
+        await LeadershipService.deleteLeadership(roleToDelete.id);
+        setIsDeleteModalOpen(false);
+        setRoleToDelete(null);
+      } catch (error) {
+        console.error('Error deleting leadership role:', error);
+      }
     }
   };
 
-  const onSubmit = (data: LeadershipFormData) => {
-    const roleData: LeadershipType = {
-      id: editingRole?.id || Date.now().toString(),
-      memberId: data.memberId,
-      role: data.role,
-      startDate: data.startDate,
-      endDate: data.endDate || undefined,
-      isActive: !data.endDate || new Date(data.endDate) > new Date(),
-    };
+  const onSubmit = async (data: LeadershipFormData) => {
+    try {
+      setSubmitting(true);
+      
+      const roleData = {
+        memberId: data.memberId,
+        role: data.role,
+        startDate: data.startDate,
+        endDate: data.endDate || undefined,
+        isActive: !data.endDate || new Date(data.endDate) > new Date(),
+      };
 
-    if (editingRole) {
-      setLeadershipRoles(prev => 
-        prev.map(r => r.id === editingRole.id ? roleData : r)
-      );
-    } else {
-      setLeadershipRoles(prev => [...prev, roleData]);
+      if (editingRole) {
+        await LeadershipService.updateLeadership(editingRole.id, roleData);
+      } else {
+        await LeadershipService.createLeadership(roleData);
+      }
+
+      setIsModalOpen(false);
+      reset();
+    } catch (error) {
+      console.error('Error saving leadership role:', error);
+    } finally {
+      setSubmitting(false);
     }
-
-    setIsModalOpen(false);
-    reset();
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-64">
+        <LoadingSpinner size="lg" />
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -352,7 +348,7 @@ const Leadership: React.FC = () => {
             >
               Cancel
             </Button>
-            <Button type="submit">
+            <Button type="submit" isLoading={submitting}>
               {editingRole ? 'Update Role' : 'Assign Role'}
             </Button>
           </div>

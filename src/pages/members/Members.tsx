@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { UserPlus, Download, Search, Edit, Trash2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { Member, Position, MemberStatus } from '../../types';
+import { MemberService } from '../../services/firestore';
 import PageHeader from '../../components/layout/PageHeader';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
@@ -9,6 +10,7 @@ import Select from '../../components/ui/Select';
 import Table from '../../components/ui/Table';
 import Modal from '../../components/ui/Modal';
 import Badge from '../../components/ui/Badge';
+import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { canUserAccess, Permissions } from '../../utils/permissions';
 import { exportToCSV } from '../../utils/export-utils';
 import { useForm } from 'react-hook-form';
@@ -29,39 +31,9 @@ const Members: React.FC = () => {
   const [editingMember, setEditingMember] = useState<Member | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [memberToDelete, setMemberToDelete] = useState<Member | null>(null);
-
-  const [members, setMembers] = useState<Member[]>([
-    {
-      id: '1',
-      name: 'John Doe',
-      position: 'Forward',
-      jerseyNumber: 10,
-      email: 'john@example.com',
-      phone: '+1234567890',
-      status: 'active',
-      dateJoined: '2023-01-15',
-    },
-    {
-      id: '2',
-      name: 'Jane Smith',
-      position: 'Midfielder',
-      jerseyNumber: 8,
-      email: 'jane@example.com',
-      phone: '+1234567891',
-      status: 'active',
-      dateJoined: '2023-02-20',
-    },
-    {
-      id: '3',
-      name: 'Mike Johnson',
-      position: 'Defender',
-      jerseyNumber: 4,
-      email: 'mike@example.com',
-      phone: '+1234567892',
-      status: 'injured',
-      dateJoined: '2023-03-10',
-    },
-  ]);
+  const [members, setMembers] = useState<Member[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
 
   const canCreateMember = user && canUserAccess(user.role, Permissions.CREATE_MEMBER);
   const canEditMember = user && canUserAccess(user.role, Permissions.EDIT_MEMBER);
@@ -90,6 +62,31 @@ const Members: React.FC = () => {
     { value: 'injured', label: 'Injured' },
     { value: 'suspended', label: 'Suspended' },
   ];
+
+  // Load members from Firestore
+  useEffect(() => {
+    const loadMembers = async () => {
+      try {
+        setLoading(true);
+        const membersData = await MemberService.getAllMembers();
+        setMembers(membersData);
+      } catch (error) {
+        console.error('Error loading members:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadMembers();
+
+    // Set up real-time listener
+    const unsubscribe = MemberService.subscribeToMembers((membersData) => {
+      setMembers(membersData);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   const filteredMembers = members.filter((member) =>
     member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -209,36 +206,38 @@ const Members: React.FC = () => {
     setIsDeleteModalOpen(true);
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (memberToDelete) {
-      setMembers(prev => prev.filter(m => m.id !== memberToDelete.id));
-      setIsDeleteModalOpen(false);
-      setMemberToDelete(null);
+      try {
+        await MemberService.deleteMember(memberToDelete.id);
+        setIsDeleteModalOpen(false);
+        setMemberToDelete(null);
+      } catch (error) {
+        console.error('Error deleting member:', error);
+      }
     }
   };
 
-  const onSubmit = (data: MemberFormData) => {
-    const memberData: Member = {
-      id: editingMember?.id || Date.now().toString(),
-      name: data.name,
-      position: data.position,
-      jerseyNumber: data.jerseyNumber,
-      email: data.email,
-      phone: data.phone,
-      status: data.status,
-      dateJoined: editingMember?.dateJoined || new Date().toISOString().split('T')[0],
-    };
+  const onSubmit = async (data: MemberFormData) => {
+    try {
+      setSubmitting(true);
+      
+      if (editingMember) {
+        await MemberService.updateMember(editingMember.id, data);
+      } else {
+        await MemberService.createMember({
+          ...data,
+          dateJoined: new Date().toISOString().split('T')[0],
+        });
+      }
 
-    if (editingMember) {
-      setMembers(prev => 
-        prev.map(m => m.id === editingMember.id ? memberData : m)
-      );
-    } else {
-      setMembers(prev => [...prev, memberData]);
+      setIsModalOpen(false);
+      reset();
+    } catch (error) {
+      console.error('Error saving member:', error);
+    } finally {
+      setSubmitting(false);
     }
-
-    setIsModalOpen(false);
-    reset();
   };
 
   const handleExport = () => {
@@ -254,6 +253,14 @@ const Members: React.FC = () => {
 
     exportToCSV(members, 'members-list', headers);
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-64">
+        <LoadingSpinner size="lg" />
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -373,7 +380,7 @@ const Members: React.FC = () => {
             >
               Cancel
             </Button>
-            <Button type="submit">
+            <Button type="submit" isLoading={submitting}>
               {editingMember ? 'Update Member' : 'Add Member'}
             </Button>
           </div>
