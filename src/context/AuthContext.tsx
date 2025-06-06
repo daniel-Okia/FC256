@@ -33,6 +33,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     error: null,
   });
 
+  const createDefaultUserDocument = async (firebaseUser: FirebaseUser): Promise<User> => {
+    const defaultUserData = {
+      name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User',
+      email: firebaseUser.email || '',
+      role: 'member' as UserRole,
+      phone: '',
+      dateJoined: new Date().toISOString(),
+      avatarUrl: firebaseUser.photoURL || '',
+    };
+
+    // Create the user document in Firestore
+    await setDoc(doc(db, 'users', firebaseUser.uid), defaultUserData);
+
+    return {
+      id: firebaseUser.uid,
+      ...defaultUserData,
+    };
+  };
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
@@ -40,29 +59,26 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           // Get user data from Firestore
           const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
           
+          let user: User;
+          
           if (userDoc.exists()) {
             const userData = userDoc.data() as Omit<User, 'id'>;
-            const user: User = {
+            user = {
               id: firebaseUser.uid,
               ...userData,
             };
-            
-            setAuthState({
-              isAuthenticated: true,
-              user,
-              isLoading: false,
-              error: null,
-            });
           } else {
-            // User document doesn't exist, sign out
-            await signOut(auth);
-            setAuthState({
-              isAuthenticated: false,
-              user: null,
-              isLoading: false,
-              error: 'User data not found',
-            });
+            // User document doesn't exist, create one with default values
+            console.log('User document not found, creating default document for:', firebaseUser.email);
+            user = await createDefaultUserDocument(firebaseUser);
           }
+          
+          setAuthState({
+            isAuthenticated: true,
+            user,
+            isLoading: false,
+            error: null,
+          });
         } catch (error) {
           console.error('Error fetching user data:', error);
           setAuthState({
@@ -95,22 +111,26 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Get user data from Firestore
       const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
       
+      let user: User;
+      
       if (userDoc.exists()) {
         const userData = userDoc.data() as Omit<User, 'id'>;
-        const user: User = {
+        user = {
           id: firebaseUser.uid,
           ...userData,
         };
-        
-        setAuthState({
-          isAuthenticated: true,
-          user,
-          isLoading: false,
-          error: null,
-        });
       } else {
-        throw new Error('User data not found');
+        // User document doesn't exist, create one with default values
+        console.log('User document not found during login, creating default document for:', firebaseUser.email);
+        user = await createDefaultUserDocument(firebaseUser);
       }
+      
+      setAuthState({
+        isAuthenticated: true,
+        user,
+        isLoading: false,
+        error: null,
+      });
     } catch (error: any) {
       console.error('Login error:', error);
       let errorMessage = 'An error occurred during login';
