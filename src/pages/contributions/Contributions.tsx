@@ -1,22 +1,57 @@
-import React from 'react';
-import { CreditCard } from 'lucide-react';
+import React, { useState } from 'react';
+import { CreditCard, Plus, Edit, Trash2, DollarSign } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import PageHeader from '../../components/layout/PageHeader';
 import Card from '../../components/ui/Card';
 import Table from '../../components/ui/Table';
+import Modal from '../../components/ui/Modal';
+import Input from '../../components/ui/Input';
+import Select from '../../components/ui/Select';
 import Badge from '../../components/ui/Badge';
 import Button from '../../components/ui/Button';
 import EmptyState from '../../components/common/EmptyState';
-import { Contribution } from '../../types';
+import { Contribution, Member, ContributionType, PaymentMethod } from '../../types';
 import { formatDate } from '../../utils/date-utils';
 import { canUserAccess, Permissions } from '../../utils/permissions';
+import { useForm } from 'react-hook-form';
+
+interface ContributionFormData {
+  memberId: string;
+  type: ContributionType;
+  amount?: number;
+  description: string;
+  paymentMethod?: PaymentMethod;
+  date: string;
+}
 
 const Contributions: React.FC = () => {
   const { user } = useAuth();
-  const canCreateContribution = user && canUserAccess(user.role, Permissions.CREATE_CONTRIBUTION);
+  
+  // Mock members data
+  const [members] = useState<Member[]>([
+    {
+      id: '1',
+      name: 'John Doe',
+      position: 'Forward',
+      jerseyNumber: 10,
+      email: 'john@example.com',
+      phone: '+1234567890',
+      status: 'active',
+      dateJoined: '2023-01-15',
+    },
+    {
+      id: '2',
+      name: 'Jane Smith',
+      position: 'Midfielder',
+      jerseyNumber: 8,
+      email: 'jane@example.com',
+      phone: '+1234567891',
+      status: 'active',
+      dateJoined: '2023-02-20',
+    },
+  ]);
 
-  // Mock data for demonstration
-  const contributions: Contribution[] = [
+  const [contributions, setContributions] = useState<Contribution[]>([
     {
       id: '1',
       memberId: '1',
@@ -37,9 +72,56 @@ const Contributions: React.FC = () => {
       recordedBy: '1',
       recordedAt: new Date().toISOString(),
     },
+  ]);
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingContribution, setEditingContribution] = useState<Contribution | null>(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [contributionToDelete, setContributionToDelete] = useState<Contribution | null>(null);
+
+  const canCreateContribution = user && canUserAccess(user.role, Permissions.CREATE_CONTRIBUTION);
+  const canEditContribution = user && canUserAccess(user.role, Permissions.EDIT_CONTRIBUTION);
+  const canDeleteContribution = user && canUserAccess(user.role, Permissions.DELETE_CONTRIBUTION);
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    setValue,
+    watch,
+    formState: { errors },
+  } = useForm<ContributionFormData>();
+
+  const watchType = watch('type');
+
+  const memberOptions = members.map(member => ({
+    value: member.id,
+    label: `${member.name} (#${member.jerseyNumber})`,
+  }));
+
+  const typeOptions = [
+    { value: 'monetary', label: 'Monetary' },
+    { value: 'in-kind', label: 'In-Kind' },
   ];
 
+  const paymentMethodOptions = [
+    { value: 'cash', label: 'Cash' },
+    { value: 'bank transfer', label: 'Bank Transfer' },
+    { value: 'mobile money', label: 'Mobile Money' },
+    { value: 'other', label: 'Other' },
+  ];
+
+  const getMemberById = (id: string) => members.find(m => m.id === id);
+
   const columns = [
+    {
+      key: 'member',
+      title: 'Member',
+      render: (contribution: Contribution) => {
+        const member = getMemberById(contribution.memberId);
+        return member ? `${member.name} (#${member.jerseyNumber})` : 'Unknown Member';
+      },
+    },
     {
       key: 'date',
       title: 'Date',
@@ -66,7 +148,14 @@ const Contributions: React.FC = () => {
       key: 'amount',
       title: 'Amount',
       render: (contribution: Contribution) =>
-        contribution.amount ? `$${contribution.amount}` : 'N/A',
+        contribution.amount ? (
+          <div className="flex items-center">
+            <DollarSign size={16} className="mr-1 text-green-600" />
+            {contribution.amount}
+          </div>
+        ) : (
+          'N/A'
+        ),
     },
     {
       key: 'paymentMethod',
@@ -78,11 +167,93 @@ const Contributions: React.FC = () => {
           'N/A'
         ),
     },
+    {
+      key: 'actions',
+      title: 'Actions',
+      render: (contribution: Contribution) => (
+        <div className="flex space-x-2">
+          {canEditContribution && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleEdit(contribution);
+              }}
+            >
+              <Edit size={16} />
+            </Button>
+          )}
+          {canDeleteContribution && (
+            <Button
+              size="sm"
+              variant="danger"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDeleteClick(contribution);
+              }}
+            >
+              <Trash2 size={16} />
+            </Button>
+          )}
+        </div>
+      ),
+    },
   ];
 
-  const handleCreateContribution = () => {
-    // Implementation for creating a new contribution
-    console.log('Create contribution');
+  const handleCreate = () => {
+    setEditingContribution(null);
+    reset();
+    setIsModalOpen(true);
+  };
+
+  const handleEdit = (contribution: Contribution) => {
+    setEditingContribution(contribution);
+    setValue('memberId', contribution.memberId);
+    setValue('type', contribution.type);
+    setValue('amount', contribution.amount);
+    setValue('description', contribution.description);
+    setValue('paymentMethod', contribution.paymentMethod);
+    setValue('date', contribution.date.split('T')[0]);
+    setIsModalOpen(true);
+  };
+
+  const handleDeleteClick = (contribution: Contribution) => {
+    setContributionToDelete(contribution);
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleDelete = () => {
+    if (contributionToDelete) {
+      setContributions(prev => prev.filter(c => c.id !== contributionToDelete.id));
+      setIsDeleteModalOpen(false);
+      setContributionToDelete(null);
+    }
+  };
+
+  const onSubmit = (data: ContributionFormData) => {
+    const contributionData: Contribution = {
+      id: editingContribution?.id || Date.now().toString(),
+      memberId: data.memberId,
+      type: data.type,
+      amount: data.type === 'monetary' ? data.amount : undefined,
+      description: data.description,
+      paymentMethod: data.type === 'monetary' ? data.paymentMethod : undefined,
+      date: new Date(data.date).toISOString(),
+      recordedBy: user?.id || '1',
+      recordedAt: new Date().toISOString(),
+    };
+
+    if (editingContribution) {
+      setContributions(prev => 
+        prev.map(c => c.id === editingContribution.id ? contributionData : c)
+      );
+    } else {
+      setContributions(prev => [...prev, contributionData]);
+    }
+
+    setIsModalOpen(false);
+    reset();
   };
 
   return (
@@ -92,7 +263,9 @@ const Contributions: React.FC = () => {
         description="Track and manage team contributions"
         actions={
           canCreateContribution && (
-            <Button onClick={handleCreateContribution}>Add Contribution</Button>
+            <Button onClick={handleCreate} leftIcon={<Plus size={18} />}>
+              Add Contribution
+            </Button>
           )
         }
       />
@@ -113,13 +286,116 @@ const Contributions: React.FC = () => {
               canCreateContribution
                 ? {
                     label: 'Add Contribution',
-                    onClick: handleCreateContribution,
+                    onClick: handleCreate,
                   }
                 : undefined
             }
           />
         )}
       </Card>
+
+      {/* Create/Edit Modal */}
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title={editingContribution ? 'Edit Contribution' : 'Add Contribution'}
+        size="md"
+      >
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <Select
+            label="Member"
+            options={memberOptions}
+            error={errors.memberId?.message}
+            {...register('memberId', { required: 'Member is required' })}
+          />
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Select
+              label="Type"
+              options={typeOptions}
+              error={errors.type?.message}
+              {...register('type', { required: 'Type is required' })}
+            />
+
+            <Input
+              label="Date"
+              type="date"
+              error={errors.date?.message}
+              {...register('date', { required: 'Date is required' })}
+            />
+          </div>
+
+          {watchType === 'monetary' && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Input
+                label="Amount"
+                type="number"
+                step="0.01"
+                min="0"
+                error={errors.amount?.message}
+                {...register('amount', { 
+                  required: watchType === 'monetary' ? 'Amount is required for monetary contributions' : false,
+                  min: { value: 0, message: 'Amount must be positive' }
+                })}
+              />
+
+              <Select
+                label="Payment Method"
+                options={paymentMethodOptions}
+                error={errors.paymentMethod?.message}
+                {...register('paymentMethod', { 
+                  required: watchType === 'monetary' ? 'Payment method is required for monetary contributions' : false 
+                })}
+              />
+            </div>
+          )}
+
+          <Input
+            label="Description"
+            placeholder={watchType === 'monetary' ? 'e.g., Monthly dues, tournament fee' : 'e.g., Training equipment, jerseys'}
+            error={errors.description?.message}
+            {...register('description', { required: 'Description is required' })}
+          />
+
+          <div className="flex justify-end space-x-3 pt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button type="submit">
+              {editingContribution ? 'Update Contribution' : 'Add Contribution'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        title="Delete Contribution"
+        size="sm"
+      >
+        <div className="space-y-4">
+          <p className="text-gray-600 dark:text-gray-300">
+            Are you sure you want to delete this contribution? This action cannot be undone.
+          </p>
+          <div className="flex justify-end space-x-3">
+            <Button
+              variant="outline"
+              onClick={() => setIsDeleteModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button variant="danger" onClick={handleDelete}>
+              Delete
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };
