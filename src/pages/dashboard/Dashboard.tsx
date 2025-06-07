@@ -5,7 +5,6 @@ import { MemberService, EventService, ContributionService, AttendanceService } f
 import PageHeader from '../../components/layout/PageHeader';
 import DashboardCard from './DashboardCard';
 import AttendanceChart from './AttendanceChart';
-import ContributionsChart from './ContributionsChart';
 import UpcomingEvents from './UpcomingEvents';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { formatUGX } from '../../utils/currency-utils';
@@ -192,10 +191,6 @@ const Dashboard: React.FC = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         <AttendanceChart />
-        <ContributionsChart />
-      </div>
-
-      <div className="grid grid-cols-1 gap-6">
         <UpcomingEvents />
       </div>
     </div>

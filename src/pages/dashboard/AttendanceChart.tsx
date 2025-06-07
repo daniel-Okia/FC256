@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Bar } from 'react-chartjs-2';
+import { Line } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
   CategoryScale,
   LinearScale,
-  BarElement,
+  PointElement,
+  LineElement,
   Title,
   Tooltip,
   Legend,
@@ -12,13 +13,14 @@ import {
 } from 'chart.js';
 import Card from '../../components/ui/Card';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
-import { AttendanceService, EventService, MemberService } from '../../services/firestore';
-import { Attendance, Event, Member } from '../../types';
+import { AttendanceService, EventService } from '../../services/firestore';
+import { formatDate } from '../../utils/date-utils';
 
 ChartJS.register(
   CategoryScale,
   LinearScale,
-  BarElement,
+  PointElement,
+  LineElement,
   Title,
   Tooltip,
   Legend
@@ -28,14 +30,16 @@ interface AttendanceChartProps {
   className?: string;
 }
 
-interface WeeklyAttendanceData {
-  week: string;
-  training: number;
-  friendlies: number;
+interface DailyAttendanceData {
+  date: string;
+  formattedDate: string;
+  attendeeCount: number;
+  eventType: string;
+  eventDescription: string;
 }
 
 const AttendanceChart: React.FC<AttendanceChartProps> = ({ className }) => {
-  const [attendanceData, setAttendanceData] = useState<WeeklyAttendanceData[]>([]);
+  const [attendanceData, setAttendanceData] = useState<DailyAttendanceData[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -44,83 +48,45 @@ const AttendanceChart: React.FC<AttendanceChartProps> = ({ className }) => {
         setLoading(true);
         
         // Load all required data
-        const [attendance, events, members] = await Promise.all([
+        const [attendance, events] = await Promise.all([
           AttendanceService.getAllAttendance(),
           EventService.getAllEvents(),
-          MemberService.getAllMembers(),
         ]);
 
-        // Get the last 4 weeks of data
-        const now = new Date();
-        const fourWeeksAgo = new Date(now.getTime() - (4 * 7 * 24 * 60 * 60 * 1000));
+        // Get training sessions from the last 30 days
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
         
-        // Filter events from the last 4 weeks
-        const recentEvents = events.filter(event => {
+        // Filter training events from the last 30 days
+        const recentTrainingEvents = events.filter(event => {
           const eventDate = new Date(event.date);
-          return eventDate >= fourWeeksAgo && eventDate <= now;
+          return event.type === 'training' && eventDate >= thirtyDaysAgo && eventDate <= new Date();
         });
 
-        // Group events by week
-        const weeklyData: { [key: string]: { training: Set<string>; friendlies: Set<string> } } = {};
-        
-        recentEvents.forEach(event => {
-          const eventDate = new Date(event.date);
-          const weekStart = new Date(eventDate);
-          weekStart.setDate(eventDate.getDate() - eventDate.getDay()); // Start of week (Sunday)
-          const weekKey = weekStart.toISOString().split('T')[0];
-          
-          if (!weeklyData[weekKey]) {
-            weeklyData[weekKey] = { training: new Set(), friendlies: new Set() };
-          }
-          
-          // Get attendance for this event
+        // Sort events by date
+        recentTrainingEvents.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+        // Calculate attendance for each training session
+        const dailyAttendanceData: DailyAttendanceData[] = recentTrainingEvents.map(event => {
+          // Count present attendees for this event
           const eventAttendance = attendance.filter(a => 
             a.eventId === event.id && a.status === 'present'
           );
           
-          // Add unique member IDs to the appropriate set
-          eventAttendance.forEach(a => {
-            if (event.type === 'training') {
-              weeklyData[weekKey].training.add(a.memberId);
-            } else {
-              weeklyData[weekKey].friendlies.add(a.memberId);
-            }
-          });
+          return {
+            date: event.date,
+            formattedDate: formatDate(event.date),
+            attendeeCount: eventAttendance.length,
+            eventType: 'Training',
+            eventDescription: event.description || 'Training Session',
+          };
         });
 
-        // Convert to chart data format
-        const chartData: WeeklyAttendanceData[] = [];
-        const sortedWeeks = Object.keys(weeklyData).sort();
-        
-        sortedWeeks.forEach((weekKey, index) => {
-          const weekData = weeklyData[weekKey];
-          chartData.push({
-            week: `Week ${index + 1}`,
-            training: weekData.training.size,
-            friendlies: weekData.friendlies.size,
-          });
-        });
-
-        // If we have less than 4 weeks, fill with empty data
-        while (chartData.length < 4) {
-          chartData.unshift({
-            week: `Week ${chartData.length + 1}`,
-            training: 0,
-            friendlies: 0,
-          });
-        }
-
-        // Keep only the last 4 weeks
-        setAttendanceData(chartData.slice(-4));
+        setAttendanceData(dailyAttendanceData);
       } catch (error) {
         console.error('Error loading attendance data:', error);
         // Set default empty data on error
-        setAttendanceData([
-          { week: 'Week 1', training: 0, friendlies: 0 },
-          { week: 'Week 2', training: 0, friendlies: 0 },
-          { week: 'Week 3', training: 0, friendlies: 0 },
-          { week: 'Week 4', training: 0, friendlies: 0 },
-        ]);
+        setAttendanceData([]);
       } finally {
         setLoading(false);
       }
@@ -130,28 +96,26 @@ const AttendanceChart: React.FC<AttendanceChartProps> = ({ className }) => {
   }, []);
 
   const data = {
-    labels: attendanceData.map(d => d.week),
+    labels: attendanceData.map(d => d.formattedDate),
     datasets: [
       {
-        label: 'Training',
-        data: attendanceData.map(d => d.training),
-        backgroundColor: 'rgba(79, 79, 230, 0.8)',
+        label: 'Members Present',
+        data: attendanceData.map(d => d.attendeeCount),
         borderColor: 'rgba(79, 79, 230, 1)',
-        borderWidth: 1,
-        borderRadius: 4,
-      },
-      {
-        label: 'Friendlies',
-        data: attendanceData.map(d => d.friendlies),
-        backgroundColor: 'rgba(225, 29, 42, 0.8)',
-        borderColor: 'rgba(225, 29, 42, 1)',
-        borderWidth: 1,
-        borderRadius: 4,
+        backgroundColor: 'rgba(79, 79, 230, 0.1)',
+        borderWidth: 3,
+        pointBackgroundColor: 'rgba(79, 79, 230, 1)',
+        pointBorderColor: '#ffffff',
+        pointBorderWidth: 2,
+        pointRadius: 6,
+        pointHoverRadius: 8,
+        fill: true,
+        tension: 0.4,
       },
     ],
   };
 
-  const options: ChartOptions<'bar'> = {
+  const options: ChartOptions<'line'> = {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
@@ -173,10 +137,21 @@ const AttendanceChart: React.FC<AttendanceChartProps> = ({ className }) => {
         borderColor: document.documentElement.classList.contains('dark') ? '#4B5563' : '#E5E7EB',
         borderWidth: 1,
         callbacks: {
+          title: function(context) {
+            const dataIndex = context[0].dataIndex;
+            const data = attendanceData[dataIndex];
+            return data ? data.formattedDate : '';
+          },
           label: function(context) {
-            const label = context.dataset.label || '';
+            const dataIndex = context.dataIndex;
+            const data = attendanceData[dataIndex];
             const value = context.raw as number;
-            return `${label}: ${value} unique attendees`;
+            return `${value} members attended`;
+          },
+          afterLabel: function(context) {
+            const dataIndex = context.dataIndex;
+            const data = attendanceData[dataIndex];
+            return data?.eventDescription ? `Event: ${data.eventDescription}` : '';
           }
         }
       },
@@ -189,6 +164,7 @@ const AttendanceChart: React.FC<AttendanceChartProps> = ({ className }) => {
         },
         ticks: {
           color: document.documentElement.classList.contains('dark') ? '#D1D5DB' : '#4B5563',
+          maxTicksLimit: 8, // Limit number of x-axis labels for better readability
         },
       },
       y: {
@@ -201,23 +177,54 @@ const AttendanceChart: React.FC<AttendanceChartProps> = ({ className }) => {
           color: document.documentElement.classList.contains('dark') ? '#D1D5DB' : '#4B5563',
           stepSize: 1,
         },
+        title: {
+          display: true,
+          text: 'Number of Members',
+          color: document.documentElement.classList.contains('dark') ? '#D1D5DB' : '#4B5563',
+        },
+      },
+    },
+    interaction: {
+      intersect: false,
+      mode: 'index',
+    },
+    elements: {
+      point: {
+        hoverBackgroundColor: 'rgba(79, 79, 230, 1)',
+        hoverBorderColor: '#ffffff',
       },
     },
   };
 
   return (
     <Card
-      title="Attendance Trends"
-      subtitle="Unique member attendance over the last 4 weeks"
+      title="Training Attendance Trends"
+      subtitle="Daily attendance for training sessions over the last 30 days"
       className={className}
     >
       {loading ? (
         <div className="h-80 flex items-center justify-center">
           <LoadingSpinner size="md" />
         </div>
-      ) : (
+      ) : attendanceData.length > 0 ? (
         <div className="h-80">
-          <Bar data={data} options={options} />
+          <Line data={data} options={options} />
+        </div>
+      ) : (
+        <div className="h-80 flex items-center justify-center">
+          <div className="text-center">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
+              <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+              No Training Data
+            </h3>
+            <p className="text-gray-500 dark:text-gray-400">
+              No training sessions with attendance records found in the last 30 days
+            </p>
+          </div>
         </div>
       )}
     </Card>
