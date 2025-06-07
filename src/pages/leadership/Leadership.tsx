@@ -120,7 +120,7 @@ const Leadership: React.FC = () => {
         const member = getMemberById(leadership.memberId);
         return member ? (
           <div className="flex items-center">
-            <Avatar size="sm\" className="mr-3" />
+            <Avatar size="sm" className="mr-3" />
             <div>
               <div className="font-medium text-gray-900 dark:text-white">
                 {member.name}
@@ -200,7 +200,12 @@ const Leadership: React.FC = () => {
 
   const handleCreate = () => {
     setEditingRole(null);
-    reset();
+    reset({
+      memberId: '',
+      role: 'Head Coach',
+      startDate: '',
+      endDate: '',
+    });
     setIsModalOpen(true);
   };
 
@@ -273,7 +278,7 @@ const Leadership: React.FC = () => {
         actions={
           canManageLeadership && (
             <Button onClick={handleCreate} leftIcon={<Plus size={18} />}>
-              Assign Role
+              Add Leadership Role
             </Button>
           )
         }
@@ -294,7 +299,7 @@ const Leadership: React.FC = () => {
             action={
               canManageLeadership
                 ? {
-                    label: 'Assign Role',
+                    label: 'Add Leadership Role',
                     onClick: handleCreate,
                   }
                 : undefined
@@ -307,7 +312,7 @@ const Leadership: React.FC = () => {
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title={editingRole ? 'Edit Leadership Role' : 'Assign Leadership Role'}
+        title={editingRole ? 'Edit Leadership Role' : 'Add Leadership Role'}
         size="md"
       >
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -349,7 +354,7 @@ const Leadership: React.FC = () => {
               Cancel
             </Button>
             <Button type="submit" isLoading={submitting}>
-              {editingRole ? 'Update Role' : 'Assign Role'}
+              {editingRole ? 'Update Role' : 'Add Role'}
             </Button>
           </div>
         </form>

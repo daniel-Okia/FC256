@@ -154,7 +154,13 @@ const Friendlies: React.FC = () => {
 
   const handleCreate = () => {
     setEditingFriendly(null);
-    reset();
+    reset({
+      date: '',
+      time: '',
+      location: '',
+      opponent: '',
+      description: '',
+    });
     setIsModalOpen(true);
   };
 
@@ -230,7 +236,7 @@ const Friendlies: React.FC = () => {
         actions={
           canCreateFriendly && (
             <Button onClick={handleCreate} leftIcon={<Plus size={18} />}>
-              Schedule Friendly
+              Add Friendly Match
             </Button>
           )
         }
@@ -251,7 +257,7 @@ const Friendlies: React.FC = () => {
             action={
               canCreateFriendly
                 ? {
-                    label: 'Schedule Friendly',
+                    label: 'Add Friendly Match',
                     onClick: handleCreate,
                   }
                 : undefined
@@ -264,7 +270,7 @@ const Friendlies: React.FC = () => {
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title={editingFriendly ? 'Edit Friendly Match' : 'Schedule Friendly Match'}
+        title={editingFriendly ? 'Edit Friendly Match' : 'Add Friendly Match'}
         size="md"
       >
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -314,7 +320,7 @@ const Friendlies: React.FC = () => {
               Cancel
             </Button>
             <Button type="submit" isLoading={submitting}>
-              {editingFriendly ? 'Update Match' : 'Schedule Match'}
+              {editingFriendly ? 'Update Match' : 'Add Match'}
             </Button>
           </div>
         </form>

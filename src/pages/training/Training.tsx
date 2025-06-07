@@ -141,7 +141,12 @@ const Training: React.FC = () => {
 
   const handleCreate = () => {
     setEditingSession(null);
-    reset();
+    reset({
+      date: '',
+      time: '',
+      location: '',
+      description: '',
+    });
     setIsModalOpen(true);
   };
 
@@ -215,7 +220,7 @@ const Training: React.FC = () => {
         actions={
           canCreateTraining && (
             <Button onClick={handleCreate} leftIcon={<Plus size={18} />}>
-              Schedule Training
+              Add Training Session
             </Button>
           )
         }
@@ -236,7 +241,7 @@ const Training: React.FC = () => {
             action={
               canCreateTraining
                 ? {
-                    label: 'Schedule Training',
+                    label: 'Add Training Session',
                     onClick: handleCreate,
                   }
                 : undefined
@@ -249,7 +254,7 @@ const Training: React.FC = () => {
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title={editingSession ? 'Edit Training Session' : 'Schedule Training Session'}
+        title={editingSession ? 'Edit Training Session' : 'Add Training Session'}
         size="md"
       >
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -290,7 +295,7 @@ const Training: React.FC = () => {
               Cancel
             </Button>
             <Button type="submit" isLoading={submitting}>
-              {editingSession ? 'Update Session' : 'Schedule Session'}
+              {editingSession ? 'Update Session' : 'Add Session'}
             </Button>
           </div>
         </form>
