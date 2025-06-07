@@ -19,7 +19,6 @@ import { useForm } from 'react-hook-form';
 interface MemberFormData {
   name: string;
   position: Position;
-  jerseyNumber: number;
   email: string;
   phone: string;
   status: MemberStatus;
@@ -112,13 +111,6 @@ const Members: React.FC = () => {
 
   const columns = [
     {
-      key: 'jerseyNumber',
-      title: '#',
-      render: (member: Member) => (
-        <span className="font-semibold">{member.jerseyNumber}</span>
-      ),
-    },
-    {
       key: 'name',
       title: 'Name',
       render: (member: Member) => (
@@ -190,7 +182,6 @@ const Members: React.FC = () => {
     reset({
       name: '',
       position: 'Forward',
-      jerseyNumber: 1,
       email: '',
       phone: '',
       status: 'active',
@@ -202,7 +193,6 @@ const Members: React.FC = () => {
     setEditingMember(member);
     setValue('name', member.name);
     setValue('position', member.position);
-    setValue('jerseyNumber', member.jerseyNumber);
     setValue('email', member.email);
     setValue('phone', member.phone);
     setValue('status', member.status);
@@ -230,13 +220,22 @@ const Members: React.FC = () => {
     try {
       setSubmitting(true);
       
+      // Generate a jersey number automatically (simple incrementing logic)
+      const maxJerseyNumber = members.reduce((max, member) => 
+        Math.max(max, member.jerseyNumber || 0), 0
+      );
+      const newJerseyNumber = maxJerseyNumber + 1;
+      
+      const memberData = {
+        ...data,
+        jerseyNumber: editingMember ? editingMember.jerseyNumber : newJerseyNumber,
+        dateJoined: editingMember ? editingMember.dateJoined : new Date().toISOString().split('T')[0],
+      };
+      
       if (editingMember) {
-        await MemberService.updateMember(editingMember.id, data);
+        await MemberService.updateMember(editingMember.id, memberData);
       } else {
-        await MemberService.createMember({
-          ...data,
-          dateJoined: new Date().toISOString().split('T')[0],
-        });
+        await MemberService.createMember(memberData);
       }
 
       setIsModalOpen(false);
@@ -341,28 +340,13 @@ const Members: React.FC = () => {
         size="xl"
       >
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Input
-              label="Full Name"
-              placeholder="Enter member's full name"
-              error={errors.name?.message}
-              required
-              {...register('name', { required: 'Name is required' })}
-            />
-
-            <Input
-              label="Jersey Number"
-              type="number"
-              placeholder="e.g., 10"
-              error={errors.jerseyNumber?.message}
-              required
-              {...register('jerseyNumber', { 
-                required: 'Jersey number is required',
-                min: { value: 1, message: 'Jersey number must be at least 1' },
-                max: { value: 99, message: 'Jersey number must be at most 99' }
-              })}
-            />
-          </div>
+          <Input
+            label="Full Name"
+            placeholder="Enter member's full name"
+            error={errors.name?.message}
+            required
+            {...register('name', { required: 'Name is required' })}
+          />
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Select
@@ -402,11 +386,19 @@ const Members: React.FC = () => {
           <Input
             label="Phone Number"
             type="tel"
-            placeholder="+1 (555) 123-4567"
+            placeholder="+256 700 123 456"
             error={errors.phone?.message}
             required
             {...register('phone', { required: 'Phone is required' })}
           />
+
+          {!editingMember && (
+            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+              <p className="text-sm text-blue-700 dark:text-blue-300">
+                <strong>Note:</strong> Jersey number will be assigned automatically when the member is created.
+              </p>
+            </div>
+          )}
 
           <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200 dark:border-gray-700">
             <Button
