@@ -46,11 +46,7 @@ const Training: React.FC = () => {
   } = useForm<TrainingFormData>();
 
   const locationOptions = [
-    { value: 'Main Field', label: 'Main Field' },
-    { value: 'Training Ground A', label: 'Training Ground A' },
-    { value: 'Training Ground B', label: 'Training Ground B' },
-    { value: 'Indoor Facility', label: 'Indoor Facility' },
-    { value: 'Victory Park', label: 'Victory Park' },
+    { value: 'Kiyinda Main Field', label: 'Kiyinda Main Field' },
   ];
 
   // Load training sessions from Firestore
@@ -144,7 +140,7 @@ const Training: React.FC = () => {
     reset({
       date: '',
       time: '',
-      location: '',
+      location: 'Kiyinda Main Field', // Default to the only available location
       description: '',
     });
     setIsModalOpen(true);
@@ -216,7 +212,7 @@ const Training: React.FC = () => {
     <div>
       <PageHeader
         title="Training Sessions"
-        description="Schedule and manage team training sessions"
+        description="Schedule and manage team training sessions at Kiyinda Main Field"
         actions={
           canCreateTraining && (
             <Button 
@@ -280,13 +276,24 @@ const Training: React.FC = () => {
             />
           </div>
 
-          <Select
-            label="Location"
-            options={locationOptions}
-            placeholder="Select training location"
-            error={errors.location?.message}
-            required
-            {...register('location', { required: 'Location is required' })}
+          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+            <div className="flex items-center">
+              <MapPin size={20} className="text-blue-600 dark:text-blue-400 mr-2" />
+              <div>
+                <h4 className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                  Training Location
+                </h4>
+                <p className="text-sm text-blue-700 dark:text-blue-300">
+                  All training sessions are held at Kiyinda Main Field
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <Input
+            type="hidden"
+            value="Kiyinda Main Field"
+            {...register('location', { value: 'Kiyinda Main Field' })}
           />
 
           <Input
