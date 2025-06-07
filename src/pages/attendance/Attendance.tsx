@@ -71,6 +71,26 @@ const AttendancePage: React.FC = () => {
 
   const watchEventId = watch('eventId');
 
+  // Function to combine attendance data with member and event info
+  const combineAttendanceData = (attendanceData: Attendance[], membersData: Member[], eventsData: Event[]): AttendanceRecord[] => {
+    return attendanceData.map(attendance => {
+      const member = membersData.find(m => m.id === attendance.memberId);
+      const event = eventsData.find(e => e.id === attendance.eventId);
+      
+      if (!member || !event) {
+        console.warn('Missing member or event for attendance record:', attendance.id);
+        return null;
+      }
+      
+      return {
+        id: attendance.id,
+        member,
+        event,
+        attendance,
+      };
+    }).filter((record): record is AttendanceRecord => record !== null);
+  };
+
   // Load data from Firestore
   useEffect(() => {
     const loadData = async () => {
@@ -90,17 +110,8 @@ const AttendancePage: React.FC = () => {
         setEvents(eventsData);
 
         // Combine attendance data with member and event info
-        const records: AttendanceRecord[] = attendanceData.map(attendance => {
-          const member = membersData.find(m => m.id === attendance.memberId);
-          const event = eventsData.find(e => e.id === attendance.eventId);
-          return {
-            id: attendance.id,
-            member: member!,
-            event: event!,
-            attendance,
-          };
-        }).filter(record => record.member && record.event);
-
+        const records = combineAttendanceData(attendanceData, membersData, eventsData);
+        console.log('Combined attendance records:', records.length);
         setAttendanceRecords(records);
       } catch (error) {
         console.error('Error loading data:', error);
@@ -110,8 +121,10 @@ const AttendancePage: React.FC = () => {
     };
 
     loadData();
+  }, []);
 
-    // Set up real-time listeners
+  // Set up real-time listeners
+  useEffect(() => {
     const unsubscribeMembers = MemberService.subscribeToMembers((newMembers) => {
       console.log('Members updated:', newMembers.length);
       setMembers(newMembers);
@@ -124,22 +137,12 @@ const AttendancePage: React.FC = () => {
     
     const unsubscribeAttendance = AttendanceService.subscribeToAttendance((attendanceData) => {
       console.log('Attendance updated:', attendanceData.length);
-      // Update attendance records when data changes
+      // Re-combine attendance data when it changes
       setAttendanceRecords(prevRecords => {
-        const records: AttendanceRecord[] = attendanceData.map(attendance => {
-          const member = members.find(m => m.id === attendance.memberId);
-          const event = events.find(e => e.id === attendance.eventId);
-          return {
-            id: attendance.id,
-            member: member!,
-            event: event!,
-            attendance,
-          };
-        }).filter(record => record.member && record.event);
-
+        const records = combineAttendanceData(attendanceData, members, events);
+        console.log('Updated attendance records:', records.length);
         return records;
       });
-      setLoading(false);
     });
 
     return () => {
@@ -147,18 +150,17 @@ const AttendancePage: React.FC = () => {
       unsubscribeEvents();
       unsubscribeAttendance();
     };
-  }, []);
+  }, [members, events]);
 
   // Update attendance records when members or events change
   useEffect(() => {
     if (members.length > 0 && events.length > 0) {
-      setAttendanceRecords(prevRecords => 
-        prevRecords.map(record => ({
-          ...record,
-          member: members.find(m => m.id === record.attendance.memberId) || record.member,
-          event: events.find(e => e.id === record.attendance.eventId) || record.event,
-        }))
-      );
+      // Re-fetch attendance data to ensure we have the latest
+      AttendanceService.getAllAttendance().then(attendanceData => {
+        const records = combineAttendanceData(attendanceData, members, events);
+        console.log('Refreshed attendance records after member/event update:', records.length);
+        setAttendanceRecords(records);
+      });
     }
   }, [members, events]);
 
@@ -259,6 +261,10 @@ const AttendancePage: React.FC = () => {
   const filteredRecords = filterEvent === 'all' 
     ? attendanceRecords 
     : attendanceRecords.filter(record => record.event.id === filterEvent);
+
+  console.log('Filter event:', filterEvent);
+  console.log('Total attendance records:', attendanceRecords.length);
+  console.log('Filtered records:', filteredRecords.length);
 
   const columns = [
     {
@@ -513,7 +519,10 @@ const AttendancePage: React.FC = () => {
           label="Filter by Event"
           options={eventOptions}
           value={filterEvent}
-          onChange={(e) => setFilterEvent(e.target.value)}
+          onChange={(value) => {
+            console.log('Filter changed to:', value);
+            setFilterEvent(value);
+          }}
           className="max-w-md"
         />
       </div>
@@ -614,7 +623,7 @@ const AttendancePage: React.FC = () => {
                         label="Attendance Status"
                         options={statusOptions}
                         value={memberAttendance[member.id] || 'present'}
-                        onChange={(e) => updateMemberAttendance(member.id, e.target.value as AttendanceStatus)}
+                        onChange={(value) => updateMemberAttendance(member.id, value as AttendanceStatus)}
                         required
                       />
                       
