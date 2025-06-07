@@ -28,11 +28,9 @@ interface AttendanceRecord {
   attendance: Attendance;
 }
 
-interface MemberAttendanceState {
-  [memberId: string]: {
-    status: AttendanceStatus;
-    notes: string;
-  };
+interface MemberAttendanceData {
+  status: AttendanceStatus;
+  notes: string;
 }
 
 const AttendancePage: React.FC = () => {
@@ -48,7 +46,7 @@ const AttendancePage: React.FC = () => {
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [editingRecord, setEditingRecord] = useState<AttendanceRecord | null>(null);
   const [recordToDelete, setRecordToDelete] = useState<AttendanceRecord | null>(null);
-  const [memberAttendanceState, setMemberAttendanceState] = useState<MemberAttendanceState>({});
+  const [memberAttendance, setMemberAttendance] = useState<Map<string, MemberAttendanceData>>(new Map());
   const [filterEvent, setFilterEvent] = useState<string>('all');
 
   const canMarkAttendance = user && canUserAccess(user.role, Permissions.MARK_ATTENDANCE);
@@ -108,16 +106,11 @@ const AttendancePage: React.FC = () => {
           AttendanceService.getAllAttendance(),
         ]);
 
-        console.log('Loaded members:', membersData.length);
-        console.log('Loaded events:', eventsData.length);
-        console.log('Loaded attendance:', attendanceData.length);
-
         setMembers(membersData);
         setEvents(eventsData);
 
         // Combine attendance data with member and event info
         const records = combineAttendanceData(attendanceData, membersData, eventsData);
-        console.log('Combined attendance records:', records.length);
         setAttendanceRecords(records);
       } catch (error) {
         console.error('Error loading data:', error);
@@ -132,21 +125,17 @@ const AttendancePage: React.FC = () => {
   // Set up real-time listeners
   useEffect(() => {
     const unsubscribeMembers = MemberService.subscribeToMembers((newMembers) => {
-      console.log('Members updated:', newMembers.length);
       setMembers(newMembers);
     });
     
     const unsubscribeEvents = EventService.subscribeToEvents((newEvents) => {
-      console.log('Events updated:', newEvents.length);
       setEvents(newEvents);
     });
     
     const unsubscribeAttendance = AttendanceService.subscribeToAttendance((attendanceData) => {
-      console.log('Attendance updated:', attendanceData.length);
       // Re-combine attendance data when it changes
       setAttendanceRecords(prevRecords => {
         const records = combineAttendanceData(attendanceData, members, events);
-        console.log('Updated attendance records:', records.length);
         return records;
       });
     });
@@ -164,25 +153,21 @@ const AttendancePage: React.FC = () => {
       // Re-fetch attendance data to ensure we have the latest
       AttendanceService.getAllAttendance().then(attendanceData => {
         const records = combineAttendanceData(attendanceData, members, events);
-        console.log('Refreshed attendance records after member/event update:', records.length);
         setAttendanceRecords(records);
       });
     }
   }, [members, events]);
 
-  // Watch for event selection changes
+  // Watch for event selection changes and initialize attendance data
   useEffect(() => {
-    if (watchEventId && events.length > 0) {
+    if (watchEventId && events.length > 0 && members.length > 0) {
       const event = events.find(e => e.id === watchEventId);
-      console.log('Event selection changed:', watchEventId, event);
       setSelectedEvent(event || null);
       
-      if (event && members.length > 0) {
-        // Initialize attendance status for all active members
+      if (event) {
+        // Initialize attendance data for all active members
         const activeMembers = members.filter(m => m.status === 'active');
-        console.log('Active members for event:', activeMembers.length);
-        
-        const initialState: MemberAttendanceState = {};
+        const newAttendanceMap = new Map<string, MemberAttendanceData>();
         
         activeMembers.forEach(member => {
           // Check if attendance already exists for this member and event
@@ -190,18 +175,17 @@ const AttendancePage: React.FC = () => {
             record => record.member.id === member.id && record.event.id === watchEventId
           );
           
-          initialState[member.id] = {
+          newAttendanceMap.set(member.id, {
             status: existingAttendance?.attendance.status || 'present',
             notes: existingAttendance?.attendance.notes || '',
-          };
+          });
         });
         
-        console.log('Initial attendance state:', initialState);
-        setMemberAttendanceState(initialState);
+        setMemberAttendance(newAttendanceMap);
       }
     } else {
       setSelectedEvent(null);
-      setMemberAttendanceState({});
+      setMemberAttendance(new Map());
     }
   }, [watchEventId, events, members, attendanceRecords]);
 
@@ -266,10 +250,6 @@ const AttendancePage: React.FC = () => {
   const filteredRecords = filterEvent === 'all' 
     ? attendanceRecords 
     : attendanceRecords.filter(record => record.event.id === filterEvent);
-
-  console.log('Filter event:', filterEvent);
-  console.log('Total attendance records:', attendanceRecords.length);
-  console.log('Filtered records:', filteredRecords.length);
 
   const columns = [
     {
@@ -358,7 +338,7 @@ const AttendancePage: React.FC = () => {
 
   const handleCreate = () => {
     setSelectedEvent(null);
-    setMemberAttendanceState({});
+    setMemberAttendance(new Map());
     reset({
       eventId: '',
     });
@@ -389,18 +369,23 @@ const AttendancePage: React.FC = () => {
     }
   };
 
-  const updateMemberAttendance = (memberId: string, field: 'status' | 'notes', value: AttendanceStatus | string) => {
-    console.log(`Updating ${field} for member:`, memberId, 'to:', value);
-    setMemberAttendanceState(prev => {
-      const updated = {
-        ...prev,
-        [memberId]: {
-          ...prev[memberId],
-          [field]: value,
-        },
-      };
-      console.log('Updated attendance state:', updated);
-      return updated;
+  // Update member attendance status
+  const updateMemberStatus = (memberId: string, status: AttendanceStatus) => {
+    setMemberAttendance(prev => {
+      const newMap = new Map(prev);
+      const currentData = newMap.get(memberId) || { status: 'present', notes: '' };
+      newMap.set(memberId, { ...currentData, status });
+      return newMap;
+    });
+  };
+
+  // Update member attendance notes
+  const updateMemberNotes = (memberId: string, notes: string) => {
+    setMemberAttendance(prev => {
+      const newMap = new Map(prev);
+      const currentData = newMap.get(memberId) || { status: 'present', notes: '' };
+      newMap.set(memberId, { ...currentData, notes });
+      return newMap;
     });
   };
 
@@ -414,17 +399,13 @@ const AttendancePage: React.FC = () => {
       setSubmitting(true);
       
       const activeMembers = members.filter(m => m.status === 'active');
-      console.log('Saving attendance for', activeMembers.length, 'active members');
-      console.log('Current member attendance state:', memberAttendanceState);
       
       // Create or update attendance records for each member
       for (const member of activeMembers) {
-        const memberState = memberAttendanceState[member.id];
-        if (!memberState) continue;
+        const memberData = memberAttendance.get(member.id);
+        if (!memberData) continue;
         
-        const { status, notes } = memberState;
-        
-        console.log(`Processing ${member.name}: status=${status}, notes=${notes}`);
+        const { status, notes } = memberData;
         
         // Check if attendance record already exists
         const existingRecord = attendanceRecords.find(
@@ -442,11 +423,9 @@ const AttendancePage: React.FC = () => {
         
         if (existingRecord) {
           // Update existing record
-          console.log('Updating attendance for', member.name);
           await AttendanceService.updateAttendance(existingRecord.id, attendanceData);
         } else {
           // Create new record
-          console.log('Creating attendance for', member.name);
           await AttendanceService.createAttendance(attendanceData);
         }
       }
@@ -454,7 +433,7 @@ const AttendancePage: React.FC = () => {
       setIsModalOpen(false);
       reset();
       setSelectedEvent(null);
-      setMemberAttendanceState({});
+      setMemberAttendance(new Map());
     } catch (error) {
       console.error('Error saving attendance:', error);
     } finally {
@@ -490,7 +469,6 @@ const AttendancePage: React.FC = () => {
 
   // Handle filter change
   const handleFilterChange = (value: string) => {
-    console.log('Filter changed to:', value);
     setFilterEvent(value);
   };
 
@@ -576,7 +554,7 @@ const AttendancePage: React.FC = () => {
         onClose={() => {
           setIsModalOpen(false);
           setSelectedEvent(null);
-          setMemberAttendanceState({});
+          setMemberAttendance(new Map());
           reset();
         }}
         title="Record Attendance"
@@ -615,9 +593,9 @@ const AttendancePage: React.FC = () => {
               </h4>
               <div className="space-y-4 max-h-96 overflow-y-auto">
                 {activeMembers.map(member => {
-                  const memberState = memberAttendanceState[member.id];
-                  const currentStatus = memberState?.status || 'present';
-                  const currentNotes = memberState?.notes || '';
+                  const memberData = memberAttendance.get(member.id);
+                  const currentStatus = memberData?.status || 'present';
+                  const currentNotes = memberData?.notes || '';
                   
                   return (
                     <div key={member.id} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:bg-gray-50 dark:hover:bg-neutral-700/30 transition-colors">
@@ -647,8 +625,7 @@ const AttendancePage: React.FC = () => {
                             value={currentStatus}
                             onChange={(e) => {
                               const newStatus = e.target.value as AttendanceStatus;
-                              console.log(`Changing ${member.name} status from ${currentStatus} to ${newStatus}`);
-                              updateMemberAttendance(member.id, 'status', newStatus);
+                              updateMemberStatus(member.id, newStatus);
                             }}
                             className="block w-full rounded-lg shadow-sm border transition-colors duration-200 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 sm:text-sm appearance-none border-gray-300 dark:border-gray-600 dark:bg-neutral-700 dark:text-white hover:border-gray-400 dark:hover:border-gray-500 px-3 py-2.5 pr-10"
                             required
@@ -665,7 +642,7 @@ const AttendancePage: React.FC = () => {
                           label="Notes (Optional)"
                           placeholder="Add notes if needed..."
                           value={currentNotes}
-                          onChange={(e) => updateMemberAttendance(member.id, 'notes', e.target.value)}
+                          onChange={(e) => updateMemberNotes(member.id, e.target.value)}
                         />
                       </div>
                     </div>
@@ -710,7 +687,7 @@ const AttendancePage: React.FC = () => {
               onClick={() => {
                 setIsModalOpen(false);
                 setSelectedEvent(null);
-                setMemberAttendanceState({});
+                setMemberAttendance(new Map());
                 reset();
               }}
             >
