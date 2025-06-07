@@ -9,7 +9,7 @@ interface ModalProps {
   title?: string;
   children: React.ReactNode;
   footer?: React.ReactNode;
-  size?: 'sm' | 'md' | 'lg' | 'xl';
+  size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl';
   hideCloseButton?: boolean;
 }
 
@@ -32,6 +32,8 @@ const Modal: React.FC<ModalProps> = ({
         return 'sm:max-w-lg';
       case 'xl':
         return 'sm:max-w-xl';
+      case '2xl':
+        return 'sm:max-w-2xl';
       default:
         return 'sm:max-w-md';
     }
@@ -49,7 +51,7 @@ const Modal: React.FC<ModalProps> = ({
           leaveFrom="opacity-100"
           leaveTo="opacity-0"
         >
-          <div className="fixed inset-0 bg-black bg-opacity-50" />
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" />
         </Transition.Child>
 
         <div className="fixed inset-0 overflow-y-auto">
@@ -64,10 +66,10 @@ const Modal: React.FC<ModalProps> = ({
               leaveTo="opacity-0 scale-95"
             >
               <Dialog.Panel
-                className={`w-full ${getSizeClass()} transform overflow-hidden rounded-lg bg-white dark:bg-neutral-800 text-left align-middle shadow-xl transition-all`}
+                className={`w-full ${getSizeClass()} transform overflow-hidden rounded-xl bg-white dark:bg-neutral-800 text-left align-middle shadow-2xl transition-all border border-gray-200 dark:border-gray-700`}
               >
                 {title && (
-                  <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                  <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-neutral-700/50">
                     <Dialog.Title
                       as="h3"
                       className="text-lg font-semibold text-gray-900 dark:text-white"
@@ -79,7 +81,7 @@ const Modal: React.FC<ModalProps> = ({
                         variant="ghost"
                         size="sm"
                         onClick={onClose}
-                        className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                        className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-200 dark:hover:bg-neutral-600"
                         aria-label="Close"
                       >
                         <X size={18} />
@@ -87,9 +89,9 @@ const Modal: React.FC<ModalProps> = ({
                     )}
                   </div>
                 )}
-                <div className="px-6 py-4">{children}</div>
+                <div className="px-6 py-6 max-h-[70vh] overflow-y-auto">{children}</div>
                 {footer && (
-                  <div className="px-6 py-4 bg-gray-50 dark:bg-neutral-700 border-t border-gray-200 dark:border-gray-700">
+                  <div className="px-6 py-4 bg-gray-50 dark:bg-neutral-700/50 border-t border-gray-200 dark:border-gray-700">
                     {footer}
                   </div>
                 )}

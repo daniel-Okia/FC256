@@ -120,7 +120,7 @@ const Leadership: React.FC = () => {
         const member = getMemberById(leadership.memberId);
         return member ? (
           <div className="flex items-center">
-            <Avatar size="sm\" className="mr-3" />
+            <Avatar size="sm" className="mr-3" />
             <div>
               <div className="font-medium text-gray-900 dark:text-white">
                 {member.name}
@@ -317,39 +317,46 @@ const Leadership: React.FC = () => {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         title={editingRole ? 'Edit Leadership Role' : 'Add Leadership Role'}
-        size="md"
+        size="lg"
       >
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           <Select
             label="Member"
             options={memberOptions}
+            placeholder="Select a team member"
             error={errors.memberId?.message}
+            required
             {...register('memberId', { required: 'Member is required' })}
           />
 
           <Select
-            label="Role"
+            label="Leadership Role"
             options={roleOptions}
+            placeholder="Select leadership role"
             error={errors.role?.message}
+            required
             {...register('role', { required: 'Role is required' })}
           />
 
-          <Input
-            label="Start Date"
-            type="date"
-            error={errors.startDate?.message}
-            {...register('startDate', { required: 'Start date is required' })}
-          />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Input
+              label="Start Date"
+              type="date"
+              error={errors.startDate?.message}
+              required
+              {...register('startDate', { required: 'Start date is required' })}
+            />
 
-          <Input
-            label="End Date (Optional)"
-            type="date"
-            helperText="Leave empty for ongoing role"
-            error={errors.endDate?.message}
-            {...register('endDate')}
-          />
+            <Input
+              label="End Date"
+              type="date"
+              helperText="Leave empty for ongoing role"
+              error={errors.endDate?.message}
+              {...register('endDate')}
+            />
+          </div>
 
-          <div className="flex justify-end space-x-3 pt-4">
+          <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200 dark:border-gray-700">
             <Button
               type="button"
               variant="outline"
@@ -357,7 +364,11 @@ const Leadership: React.FC = () => {
             >
               Cancel
             </Button>
-            <Button type="submit" isLoading={submitting}>
+            <Button 
+              type="submit" 
+              isLoading={submitting}
+              className="bg-primary-600 hover:bg-primary-700 text-white"
+            >
               {editingRole ? 'Update Role' : 'Add Role'}
             </Button>
           </div>
@@ -375,7 +386,7 @@ const Leadership: React.FC = () => {
           <p className="text-gray-600 dark:text-gray-300">
             Are you sure you want to remove this leadership role? This action cannot be undone.
           </p>
-          <div className="flex justify-end space-x-3">
+          <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200 dark:border-gray-700">
             <Button
               variant="outline"
               onClick={() => setIsDeleteModalOpen(false)}

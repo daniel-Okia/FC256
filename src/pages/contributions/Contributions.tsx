@@ -317,21 +317,25 @@ const Contributions: React.FC = () => {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         title={editingContribution ? 'Edit Contribution' : 'Add Contribution'}
-        size="md"
+        size="lg"
       >
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           <Select
             label="Member"
             options={memberOptions}
+            placeholder="Select a team member"
             error={errors.memberId?.message}
+            required
             {...register('memberId', { required: 'Member is required' })}
           />
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Select
-              label="Type"
+              label="Contribution Type"
               options={typeOptions}
+              placeholder="Select type"
               error={errors.type?.message}
+              required
               {...register('type', { required: 'Type is required' })}
             />
 
@@ -339,18 +343,21 @@ const Contributions: React.FC = () => {
               label="Date"
               type="date"
               error={errors.date?.message}
+              required
               {...register('date', { required: 'Date is required' })}
             />
           </div>
 
           {watchType === 'monetary' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <Input
                 label="Amount"
                 type="number"
                 step="0.01"
                 min="0"
+                placeholder="0.00"
                 error={errors.amount?.message}
+                required
                 {...register('amount', { 
                   required: watchType === 'monetary' ? 'Amount is required for monetary contributions' : false,
                   min: { value: 0, message: 'Amount must be positive' }
@@ -360,7 +367,9 @@ const Contributions: React.FC = () => {
               <Select
                 label="Payment Method"
                 options={paymentMethodOptions}
+                placeholder="Select payment method"
                 error={errors.paymentMethod?.message}
+                required
                 {...register('paymentMethod', { 
                   required: watchType === 'monetary' ? 'Payment method is required for monetary contributions' : false 
                 })}
@@ -372,10 +381,11 @@ const Contributions: React.FC = () => {
             label="Description"
             placeholder={watchType === 'monetary' ? 'e.g., Monthly dues, tournament fee' : 'e.g., Training equipment, jerseys'}
             error={errors.description?.message}
+            required
             {...register('description', { required: 'Description is required' })}
           />
 
-          <div className="flex justify-end space-x-3 pt-4">
+          <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200 dark:border-gray-700">
             <Button
               type="button"
               variant="outline"
@@ -383,7 +393,11 @@ const Contributions: React.FC = () => {
             >
               Cancel
             </Button>
-            <Button type="submit" isLoading={submitting}>
+            <Button 
+              type="submit" 
+              isLoading={submitting}
+              className="bg-primary-600 hover:bg-primary-700 text-white"
+            >
               {editingContribution ? 'Update Contribution' : 'Add Contribution'}
             </Button>
           </div>
@@ -401,7 +415,7 @@ const Contributions: React.FC = () => {
           <p className="text-gray-600 dark:text-gray-300">
             Are you sure you want to delete this contribution? This action cannot be undone.
           </p>
-          <div className="flex justify-end space-x-3">
+          <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200 dark:border-gray-700">
             <Button
               variant="outline"
               onClick={() => setIsDeleteModalOpen(false)}

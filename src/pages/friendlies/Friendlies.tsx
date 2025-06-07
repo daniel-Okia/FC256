@@ -275,14 +275,15 @@ const Friendlies: React.FC = () => {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         title={editingFriendly ? 'Edit Friendly Match' : 'Add Friendly Match'}
-        size="md"
+        size="lg"
       >
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Input
               label="Date"
               type="date"
               error={errors.date?.message}
+              required
               {...register('date', { required: 'Date is required' })}
             />
 
@@ -290,32 +291,37 @@ const Friendlies: React.FC = () => {
               label="Time"
               type="time"
               error={errors.time?.message}
+              required
               {...register('time', { required: 'Time is required' })}
             />
           </div>
 
           <Input
             label="Opponent Team"
-            placeholder="e.g., FC Victory"
+            placeholder="e.g., FC Victory, Lions United"
             error={errors.opponent?.message}
+            required
             {...register('opponent', { required: 'Opponent is required' })}
           />
 
           <Select
             label="Location"
             options={locationOptions}
+            placeholder="Select match location"
             error={errors.location?.message}
+            required
             {...register('location', { required: 'Location is required' })}
           />
 
           <Input
             label="Description"
-            placeholder="Match purpose, preparation notes, etc."
+            placeholder="Match purpose, preparation notes, special arrangements..."
             error={errors.description?.message}
+            helperText="Optional: Add details about the friendly match"
             {...register('description')}
           />
 
-          <div className="flex justify-end space-x-3 pt-4">
+          <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200 dark:border-gray-700">
             <Button
               type="button"
               variant="outline"
@@ -323,7 +329,11 @@ const Friendlies: React.FC = () => {
             >
               Cancel
             </Button>
-            <Button type="submit" isLoading={submitting}>
+            <Button 
+              type="submit" 
+              isLoading={submitting}
+              className="bg-primary-600 hover:bg-primary-700 text-white"
+            >
               {editingFriendly ? 'Update Match' : 'Add Match'}
             </Button>
           </div>
@@ -341,7 +351,7 @@ const Friendlies: React.FC = () => {
           <p className="text-gray-600 dark:text-gray-300">
             Are you sure you want to delete this friendly match? This action cannot be undone.
           </p>
-          <div className="flex justify-end space-x-3">
+          <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200 dark:border-gray-700">
             <Button
               variant="outline"
               onClick={() => setIsDeleteModalOpen(false)}
@@ -349,7 +359,7 @@ const Friendlies: React.FC = () => {
               Cancel
             </Button>
             <Button variant="danger" onClick={handleDelete}>
-              Delete
+              Delete Match
             </Button>
           </div>
         </div>

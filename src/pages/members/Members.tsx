@@ -338,20 +338,24 @@ const Members: React.FC = () => {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         title={editingMember ? 'Edit Member' : 'Add New Member'}
-        size="lg"
+        size="xl"
       >
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Input
               label="Full Name"
+              placeholder="Enter member's full name"
               error={errors.name?.message}
+              required
               {...register('name', { required: 'Name is required' })}
             />
 
             <Input
               label="Jersey Number"
               type="number"
+              placeholder="e.g., 10"
               error={errors.jerseyNumber?.message}
+              required
               {...register('jerseyNumber', { 
                 required: 'Jersey number is required',
                 min: { value: 1, message: 'Jersey number must be at least 1' },
@@ -360,26 +364,32 @@ const Members: React.FC = () => {
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Select
               label="Position"
               options={positionOptions}
+              placeholder="Select position"
               error={errors.position?.message}
+              required
               {...register('position', { required: 'Position is required' })}
             />
 
             <Select
               label="Status"
               options={statusOptions}
+              placeholder="Select status"
               error={errors.status?.message}
+              required
               {...register('status', { required: 'Status is required' })}
             />
           </div>
 
           <Input
-            label="Email"
+            label="Email Address"
             type="email"
+            placeholder="member@example.com"
             error={errors.email?.message}
+            required
             {...register('email', { 
               required: 'Email is required',
               pattern: {
@@ -390,13 +400,15 @@ const Members: React.FC = () => {
           />
 
           <Input
-            label="Phone"
+            label="Phone Number"
             type="tel"
+            placeholder="+1 (555) 123-4567"
             error={errors.phone?.message}
+            required
             {...register('phone', { required: 'Phone is required' })}
           />
 
-          <div className="flex justify-end space-x-3 pt-4">
+          <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200 dark:border-gray-700">
             <Button
               type="button"
               variant="outline"
@@ -404,7 +416,11 @@ const Members: React.FC = () => {
             >
               Cancel
             </Button>
-            <Button type="submit" isLoading={submitting}>
+            <Button 
+              type="submit" 
+              isLoading={submitting}
+              className="bg-primary-600 hover:bg-primary-700 text-white"
+            >
               {editingMember ? 'Update Member' : 'Add Member'}
             </Button>
           </div>
@@ -420,9 +436,9 @@ const Members: React.FC = () => {
       >
         <div className="space-y-4">
           <p className="text-gray-600 dark:text-gray-300">
-            Are you sure you want to delete this member? This action cannot be undone.
+            Are you sure you want to delete <strong>{memberToDelete?.name}</strong>? This action cannot be undone.
           </p>
-          <div className="flex justify-end space-x-3">
+          <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200 dark:border-gray-700">
             <Button
               variant="outline"
               onClick={() => setIsDeleteModalOpen(false)}
@@ -430,7 +446,7 @@ const Members: React.FC = () => {
               Cancel
             </Button>
             <Button variant="danger" onClick={handleDelete}>
-              Delete
+              Delete Member
             </Button>
           </div>
         </div>

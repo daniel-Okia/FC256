@@ -34,9 +34,10 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
         {label && (
           <label
             htmlFor={inputId}
-            className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+            className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
           >
             {label}
+            {props.required && <span className="text-red-500 ml-1">*</span>}
           </label>
         )}
         <div className="relative">
@@ -49,11 +50,14 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
             ref={ref}
             id={inputId}
             className={twMerge(
-              'block rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 w-full sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-neutral-800 dark:text-white',
-              leftIcon ? 'pl-10' : '',
-              rightIcon ? 'pr-10' : '',
+              'block w-full rounded-lg shadow-sm border transition-colors duration-200 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 sm:text-sm',
+              'border-gray-300 dark:border-gray-600 dark:bg-neutral-700 dark:text-white placeholder-gray-400 dark:placeholder-gray-500',
+              'hover:border-gray-400 dark:hover:border-gray-500',
+              leftIcon ? 'pl-10' : 'px-3',
+              rightIcon ? 'pr-10' : 'px-3',
+              'py-2.5',
               error
-                ? 'border-error-300 text-error-900 placeholder-error-300 focus:ring-error-500 focus:border-error-500'
+                ? 'border-red-300 text-red-900 placeholder-red-300 focus:ring-red-500/20 focus:border-red-500 dark:border-red-500 dark:text-red-100'
                 : '',
               className
             )}
@@ -69,7 +73,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
         </div>
         {error && (
           <p
-            className="mt-1 text-sm text-error-600 dark:text-error-400"
+            className="mt-2 text-sm text-red-600 dark:text-red-400"
             id={`${inputId}-error`}
           >
             {error}
@@ -77,7 +81,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
         )}
         {helperText && !error && (
           <p
-            className="mt-1 text-sm text-gray-500 dark:text-gray-400"
+            className="mt-2 text-sm text-gray-500 dark:text-gray-400"
             id={`${inputId}-helper`}
           >
             {helperText}

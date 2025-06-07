@@ -259,38 +259,45 @@ const Training: React.FC = () => {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         title={editingSession ? 'Edit Training Session' : 'Add Training Session'}
-        size="md"
+        size="lg"
       >
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <Input
-            label="Date"
-            type="date"
-            error={errors.date?.message}
-            {...register('date', { required: 'Date is required' })}
-          />
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Input
+              label="Date"
+              type="date"
+              error={errors.date?.message}
+              required
+              {...register('date', { required: 'Date is required' })}
+            />
 
-          <Input
-            label="Time"
-            type="time"
-            error={errors.time?.message}
-            {...register('time', { required: 'Time is required' })}
-          />
+            <Input
+              label="Time"
+              type="time"
+              error={errors.time?.message}
+              required
+              {...register('time', { required: 'Time is required' })}
+            />
+          </div>
 
           <Select
             label="Location"
             options={locationOptions}
+            placeholder="Select training location"
             error={errors.location?.message}
+            required
             {...register('location', { required: 'Location is required' })}
           />
 
           <Input
             label="Description"
-            placeholder="Training focus, objectives, etc."
+            placeholder="Training focus, objectives, special notes..."
             error={errors.description?.message}
+            helperText="Optional: Add details about the training session"
             {...register('description')}
           />
 
-          <div className="flex justify-end space-x-3 pt-4">
+          <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200 dark:border-gray-700">
             <Button
               type="button"
               variant="outline"
@@ -298,7 +305,11 @@ const Training: React.FC = () => {
             >
               Cancel
             </Button>
-            <Button type="submit" isLoading={submitting}>
+            <Button 
+              type="submit" 
+              isLoading={submitting}
+              className="bg-primary-600 hover:bg-primary-700 text-white"
+            >
               {editingSession ? 'Update Session' : 'Add Session'}
             </Button>
           </div>
@@ -316,7 +327,7 @@ const Training: React.FC = () => {
           <p className="text-gray-600 dark:text-gray-300">
             Are you sure you want to delete this training session? This action cannot be undone.
           </p>
-          <div className="flex justify-end space-x-3">
+          <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200 dark:border-gray-700">
             <Button
               variant="outline"
               onClick={() => setIsDeleteModalOpen(false)}
@@ -324,7 +335,7 @@ const Training: React.FC = () => {
               Cancel
             </Button>
             <Button variant="danger" onClick={handleDelete}>
-              Delete
+              Delete Session
             </Button>
           </div>
         </div>
