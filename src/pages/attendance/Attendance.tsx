@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Plus, CheckCircle, XCircle, Clock, AlertCircle } from 'lucide-react';
+import { Users, Plus, CheckCircle, XCircle, Clock, AlertCircle, Edit, Trash2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { AttendanceService, MemberService, EventService } from '../../services/firestore';
 import PageHeader from '../../components/layout/PageHeader';
@@ -41,11 +41,18 @@ const AttendancePage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
+  const [editingRecord, setEditingRecord] = useState<AttendanceRecord | null>(null);
+  const [recordToDelete, setRecordToDelete] = useState<AttendanceRecord | null>(null);
   const [memberAttendance, setMemberAttendance] = useState<{ [key: string]: AttendanceStatus }>({});
   const [memberNotes, setMemberNotes] = useState<{ [key: string]: string }>({});
+  const [filterEvent, setFilterEvent] = useState<string>('all');
 
   const canMarkAttendance = user && canUserAccess(user.role, Permissions.MARK_ATTENDANCE);
+  const canEditAttendance = user && canUserAccess(user.role, Permissions.MARK_ATTENDANCE);
+  const canDeleteAttendance = user && canUserAccess(user.role, Permissions.MARK_ATTENDANCE);
 
   const {
     register,
@@ -55,6 +62,13 @@ const AttendancePage: React.FC = () => {
     watch,
     formState: { errors },
   } = useForm<AttendanceFormData>();
+
+  const {
+    register: registerEdit,
+    handleSubmit: handleSubmitEdit,
+    setValue: setValueEdit,
+    formState: { errors: errorsEdit },
+  } = useForm<{ status: AttendanceStatus; notes: string }>();
 
   const watchEventId = watch('eventId');
 
@@ -95,8 +109,14 @@ const AttendancePage: React.FC = () => {
     loadData();
 
     // Set up real-time listeners
-    const unsubscribeMembers = MemberService.subscribeToMembers(setMembers);
-    const unsubscribeEvents = EventService.subscribeToEvents(setEvents);
+    const unsubscribeMembers = MemberService.subscribeToMembers((newMembers) => {
+      setMembers(newMembers);
+    });
+    
+    const unsubscribeEvents = EventService.subscribeToEvents((newEvents) => {
+      setEvents(newEvents);
+    });
+    
     const unsubscribeAttendance = AttendanceService.subscribeToAttendance((attendanceData) => {
       // Re-combine data when attendance updates
       const records: AttendanceRecord[] = attendanceData.map(attendance => {
@@ -119,14 +139,30 @@ const AttendancePage: React.FC = () => {
       unsubscribeEvents();
       unsubscribeAttendance();
     };
+  }, []);
+
+  // Update attendance records when members or events change
+  useEffect(() => {
+    if (members.length > 0 && events.length > 0) {
+      setAttendanceRecords(prevRecords => 
+        prevRecords.map(record => ({
+          ...record,
+          member: members.find(m => m.id === record.attendance.memberId) || record.member,
+          event: events.find(e => e.id === record.attendance.eventId) || record.event,
+        }))
+      );
+    }
   }, [members, events]);
 
-  const eventOptions = events
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-    .map(event => ({
-      value: event.id,
-      label: `${event.type === 'training' ? 'Training' : `Friendly vs ${event.opponent}`} - ${formatDate(event.date)}`,
-    }));
+  const eventOptions = [
+    { value: 'all', label: 'All Events' },
+    ...events
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .map(event => ({
+        value: event.id,
+        label: `${event.type === 'training' ? 'Training' : `Friendly vs ${event.opponent}`} - ${formatDate(event.date)}`,
+      }))
+  ];
 
   const statusOptions = [
     { value: 'present', label: 'Present' },
@@ -164,6 +200,11 @@ const AttendancePage: React.FC = () => {
         return null;
     }
   };
+
+  // Filter attendance records based on selected event
+  const filteredRecords = filterEvent === 'all' 
+    ? attendanceRecords 
+    : attendanceRecords.filter(record => record.event.id === filterEvent);
 
   const columns = [
     {
@@ -216,6 +257,38 @@ const AttendancePage: React.FC = () => {
       title: 'Recorded',
       render: (record: AttendanceRecord) => formatDate(record.attendance.recordedAt),
     },
+    {
+      key: 'actions',
+      title: 'Actions',
+      render: (record: AttendanceRecord) => (
+        <div className="flex space-x-2">
+          {canEditAttendance && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleEdit(record);
+              }}
+            >
+              <Edit size={16} />
+            </Button>
+          )}
+          {canDeleteAttendance && (
+            <Button
+              size="sm"
+              variant="danger"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDeleteClick(record);
+              }}
+            >
+              <Trash2 size={16} />
+            </Button>
+          )}
+        </div>
+      ),
+    },
   ];
 
   const handleCreate = () => {
@@ -227,6 +300,30 @@ const AttendancePage: React.FC = () => {
       attendanceRecords: [],
     });
     setIsModalOpen(true);
+  };
+
+  const handleEdit = (record: AttendanceRecord) => {
+    setEditingRecord(record);
+    setValueEdit('status', record.attendance.status);
+    setValueEdit('notes', record.attendance.notes || '');
+    setIsEditModalOpen(true);
+  };
+
+  const handleDeleteClick = (record: AttendanceRecord) => {
+    setRecordToDelete(record);
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleDelete = async () => {
+    if (recordToDelete) {
+      try {
+        await AttendanceService.deleteAttendance(recordToDelete.id);
+        setIsDeleteModalOpen(false);
+        setRecordToDelete(null);
+      } catch (error) {
+        console.error('Error deleting attendance record:', error);
+      }
+    }
   };
 
   const handleEventChange = (eventId: string) => {
@@ -313,6 +410,31 @@ const AttendancePage: React.FC = () => {
     }
   };
 
+  const onEditSubmit = async (data: { status: AttendanceStatus; notes: string }) => {
+    if (!editingRecord) return;
+
+    try {
+      setSubmitting(true);
+      
+      const attendanceData = {
+        ...editingRecord.attendance,
+        status: data.status,
+        notes: data.notes || undefined,
+        recordedBy: user?.id || '',
+        recordedAt: new Date().toISOString(),
+      };
+      
+      await AttendanceService.updateAttendance(editingRecord.id, attendanceData);
+      
+      setIsEditModalOpen(false);
+      setEditingRecord(null);
+    } catch (error) {
+      console.error('Error updating attendance record:', error);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-64">
@@ -339,17 +461,31 @@ const AttendancePage: React.FC = () => {
         }
       />
 
+      {/* Filter Section */}
+      <div className="mb-6">
+        <Select
+          label="Filter by Event"
+          options={eventOptions}
+          value={filterEvent}
+          onChange={setFilterEvent}
+          className="max-w-md"
+        />
+      </div>
+
       <Card>
-        {attendanceRecords.length > 0 ? (
+        {filteredRecords.length > 0 ? (
           <Table
-            data={attendanceRecords}
+            data={filteredRecords}
             columns={columns}
             onRowClick={(record) => console.log('Clicked attendance record:', record)}
           />
         ) : (
           <EmptyState
-            title="No attendance records yet"
-            description="Start recording attendance for training sessions and friendly matches."
+            title="No attendance records found"
+            description={filterEvent === 'all' 
+              ? "Start recording attendance for training sessions and friendly matches."
+              : "No attendance records found for the selected event."
+            }
             icon={<Users size={24} />}
             action={
               canMarkAttendance
@@ -373,7 +509,7 @@ const AttendancePage: React.FC = () => {
         <div className="space-y-6">
           <Select
             label="Select Event"
-            options={eventOptions}
+            options={eventOptions.filter(option => option.value !== 'all')}
             placeholder="Choose a training session or friendly match"
             value={watchEventId}
             onChange={handleEventChange}
@@ -460,6 +596,86 @@ const AttendancePage: React.FC = () => {
               className="bg-primary-600 hover:bg-primary-700 text-white"
             >
               Save Attendance
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Edit Attendance Modal */}
+      <Modal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        title="Edit Attendance Record"
+        size="md"
+      >
+        {editingRecord && (
+          <form onSubmit={handleSubmitEdit(onEditSubmit)} className="space-y-6">
+            <div className="bg-gray-50 dark:bg-neutral-700/30 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+              <h4 className="font-medium text-gray-900 dark:text-white mb-2">
+                {editingRecord.member.name}
+              </h4>
+              <div className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
+                <p><strong>Event:</strong> {editingRecord.event.type === 'training' ? 'Training Session' : `Friendly vs ${editingRecord.event.opponent}`}</p>
+                <p><strong>Date:</strong> {formatDate(editingRecord.event.date)}</p>
+                <p><strong>Time:</strong> {editingRecord.event.time}</p>
+              </div>
+            </div>
+
+            <Select
+              label="Attendance Status"
+              options={statusOptions}
+              error={errorsEdit.status?.message}
+              required
+              {...registerEdit('status', { required: 'Status is required' })}
+            />
+
+            <Input
+              label="Notes (Optional)"
+              placeholder="Add notes if needed..."
+              error={errorsEdit.notes?.message}
+              {...registerEdit('notes')}
+            />
+
+            <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200 dark:border-gray-700">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsEditModalOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button 
+                type="submit"
+                isLoading={submitting}
+                className="bg-primary-600 hover:bg-primary-700 text-white"
+              >
+                Update Record
+              </Button>
+            </div>
+          </form>
+        )}
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        title="Delete Attendance Record"
+        size="sm"
+      >
+        <div className="space-y-4">
+          <p className="text-gray-600 dark:text-gray-300">
+            Are you sure you want to delete this attendance record for <strong>{recordToDelete?.member.name}</strong>? This action cannot be undone.
+          </p>
+          <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <Button
+              variant="outline"
+              onClick={() => setIsDeleteModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button variant="danger" onClick={handleDelete}>
+              Delete Record
             </Button>
           </div>
         </div>
