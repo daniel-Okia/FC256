@@ -194,7 +194,14 @@ const Contributions: React.FC = () => {
 
   const handleCreate = () => {
     setEditingContribution(null);
-    reset();
+    reset({
+      memberId: '',
+      type: 'monetary',
+      amount: undefined,
+      description: '',
+      paymentMethod: undefined,
+      date: '',
+    });
     setIsModalOpen(true);
   };
 
@@ -269,11 +276,19 @@ const Contributions: React.FC = () => {
         title="Contributions"
         description="Track and manage team contributions"
         actions={
-          canCreateContribution && (
-            <Button onClick={handleCreate} leftIcon={<Plus size={18} />}>
+          <div className="flex space-x-2">
+            <Button 
+              onClick={handleCreate} 
+              leftIcon={<Plus size={18} />}
+              className="bg-primary-600 hover:bg-primary-700 text-white"
+            >
               Add Contribution
             </Button>
-          )
+            {/* Debug info */}
+            <div className="text-xs text-gray-500 dark:text-gray-400 ml-2">
+              User: {user?.role} | Can Create: {canCreateContribution ? 'Yes' : 'No'}
+            </div>
+          </div>
         }
       />
 
@@ -289,14 +304,10 @@ const Contributions: React.FC = () => {
             title="No contributions yet"
             description="There are no contributions recorded at the moment."
             icon={<CreditCard size={24} />}
-            action={
-              canCreateContribution
-                ? {
-                    label: 'Add Contribution',
-                    onClick: handleCreate,
-                  }
-                : undefined
-            }
+            action={{
+              label: 'Add Contribution',
+              onClick: handleCreate,
+            }}
           />
         )}
       </Card>

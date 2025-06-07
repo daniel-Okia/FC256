@@ -11,6 +11,7 @@ import Table from '../../components/ui/Table';
 import Modal from '../../components/ui/Modal';
 import Badge from '../../components/ui/Badge';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
+import EmptyState from '../../components/common/EmptyState';
 import { canUserAccess, Permissions } from '../../utils/permissions';
 import { exportToCSV } from '../../utils/export-utils';
 import { useForm } from 'react-hook-form';
@@ -186,7 +187,14 @@ const Members: React.FC = () => {
 
   const handleCreate = () => {
     setEditingMember(null);
-    reset();
+    reset({
+      name: '',
+      position: 'Forward',
+      jerseyNumber: 1,
+      email: '',
+      phone: '',
+      status: 'active',
+    });
     setIsModalOpen(true);
   };
 
@@ -268,17 +276,15 @@ const Members: React.FC = () => {
         title="Team Members"
         description="Manage your team roster and player information"
         actions={
-          <>
-            {canCreateMember && (
-              <Button
-                variant="primary"
-                leftIcon={<UserPlus size={18} />}
-                className="mr-2"
-                onClick={handleCreate}
-              >
-                Add Member
-              </Button>
-            )}
+          <div className="flex space-x-2">
+            <Button
+              variant="primary"
+              leftIcon={<UserPlus size={18} />}
+              onClick={handleCreate}
+              className="bg-primary-600 hover:bg-primary-700 text-white"
+            >
+              Add Member
+            </Button>
             {canUserAccess(user?.role, Permissions.EXPORT_REPORTS) && (
               <Button
                 variant="outline"
@@ -288,7 +294,11 @@ const Members: React.FC = () => {
                 Export
               </Button>
             )}
-          </>
+            {/* Debug info */}
+            <div className="text-xs text-gray-500 dark:text-gray-400 ml-2">
+              User: {user?.role} | Can Create: {canCreateMember ? 'Yes' : 'No'}
+            </div>
+          </div>
         }
       />
 
@@ -302,12 +312,24 @@ const Members: React.FC = () => {
         />
       </div>
 
-      <Table
-        data={filteredMembers}
-        columns={columns}
-        onRowClick={(member) => console.log('Member clicked:', member)}
-        className="bg-white dark:bg-neutral-800 rounded-lg shadow"
-      />
+      {filteredMembers.length > 0 ? (
+        <Table
+          data={filteredMembers}
+          columns={columns}
+          onRowClick={(member) => console.log('Member clicked:', member)}
+          className="bg-white dark:bg-neutral-800 rounded-lg shadow"
+        />
+      ) : (
+        <EmptyState
+          title="No members found"
+          description="There are no team members at the moment."
+          icon={<UserPlus size={24} />}
+          action={{
+            label: 'Add Member',
+            onClick: handleCreate,
+          }}
+        />
+      )}
 
       {/* Create/Edit Modal */}
       <Modal

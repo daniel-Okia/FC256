@@ -218,11 +218,20 @@ const Training: React.FC = () => {
         title="Training Sessions"
         description="Schedule and manage team training sessions"
         actions={
-          canCreateTraining && (
-            <Button onClick={handleCreate} leftIcon={<Plus size={18} />}>
+          <div className="flex space-x-2">
+            {/* Always show the button for debugging */}
+            <Button 
+              onClick={handleCreate} 
+              leftIcon={<Plus size={18} />}
+              className="bg-primary-600 hover:bg-primary-700 text-white"
+            >
               Add Training Session
             </Button>
-          )
+            {/* Debug info */}
+            <div className="text-xs text-gray-500 dark:text-gray-400 ml-2">
+              User: {user?.role} | Can Create: {canCreateTraining ? 'Yes' : 'No'}
+            </div>
+          </div>
         }
       />
 
@@ -238,14 +247,10 @@ const Training: React.FC = () => {
             title="No training sessions scheduled"
             description="There are no upcoming training sessions scheduled at the moment."
             icon={<Calendar size={24} />}
-            action={
-              canCreateTraining
-                ? {
-                    label: 'Add Training Session',
-                    onClick: handleCreate,
-                  }
-                : undefined
-            }
+            action={{
+              label: 'Add Training Session',
+              onClick: handleCreate,
+            }}
           />
         )}
       </Card>
