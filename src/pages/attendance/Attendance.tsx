@@ -513,7 +513,7 @@ const AttendancePage: React.FC = () => {
           label="Filter by Event"
           options={eventOptions}
           value={filterEvent}
-          onChange={setFilterEvent}
+          onChange={(e) => setFilterEvent(e.target.value)}
           className="max-w-md"
         />
       </div>
@@ -614,7 +614,7 @@ const AttendancePage: React.FC = () => {
                         label="Attendance Status"
                         options={statusOptions}
                         value={memberAttendance[member.id] || 'present'}
-                        onChange={(status) => updateMemberAttendance(member.id, status as AttendanceStatus)}
+                        onChange={(e) => updateMemberAttendance(member.id, e.target.value as AttendanceStatus)}
                         required
                       />
                       
@@ -761,7 +761,7 @@ const AttendancePage: React.FC = () => {
             <Button variant="danger" onClick={handleDelete}>
               Delete Record
             </Button>
-          </div>
+            </div>
         </div>
       </Modal>
     </div>
