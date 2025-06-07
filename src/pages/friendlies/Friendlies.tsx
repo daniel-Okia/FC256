@@ -8,7 +8,6 @@ import Button from '../../components/ui/Button';
 import Table from '../../components/ui/Table';
 import Modal from '../../components/ui/Modal';
 import Input from '../../components/ui/Input';
-import Select from '../../components/ui/Select';
 import EmptyState from '../../components/common/EmptyState';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { Event } from '../../types';
@@ -45,14 +44,6 @@ const Friendlies: React.FC = () => {
     setValue,
     formState: { errors },
   } = useForm<FriendlyFormData>();
-
-  const locationOptions = [
-    { value: 'Victory Park', label: 'Victory Park' },
-    { value: 'Central Stadium', label: 'Central Stadium' },
-    { value: 'Main Field', label: 'Main Field' },
-    { value: 'Sports Complex', label: 'Sports Complex' },
-    { value: 'Away Ground', label: 'Away Ground' },
-  ];
 
   // Load friendlies from Firestore
   useEffect(() => {
@@ -304,11 +295,11 @@ const Friendlies: React.FC = () => {
             {...register('opponent', { required: 'Opponent is required' })}
           />
 
-          <Select
-            label="Location"
-            options={locationOptions}
-            placeholder="Select match location"
+          <Input
+            label="Match Location"
+            placeholder="e.g., Victory Park, Central Stadium, Away Ground"
             error={errors.location?.message}
+            helperText="Enter the venue where the match will be played"
             required
             {...register('location', { required: 'Location is required' })}
           />
