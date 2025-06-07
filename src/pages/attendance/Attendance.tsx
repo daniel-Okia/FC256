@@ -387,10 +387,14 @@ const AttendancePage: React.FC = () => {
 
   const updateMemberAttendance = (memberId: string, status: AttendanceStatus) => {
     console.log('Updating attendance for member:', memberId, 'to status:', status);
-    setMemberAttendance(prev => ({
-      ...prev,
-      [memberId]: status,
-    }));
+    setMemberAttendance(prev => {
+      const updated = {
+        ...prev,
+        [memberId]: status,
+      };
+      console.log('Updated attendance state:', updated);
+      return updated;
+    });
   };
 
   const updateMemberNotes = (memberId: string, notes: string) => {
@@ -611,53 +615,61 @@ const AttendancePage: React.FC = () => {
                 Mark Attendance for Active Members ({activeMembers.length} members)
               </h4>
               <div className="space-y-4 max-h-96 overflow-y-auto">
-                {activeMembers.map(member => (
-                  <div key={member.id} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:bg-gray-50 dark:hover:bg-neutral-700/30 transition-colors">
-                    <div className="flex items-center justify-between mb-3">
-                      <div>
-                        <h5 className="font-medium text-gray-900 dark:text-white">
-                          {member.name}
-                        </h5>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">
-                          #{member.jerseyNumber} • {member.position}
-                        </p>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        {getStatusIcon(memberAttendance[member.id] || 'present')}
-                        <Badge variant={getStatusBadgeVariant(memberAttendance[member.id] || 'present')} className="capitalize">
-                          {memberAttendance[member.id] || 'present'}
-                        </Badge>
-                      </div>
-                    </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                          Attendance Status
-                        </label>
-                        <select
-                          value={memberAttendance[member.id] || 'present'}
-                          onChange={(e) => updateMemberAttendance(member.id, e.target.value as AttendanceStatus)}
-                          className="block w-full rounded-lg shadow-sm border transition-colors duration-200 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 sm:text-sm appearance-none border-gray-300 dark:border-gray-600 dark:bg-neutral-700 dark:text-white hover:border-gray-400 dark:hover:border-gray-500 px-3 py-2.5"
-                          required
-                        >
-                          {statusOptions.map((option) => (
-                            <option key={option.value} value={option.value}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </select>
+                {activeMembers.map(member => {
+                  const currentStatus = memberAttendance[member.id] || 'present';
+                  
+                  return (
+                    <div key={member.id} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:bg-gray-50 dark:hover:bg-neutral-700/30 transition-colors">
+                      <div className="flex items-center justify-between mb-3">
+                        <div>
+                          <h5 className="font-medium text-gray-900 dark:text-white">
+                            {member.name}
+                          </h5>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                            #{member.jerseyNumber} • {member.position}
+                          </p>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          {getStatusIcon(currentStatus)}
+                          <Badge variant={getStatusBadgeVariant(currentStatus)} className="capitalize">
+                            {currentStatus}
+                          </Badge>
+                        </div>
                       </div>
                       
-                      <Input
-                        label="Notes (Optional)"
-                        placeholder="Add notes if needed..."
-                        value={memberNotes[member.id] || ''}
-                        onChange={(e) => updateMemberNotes(member.id, e.target.value)}
-                      />
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Attendance Status
+                          </label>
+                          <select
+                            value={currentStatus}
+                            onChange={(e) => {
+                              const newStatus = e.target.value as AttendanceStatus;
+                              console.log(`Changing ${member.name} status from ${currentStatus} to ${newStatus}`);
+                              updateMemberAttendance(member.id, newStatus);
+                            }}
+                            className="block w-full rounded-lg shadow-sm border transition-colors duration-200 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 sm:text-sm appearance-none border-gray-300 dark:border-gray-600 dark:bg-neutral-700 dark:text-white hover:border-gray-400 dark:hover:border-gray-500 px-3 py-2.5 pr-10"
+                            required
+                          >
+                            {statusOptions.map((option) => (
+                              <option key={option.value} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        
+                        <Input
+                          label="Notes (Optional)"
+                          placeholder="Add notes if needed..."
+                          value={memberNotes[member.id] || ''}
+                          onChange={(e) => updateMemberNotes(member.id, e.target.value)}
+                        />
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
