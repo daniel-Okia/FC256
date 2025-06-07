@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Plus, Edit, Trash2, CheckCircle, XCircle, Clock, AlertCircle } from 'lucide-react';
+import { Users, Plus, CheckCircle, XCircle, Clock, AlertCircle } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { AttendanceService, MemberService, EventService } from '../../services/firestore';
 import PageHeader from '../../components/layout/PageHeader';
@@ -289,6 +289,7 @@ const AttendancePage: React.FC = () => {
           status,
           notes: notes || undefined,
           recordedBy: user?.id || '',
+          recordedAt: new Date().toISOString(),
         };
         
         if (existingRecord) {
@@ -324,7 +325,7 @@ const AttendancePage: React.FC = () => {
     <div>
       <PageHeader
         title="Attendance Management"
-        description="Record and track member attendance for events"
+        description="Record and track member attendance for training sessions and friendly matches"
         actions={
           canMarkAttendance && (
             <Button 
@@ -348,7 +349,7 @@ const AttendancePage: React.FC = () => {
         ) : (
           <EmptyState
             title="No attendance records yet"
-            description="There are no attendance records at the moment."
+            description="Start recording attendance for training sessions and friendly matches."
             icon={<Users size={24} />}
             action={
               canMarkAttendance
@@ -371,9 +372,9 @@ const AttendancePage: React.FC = () => {
       >
         <div className="space-y-6">
           <Select
-            label="Event"
+            label="Select Event"
             options={eventOptions}
-            placeholder="Select an event"
+            placeholder="Choose a training session or friendly match"
             value={watchEventId}
             onChange={handleEventChange}
             error={errors.eventId?.message}
@@ -382,29 +383,29 @@ const AttendancePage: React.FC = () => {
           />
 
           {selectedEvent && (
-            <div className="bg-gray-50 dark:bg-neutral-700/30 rounded-lg p-4">
-              <h4 className="font-medium text-gray-900 dark:text-white mb-2">
-                {selectedEvent.type === 'training' ? 'Training Session' : `Friendly vs ${selectedEvent.opponent}`}
+            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+              <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-2">
+                {selectedEvent.type === 'training' ? 'Training Session' : `Friendly Match vs ${selectedEvent.opponent}`}
               </h4>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                {formatDate(selectedEvent.date)} at {selectedEvent.time} • {selectedEvent.location}
-              </p>
-              {selectedEvent.description && (
-                <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
-                  {selectedEvent.description}
-                </p>
-              )}
+              <div className="text-sm text-blue-700 dark:text-blue-300 space-y-1">
+                <p><strong>Date:</strong> {formatDate(selectedEvent.date)}</p>
+                <p><strong>Time:</strong> {selectedEvent.time}</p>
+                <p><strong>Location:</strong> {selectedEvent.location}</p>
+                {selectedEvent.description && (
+                  <p><strong>Description:</strong> {selectedEvent.description}</p>
+                )}
+              </div>
             </div>
           )}
 
           {selectedEvent && (
             <div>
               <h4 className="font-medium text-gray-900 dark:text-white mb-4">
-                Mark Attendance for Active Members
+                Mark Attendance for Active Members ({members.filter(m => m.status === 'active').length} members)
               </h4>
               <div className="space-y-4 max-h-96 overflow-y-auto">
                 {members.filter(m => m.status === 'active').map(member => (
-                  <div key={member.id} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                  <div key={member.id} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:bg-gray-50 dark:hover:bg-neutral-700/30 transition-colors">
                     <div className="flex items-center justify-between mb-3">
                       <div>
                         <h5 className="font-medium text-gray-900 dark:text-white">
@@ -416,12 +417,15 @@ const AttendancePage: React.FC = () => {
                       </div>
                       <div className="flex items-center space-x-2">
                         {getStatusIcon(memberAttendance[member.id] || 'present')}
+                        <Badge variant={getStatusBadgeVariant(memberAttendance[member.id] || 'present')} className="capitalize">
+                          {memberAttendance[member.id] || 'present'}
+                        </Badge>
                       </div>
                     </div>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <Select
-                        label="Status"
+                        label="Attendance Status"
                         options={statusOptions}
                         value={memberAttendance[member.id] || 'present'}
                         onChange={(status) => updateMemberAttendance(member.id, status as AttendanceStatus)}
@@ -430,7 +434,7 @@ const AttendancePage: React.FC = () => {
                       
                       <Input
                         label="Notes (Optional)"
-                        placeholder="Add notes if needed"
+                        placeholder="Add notes if needed..."
                         value={memberNotes[member.id] || ''}
                         onChange={(e) => updateMemberNotes(member.id, e.target.value)}
                       />
