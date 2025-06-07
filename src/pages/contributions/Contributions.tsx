@@ -237,15 +237,19 @@ const Contributions: React.FC = () => {
     try {
       setSubmitting(true);
       
-      const contributionData = {
+      const contributionData: any = {
         memberId: data.memberId,
         type: data.type,
-        amount: data.type === 'monetary' ? data.amount : undefined,
         description: data.description,
-        paymentMethod: data.type === 'monetary' ? data.paymentMethod : undefined,
         date: new Date(data.date).toISOString(),
         recordedBy: user?.id || '',
       };
+
+      // Only include amount and paymentMethod for monetary contributions
+      if (data.type === 'monetary') {
+        contributionData.amount = data.amount;
+        contributionData.paymentMethod = data.paymentMethod;
+      }
 
       if (editingContribution) {
         await ContributionService.updateContribution(editingContribution.id, contributionData);
