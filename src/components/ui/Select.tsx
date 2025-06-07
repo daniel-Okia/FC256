@@ -2,14 +2,13 @@ import React, { forwardRef } from 'react';
 import { twMerge } from 'tailwind-merge';
 import { Option } from '../../types';
 
-interface SelectProps extends Omit<React.SelectHTMLAttributes<HTMLSelectElement>, 'onChange'> {
+interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
   label?: string;
   options: Option[];
   error?: string;
   helperText?: string;
   fullWidth?: boolean;
   containerClassName?: string;
-  onChange?: (value: string) => void;
 }
 
 const Select = forwardRef<HTMLSelectElement, SelectProps>(
@@ -32,7 +31,7 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
 
     const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
       if (onChange) {
-        onChange(e.target.value);
+        onChange(e);
       }
     };
 
