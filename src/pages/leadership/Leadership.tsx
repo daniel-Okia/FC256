@@ -21,8 +21,6 @@ import { useForm } from 'react-hook-form';
 interface LeadershipFormData {
   memberId: string;
   role: LeadershipRole;
-  startDate: string;
-  endDate?: string;
 }
 
 const Leadership: React.FC = () => {
@@ -120,7 +118,7 @@ const Leadership: React.FC = () => {
         const member = getMemberById(leadership.memberId);
         return member ? (
           <div className="flex items-center">
-            <Avatar size="sm\" className="mr-3" />
+            <Avatar size="sm" className="mr-3" />
             <div>
               <div className="font-medium text-gray-900 dark:text-white">
                 {member.name}
@@ -143,17 +141,6 @@ const Leadership: React.FC = () => {
           {leadership.role}
         </Badge>
       ),
-    },
-    {
-      key: 'startDate',
-      title: 'Start Date',
-      render: (leadership: LeadershipType) => formatDate(leadership.startDate),
-    },
-    {
-      key: 'endDate',
-      title: 'End Date',
-      render: (leadership: LeadershipType) => 
-        leadership.endDate ? formatDate(leadership.endDate) : 'Active',
     },
     {
       key: 'status',
@@ -203,8 +190,6 @@ const Leadership: React.FC = () => {
     reset({
       memberId: '',
       role: 'Head Coach',
-      startDate: '',
-      endDate: '',
     });
     setIsModalOpen(true);
   };
@@ -213,8 +198,6 @@ const Leadership: React.FC = () => {
     setEditingRole(role);
     setValue('memberId', role.memberId);
     setValue('role', role.role);
-    setValue('startDate', role.startDate);
-    setValue('endDate', role.endDate || '');
     setIsModalOpen(true);
   };
 
@@ -242,9 +225,8 @@ const Leadership: React.FC = () => {
       const roleData = {
         memberId: data.memberId,
         role: data.role,
-        startDate: data.startDate,
-        endDate: data.endDate || undefined,
-        isActive: !data.endDate || new Date(data.endDate) > new Date(),
+        startDate: new Date().toISOString().split('T')[0], // Set to current date
+        isActive: true, // Always active when created
       };
 
       if (editingRole) {
@@ -317,7 +299,7 @@ const Leadership: React.FC = () => {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         title={editingRole ? 'Edit Leadership Role' : 'Add Leadership Role'}
-        size="lg"
+        size="md"
       >
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           <Select
@@ -338,22 +320,18 @@ const Leadership: React.FC = () => {
             {...register('role', { required: 'Role is required' })}
           />
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Input
-              label="Start Date"
-              type="date"
-              error={errors.startDate?.message}
-              required
-              {...register('startDate', { required: 'Start date is required' })}
-            />
-
-            <Input
-              label="End Date"
-              type="date"
-              helperText="Leave empty for ongoing role"
-              error={errors.endDate?.message}
-              {...register('endDate')}
-            />
+          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+            <div className="flex items-center">
+              <Crown size={20} className="text-blue-600 dark:text-blue-400 mr-2" />
+              <div>
+                <h4 className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                  Leadership Assignment
+                </h4>
+                <p className="text-sm text-blue-700 dark:text-blue-300">
+                  The role will be assigned immediately and marked as active
+                </p>
+              </div>
+            </div>
           </div>
 
           <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200 dark:border-gray-700">
