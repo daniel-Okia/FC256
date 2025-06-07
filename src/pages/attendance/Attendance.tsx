@@ -638,7 +638,7 @@ const AttendancePage: React.FC = () => {
                         <select
                           value={memberAttendance[member.id] || 'present'}
                           onChange={(e) => updateMemberAttendance(member.id, e.target.value as AttendanceStatus)}
-                          className="block w-full rounded-lg shadow-sm border transition-colors duration-200 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 sm:text-sm appearance-none border-gray-300 dark:border-gray-600 dark:bg-neutral-700 dark:text-white hover:border-gray-400 dark:hover:border-gray-500 px-3 py-2.5 pr-10"
+                          className="block w-full rounded-lg shadow-sm border transition-colors duration-200 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 sm:text-sm appearance-none border-gray-300 dark:border-gray-600 dark:bg-neutral-700 dark:text-white hover:border-gray-400 dark:hover:border-gray-500 px-3 py-2.5"
                           required
                         >
                           {statusOptions.map((option) => (
