@@ -56,7 +56,11 @@ const AttendancePage: React.FC = () => {
     setValue,
     watch,
     formState: { errors },
-  } = useForm<AttendanceFormData>();
+  } = useForm<AttendanceFormData>({
+    defaultValues: {
+      eventId: '',
+    }
+  });
 
   const {
     register: registerEdit,
@@ -120,8 +124,8 @@ const AttendancePage: React.FC = () => {
     
     const unsubscribeAttendance = AttendanceService.subscribeToAttendance((attendanceData) => {
       console.log('Attendance updated:', attendanceData.length);
+      // Update attendance records when data changes
       setAttendanceRecords(prevRecords => {
-        // Re-combine data when attendance updates
         const records: AttendanceRecord[] = attendanceData.map(attendance => {
           const member = members.find(m => m.id === attendance.memberId);
           const event = events.find(e => e.id === attendance.eventId);
@@ -158,6 +162,42 @@ const AttendancePage: React.FC = () => {
     }
   }, [members, events]);
 
+  // Watch for event selection changes
+  useEffect(() => {
+    if (watchEventId && events.length > 0) {
+      const event = events.find(e => e.id === watchEventId);
+      console.log('Event selection changed:', watchEventId, event);
+      setSelectedEvent(event || null);
+      
+      if (event && members.length > 0) {
+        // Initialize attendance status for all active members
+        const activeMembers = members.filter(m => m.status === 'active');
+        console.log('Active members for event:', activeMembers.length);
+        
+        const initialAttendance: { [key: string]: AttendanceStatus } = {};
+        const initialNotes: { [key: string]: string } = {};
+        
+        activeMembers.forEach(member => {
+          // Check if attendance already exists for this member and event
+          const existingAttendance = attendanceRecords.find(
+            record => record.member.id === member.id && record.event.id === watchEventId
+          );
+          
+          initialAttendance[member.id] = existingAttendance?.attendance.status || 'present';
+          initialNotes[member.id] = existingAttendance?.attendance.notes || '';
+        });
+        
+        console.log('Initial attendance state:', initialAttendance);
+        setMemberAttendance(initialAttendance);
+        setMemberNotes(initialNotes);
+      }
+    } else {
+      setSelectedEvent(null);
+      setMemberAttendance({});
+      setMemberNotes({});
+    }
+  }, [watchEventId, events, members, attendanceRecords]);
+
   const eventOptions = [
     { value: 'all', label: 'All Events' },
     ...events
@@ -168,12 +208,15 @@ const AttendancePage: React.FC = () => {
       }))
   ];
 
-  const eventOptionsForModal = events
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-    .map(event => ({
-      value: event.id,
-      label: `${event.type === 'training' ? 'Training' : `Friendly vs ${event.opponent}`} - ${formatDate(event.date)}`,
-    }));
+  const eventOptionsForModal = [
+    { value: '', label: 'Select an event...' },
+    ...events
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .map(event => ({
+        value: event.id,
+        label: `${event.type === 'training' ? 'Training' : `Friendly vs ${event.opponent}`} - ${formatDate(event.date)}`,
+      }))
+  ];
 
   const statusOptions = [
     { value: 'present', label: 'Present' },
@@ -336,38 +379,8 @@ const AttendancePage: React.FC = () => {
     }
   };
 
-  const handleEventChange = (eventId: string) => {
-    console.log('Event changed to:', eventId);
-    const event = events.find(e => e.id === eventId);
-    console.log('Found event:', event);
-    setSelectedEvent(event || null);
-    setValue('eventId', eventId);
-    
-    if (event) {
-      // Initialize attendance status for all active members
-      const activeMembers = members.filter(m => m.status === 'active');
-      console.log('Active members:', activeMembers.length);
-      
-      const initialAttendance: { [key: string]: AttendanceStatus } = {};
-      const initialNotes: { [key: string]: string } = {};
-      
-      activeMembers.forEach(member => {
-        // Check if attendance already exists for this member and event
-        const existingAttendance = attendanceRecords.find(
-          record => record.member.id === member.id && record.event.id === eventId
-        );
-        
-        initialAttendance[member.id] = existingAttendance?.attendance.status || 'present';
-        initialNotes[member.id] = existingAttendance?.attendance.notes || '';
-      });
-      
-      console.log('Initial attendance:', initialAttendance);
-      setMemberAttendance(initialAttendance);
-      setMemberNotes(initialNotes);
-    }
-  };
-
   const updateMemberAttendance = (memberId: string, status: AttendanceStatus) => {
+    console.log('Updating attendance for member:', memberId, 'to status:', status);
     setMemberAttendance(prev => ({
       ...prev,
       [memberId]: status,
@@ -375,6 +388,7 @@ const AttendancePage: React.FC = () => {
   };
 
   const updateMemberNotes = (memberId: string, notes: string) => {
+    console.log('Updating notes for member:', memberId, 'to:', notes);
     setMemberNotes(prev => ({
       ...prev,
       [memberId]: notes,
@@ -382,18 +396,24 @@ const AttendancePage: React.FC = () => {
   };
 
   const onSubmit = async (data: AttendanceFormData) => {
-    if (!selectedEvent) return;
+    if (!selectedEvent) {
+      console.error('No event selected');
+      return;
+    }
 
     try {
       setSubmitting(true);
       
       const activeMembers = members.filter(m => m.status === 'active');
       console.log('Saving attendance for', activeMembers.length, 'active members');
+      console.log('Current member attendance state:', memberAttendance);
       
       // Create or update attendance records for each member
       for (const member of activeMembers) {
         const status = memberAttendance[member.id] || 'present';
         const notes = memberNotes[member.id] || '';
+        
+        console.log(`Processing ${member.name}: status=${status}, notes=${notes}`);
         
         // Check if attendance record already exists
         const existingRecord = attendanceRecords.find(
@@ -528,7 +548,13 @@ const AttendancePage: React.FC = () => {
       {/* Record Attendance Modal */}
       <Modal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        onClose={() => {
+          setIsModalOpen(false);
+          setSelectedEvent(null);
+          setMemberAttendance({});
+          setMemberNotes({});
+          reset();
+        }}
         title="Record Attendance"
         size="2xl"
       >
@@ -537,8 +563,6 @@ const AttendancePage: React.FC = () => {
             label="Select Event"
             options={eventOptionsForModal}
             placeholder="Choose a training session or friendly match"
-            value={watchEventId || ''}
-            onChange={handleEventChange}
             error={errors.eventId?.message}
             required
             {...register('eventId', { required: 'Event is required' })}
@@ -623,11 +647,29 @@ const AttendancePage: React.FC = () => {
             </div>
           )}
 
+          {!selectedEvent && (
+            <div className="bg-gray-50 dark:bg-neutral-700/30 border border-gray-200 dark:border-gray-700 rounded-lg p-8 text-center">
+              <Users size={48} className="mx-auto text-gray-400 dark:text-gray-500 mb-4" />
+              <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+                Select an Event
+              </h4>
+              <p className="text-gray-600 dark:text-gray-400">
+                Choose a training session or friendly match to record attendance for team members.
+              </p>
+            </div>
+          )}
+
           <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200 dark:border-gray-700">
             <Button
               type="button"
               variant="outline"
-              onClick={() => setIsModalOpen(false)}
+              onClick={() => {
+                setIsModalOpen(false);
+                setSelectedEvent(null);
+                setMemberAttendance({});
+                setMemberNotes({});
+                reset();
+              }}
             >
               Cancel
             </Button>
