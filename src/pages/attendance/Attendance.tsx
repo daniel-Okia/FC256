@@ -430,7 +430,7 @@ const AttendancePage: React.FC = () => {
           eventId: selectedEvent.id,
           memberId: member.id,
           status,
-          notes,
+          notes: notes || undefined, // Convert empty string to undefined
           recordedBy: user?.id || '',
           recordedAt: new Date().toISOString(),
         };
@@ -468,7 +468,7 @@ const AttendancePage: React.FC = () => {
         eventId: editingRecord.attendance.eventId,
         memberId: editingRecord.attendance.memberId,
         status: data.status,
-        notes: data.notes || '',
+        notes: data.notes || undefined, // Convert empty string to undefined
         recordedBy: user?.id || '',
         recordedAt: new Date().toISOString(),
       };
@@ -482,6 +482,12 @@ const AttendancePage: React.FC = () => {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  // Handle filter change
+  const handleFilterChange = (value: string) => {
+    console.log('Filter changed to:', value);
+    setFilterEvent(value);
   };
 
   // Get active members for display
@@ -515,16 +521,22 @@ const AttendancePage: React.FC = () => {
 
       {/* Filter Section */}
       <div className="mb-6">
-        <Select
-          label="Filter by Event"
-          options={eventOptions}
-          value={filterEvent}
-          onChange={(value) => {
-            console.log('Filter changed to:', value);
-            setFilterEvent(value);
-          }}
-          className="max-w-md"
-        />
+        <div className="max-w-md">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Filter by Event
+          </label>
+          <select
+            value={filterEvent}
+            onChange={(e) => handleFilterChange(e.target.value)}
+            className="block w-full rounded-lg shadow-sm border transition-colors duration-200 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 sm:text-sm appearance-none border-gray-300 dark:border-gray-600 dark:bg-neutral-700 dark:text-white hover:border-gray-400 dark:hover:border-gray-500 px-3 py-2.5 pr-10"
+          >
+            {eventOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       <Card>
@@ -619,13 +631,23 @@ const AttendancePage: React.FC = () => {
                     </div>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <Select
-                        label="Attendance Status"
-                        options={statusOptions}
-                        value={memberAttendance[member.id] || 'present'}
-                        onChange={(value) => updateMemberAttendance(member.id, value as AttendanceStatus)}
-                        required
-                      />
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Attendance Status
+                        </label>
+                        <select
+                          value={memberAttendance[member.id] || 'present'}
+                          onChange={(e) => updateMemberAttendance(member.id, e.target.value as AttendanceStatus)}
+                          className="block w-full rounded-lg shadow-sm border transition-colors duration-200 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 sm:text-sm appearance-none border-gray-300 dark:border-gray-600 dark:bg-neutral-700 dark:text-white hover:border-gray-400 dark:hover:border-gray-500 px-3 py-2.5 pr-10"
+                          required
+                        >
+                          {statusOptions.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
                       
                       <Input
                         label="Notes (Optional)"
