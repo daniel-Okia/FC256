@@ -424,7 +424,7 @@ const AttendancePage: React.FC = () => {
           eventId: selectedEvent.id,
           memberId: member.id,
           status,
-          notes: notes || undefined,
+          notes,
           recordedBy: user?.id || '',
           recordedAt: new Date().toISOString(),
         };
@@ -462,7 +462,7 @@ const AttendancePage: React.FC = () => {
         eventId: editingRecord.attendance.eventId,
         memberId: editingRecord.attendance.memberId,
         status: data.status,
-        notes: data.notes || undefined,
+        notes: data.notes || '',
         recordedBy: user?.id || '',
         recordedAt: new Date().toISOString(),
       };
