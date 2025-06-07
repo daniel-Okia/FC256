@@ -276,7 +276,7 @@ const Contributions: React.FC = () => {
         title="Contributions"
         description="Track and manage team contributions"
         actions={
-          <div className="flex space-x-2">
+          canCreateContribution && (
             <Button 
               onClick={handleCreate} 
               leftIcon={<Plus size={18} />}
@@ -284,11 +284,7 @@ const Contributions: React.FC = () => {
             >
               Add Contribution
             </Button>
-            {/* Debug info */}
-            <div className="text-xs text-gray-500 dark:text-gray-400 ml-2">
-              User: {user?.role} | Can Create: {canCreateContribution ? 'Yes' : 'No'}
-            </div>
-          </div>
+          )
         }
       />
 
@@ -304,10 +300,14 @@ const Contributions: React.FC = () => {
             title="No contributions yet"
             description="There are no contributions recorded at the moment."
             icon={<CreditCard size={24} />}
-            action={{
-              label: 'Add Contribution',
-              onClick: handleCreate,
-            }}
+            action={
+              canCreateContribution
+                ? {
+                    label: 'Add Contribution',
+                    onClick: handleCreate,
+                  }
+                : undefined
+            }
           />
         )}
       </Card>

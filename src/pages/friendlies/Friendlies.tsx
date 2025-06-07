@@ -234,7 +234,7 @@ const Friendlies: React.FC = () => {
         title="Friendly Matches"
         description="Schedule and manage friendly matches"
         actions={
-          <div className="flex space-x-2">
+          canCreateFriendly && (
             <Button 
               onClick={handleCreate} 
               leftIcon={<Plus size={18} />}
@@ -242,11 +242,7 @@ const Friendlies: React.FC = () => {
             >
               Add Friendly Match
             </Button>
-            {/* Debug info */}
-            <div className="text-xs text-gray-500 dark:text-gray-400 ml-2">
-              User: {user?.role} | Can Create: {canCreateFriendly ? 'Yes' : 'No'}
-            </div>
-          </div>
+          )
         }
       />
 
@@ -262,10 +258,14 @@ const Friendlies: React.FC = () => {
             title="No friendly matches scheduled"
             description="There are no upcoming friendly matches scheduled at the moment."
             icon={<Calendar size={24} />}
-            action={{
-              label: 'Add Friendly Match',
-              onClick: handleCreate,
-            }}
+            action={
+              canCreateFriendly
+                ? {
+                    label: 'Add Friendly Match',
+                    onClick: handleCreate,
+                  }
+                : undefined
+            }
           />
         )}
       </Card>

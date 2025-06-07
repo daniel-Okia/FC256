@@ -277,14 +277,16 @@ const Members: React.FC = () => {
         description="Manage your team roster and player information"
         actions={
           <div className="flex space-x-2">
-            <Button
-              variant="primary"
-              leftIcon={<UserPlus size={18} />}
-              onClick={handleCreate}
-              className="bg-primary-600 hover:bg-primary-700 text-white"
-            >
-              Add Member
-            </Button>
+            {canCreateMember && (
+              <Button
+                variant="primary"
+                leftIcon={<UserPlus size={18} />}
+                onClick={handleCreate}
+                className="bg-primary-600 hover:bg-primary-700 text-white"
+              >
+                Add Member
+              </Button>
+            )}
             {canUserAccess(user?.role, Permissions.EXPORT_REPORTS) && (
               <Button
                 variant="outline"
@@ -294,10 +296,6 @@ const Members: React.FC = () => {
                 Export
               </Button>
             )}
-            {/* Debug info */}
-            <div className="text-xs text-gray-500 dark:text-gray-400 ml-2">
-              User: {user?.role} | Can Create: {canCreateMember ? 'Yes' : 'No'}
-            </div>
           </div>
         }
       />
@@ -324,10 +322,14 @@ const Members: React.FC = () => {
           title="No members found"
           description="There are no team members at the moment."
           icon={<UserPlus size={24} />}
-          action={{
-            label: 'Add Member',
-            onClick: handleCreate,
-          }}
+          action={
+            canCreateMember
+              ? {
+                  label: 'Add Member',
+                  onClick: handleCreate,
+                }
+              : undefined
+          }
         />
       )}
 

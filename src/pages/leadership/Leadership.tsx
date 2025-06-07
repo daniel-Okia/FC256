@@ -120,7 +120,7 @@ const Leadership: React.FC = () => {
         const member = getMemberById(leadership.memberId);
         return member ? (
           <div className="flex items-center">
-            <Avatar size="sm\" className="mr-3" />
+            <Avatar size="sm" className="mr-3" />
             <div>
               <div className="font-medium text-gray-900 dark:text-white">
                 {member.name}
@@ -276,7 +276,7 @@ const Leadership: React.FC = () => {
         title="Leadership Roles"
         description="Manage team leadership positions and responsibilities"
         actions={
-          <div className="flex space-x-2">
+          canManageLeadership && (
             <Button 
               onClick={handleCreate} 
               leftIcon={<Plus size={18} />}
@@ -284,11 +284,7 @@ const Leadership: React.FC = () => {
             >
               Add Leadership Role
             </Button>
-            {/* Debug info */}
-            <div className="text-xs text-gray-500 dark:text-gray-400 ml-2">
-              User: {user?.role} | Can Manage: {canManageLeadership ? 'Yes' : 'No'}
-            </div>
-          </div>
+          )
         }
       />
 
@@ -304,10 +300,14 @@ const Leadership: React.FC = () => {
             title="No leadership roles assigned"
             description="There are no leadership roles assigned at the moment."
             icon={<Crown size={24} />}
-            action={{
-              label: 'Add Leadership Role',
-              onClick: handleCreate,
-            }}
+            action={
+              canManageLeadership
+                ? {
+                    label: 'Add Leadership Role',
+                    onClick: handleCreate,
+                  }
+                : undefined
+            }
           />
         )}
       </Card>
