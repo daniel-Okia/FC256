@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CreditCard, Plus, Edit, Trash2, DollarSign } from 'lucide-react';
+import { CreditCard, Plus, Edit, Trash2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { ContributionService, MemberService } from '../../services/firestore';
 import PageHeader from '../../components/layout/PageHeader';
@@ -14,6 +14,7 @@ import EmptyState from '../../components/common/EmptyState';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { Contribution, Member, ContributionType, PaymentMethod } from '../../types';
 import { formatDate } from '../../utils/date-utils';
+import { formatUGX } from '../../utils/currency-utils';
 import { canUserAccess, Permissions } from '../../utils/permissions';
 import { useForm } from 'react-hook-form';
 
@@ -140,9 +141,8 @@ const Contributions: React.FC = () => {
       title: 'Amount',
       render: (contribution: Contribution) =>
         contribution.amount ? (
-          <div className="flex items-center">
-            <DollarSign size={16} className="mr-1 text-green-600" />
-            {contribution.amount}
+          <div className="flex items-center font-medium text-green-600 dark:text-green-400">
+            {formatUGX(contribution.amount)}
           </div>
         ) : (
           'N/A'
@@ -274,7 +274,7 @@ const Contributions: React.FC = () => {
     <div>
       <PageHeader
         title="Contributions"
-        description="Track and manage team contributions"
+        description="Track and manage team contributions in UGX"
         actions={
           canCreateContribution && (
             <Button 
@@ -350,19 +350,24 @@ const Contributions: React.FC = () => {
 
           {watchType === 'monetary' && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Input
-                label="Amount"
-                type="number"
-                step="0.01"
-                min="0"
-                placeholder="0.00"
-                error={errors.amount?.message}
-                required
-                {...register('amount', { 
-                  required: watchType === 'monetary' ? 'Amount is required for monetary contributions' : false,
-                  min: { value: 0, message: 'Amount must be positive' }
-                })}
-              />
+              <div>
+                <Input
+                  label="Amount (UGX)"
+                  type="number"
+                  step="1"
+                  min="0"
+                  placeholder="e.g., 50000"
+                  error={errors.amount?.message}
+                  required
+                  {...register('amount', { 
+                    required: watchType === 'monetary' ? 'Amount is required for monetary contributions' : false,
+                    min: { value: 0, message: 'Amount must be positive' }
+                  })}
+                />
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  Enter amount in Ugandan Shillings
+                </p>
+              </div>
 
               <Select
                 label="Payment Method"

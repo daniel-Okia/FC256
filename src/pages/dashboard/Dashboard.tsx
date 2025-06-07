@@ -8,6 +8,7 @@ import AttendanceChart from './AttendanceChart';
 import ContributionsChart from './ContributionsChart';
 import UpcomingEvents from './UpcomingEvents';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
+import { formatUGX } from '../../utils/currency-utils';
 
 const Dashboard: React.FC = () => {
   const { user } = useAuth();
@@ -114,7 +115,7 @@ const Dashboard: React.FC = () => {
         />
         <DashboardCard
           title="Contributions"
-          value={`$${stats.totalContributions.toLocaleString()}`}
+          value={formatUGX(stats.totalContributions)}
           description="Total this month"
           icon={<CreditCard className="h-6 w-6 text-primary-600 dark:text-primary-400" />}
           trend={{ value: 12, isPositive: true }}

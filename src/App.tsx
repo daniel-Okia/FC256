@@ -10,6 +10,7 @@ import Training from './pages/training/Training';
 import Friendlies from './pages/friendlies/Friendlies';
 import Leadership from './pages/leadership/Leadership';
 import Contributions from './pages/contributions/Contributions';
+import Attendance from './pages/attendance/Attendance';
 import Profile from './pages/profile/Profile';
 import NotFound from './pages/NotFound';
 import ProtectedRoute from './components/auth/ProtectedRoute';
@@ -86,6 +87,15 @@ function App() {
             />
             
             <Route 
+              path="/attendance" 
+              element={
+                <ProtectedRoute>
+                  <Attendance />
+                </ProtectedRoute>
+              } 
+            />
+            
+            <Route 
               path="/profile" 
               element={
                 <ProtectedRoute>
@@ -96,7 +106,7 @@ function App() {
           </Route>
           
           <Route path="/404" element={<NotFound />} />
-          <Route path="*" element={<Navigate to="/404\" replace />} />
+          <Route path="*" element={<Navigate to="/404" replace />} />
         </Routes>
       </Router>
     </AuthProvider>

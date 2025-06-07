@@ -8,6 +8,7 @@ import {
   ChartOptions,
 } from 'chart.js';
 import Card from '../../components/ui/Card';
+import { formatUGX } from '../../utils/currency-utils';
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
@@ -16,12 +17,12 @@ interface ContributionsChartProps {
 }
 
 const ContributionsChart: React.FC<ContributionsChartProps> = ({ className }) => {
-  // Mock data for demonstration
+  // Mock data for demonstration - amounts in UGX
   const data = {
     labels: ['Monetary', 'Jerseys', 'Equipment', 'Refreshments', 'Other'],
     datasets: [
       {
-        data: [4500, 1200, 800, 600, 300],
+        data: [4500000, 1200000, 800000, 600000, 300000], // UGX amounts
         backgroundColor: [
           'rgba(79, 79, 230, 0.8)',
           'rgba(225, 29, 42, 0.8)',
@@ -62,7 +63,7 @@ const ContributionsChart: React.FC<ContributionsChartProps> = ({ className }) =>
           label: function(context) {
             const label = context.label || '';
             const value = context.raw as number;
-            return `${label}: $${value}`;
+            return `${label}: ${formatUGX(value)}`;
           }
         }
       },
@@ -75,7 +76,7 @@ const ContributionsChart: React.FC<ContributionsChartProps> = ({ className }) =>
   return (
     <Card
       title="Contribution Breakdown"
-      subtitle="Total contributions by category"
+      subtitle="Total contributions by category (UGX)"
       className={className}
     >
       <div className="h-80 relative">
@@ -84,7 +85,7 @@ const ContributionsChart: React.FC<ContributionsChartProps> = ({ className }) =>
           <div className="text-center">
             <p className="text-sm text-gray-500 dark:text-gray-400">Total</p>
             <p className="text-xl font-semibold text-gray-900 dark:text-white">
-              ${totalContributions}
+              {formatUGX(totalContributions)}
             </p>
           </div>
         </div>

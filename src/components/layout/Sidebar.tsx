@@ -8,7 +8,8 @@ import {
   Crown, 
   CreditCard,
   User,
-  X
+  X,
+  ClipboardList
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { canUserAccess, Permissions } from '../../utils/permissions';
@@ -47,6 +48,12 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       path: '/members', 
       icon: Users, 
       roles: Permissions.VIEW_MEMBERS 
+    },
+    { 
+      name: 'Attendance', 
+      path: '/attendance', 
+      icon: ClipboardList, 
+      roles: Permissions.VIEW_ATTENDANCE 
     },
     { 
       name: 'Leadership', 
