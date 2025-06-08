@@ -1,40 +1,25 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import {
+  signInWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged,
+  User as FirebaseUser,
+  createUserWithEmailAndPassword,
+} from 'firebase/auth';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { auth, db } from '../config/firebase';
 import { AuthState, User, UserRole } from '../types';
 
 interface AuthContextType extends AuthState {
   login: (email: string, password: string) => Promise<void>;
-  logout: () => void;
+  register: (email: string, password: string, userData: Omit<User, 'id'>) => Promise<void>;
+  logout: () => Promise<void>;
   isAdmin: () => boolean;
   isManager: () => boolean;
   isMember: () => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-// Mock users for demonstration
-const MOCK_USERS: Record<string, User> = {
-  'admin@fitholicsfc.com': {
-    id: '1',
-    name: 'Admin User',
-    email: 'admin@fitholicsfc.com',
-    role: 'admin',
-    dateJoined: new Date().toISOString(),
-  },
-  'manager@fitholicsfc.com': {
-    id: '2',
-    name: 'Manager User',
-    email: 'manager@fitholicsfc.com',
-    role: 'manager',
-    dateJoined: new Date().toISOString(),
-  },
-  'member@fitholicsfc.com': {
-    id: '3',
-    name: 'Member User',
-    email: 'member@fitholicsfc.com',
-    role: 'member',
-    dateJoined: new Date().toISOString(),
-  },
-};
 
 interface AuthProviderProps {
   children: React.ReactNode;
@@ -48,21 +33,62 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     error: null,
   });
 
+  const createDefaultUserDocument = async (firebaseUser: FirebaseUser): Promise<User> => {
+    const defaultUserData = {
+      name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User',
+      email: firebaseUser.email || '',
+      role: 'member' as UserRole,
+      phone: '',
+      dateJoined: new Date().toISOString(),
+      avatarUrl: firebaseUser.photoURL || '',
+    };
+
+    // Create the user document in Firestore
+    await setDoc(doc(db, 'users', firebaseUser.uid), defaultUserData);
+
+    return {
+      id: firebaseUser.uid,
+      ...defaultUserData,
+    };
+  };
+
   useEffect(() => {
-    // Check for stored user on mount
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      try {
-        const user = JSON.parse(storedUser);
-        setAuthState({
-          isAuthenticated: true,
-          user,
-          isLoading: false,
-          error: null,
-        });
-      } catch (error) {
-        console.error('Failed to parse stored user:', error);
-        localStorage.removeItem('user');
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        try {
+          // Get user data from Firestore
+          const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+          
+          let user: User;
+          
+          if (userDoc.exists()) {
+            const userData = userDoc.data() as Omit<User, 'id'>;
+            user = {
+              id: firebaseUser.uid,
+              ...userData,
+            };
+          } else {
+            // User document doesn't exist, create one with default values
+            console.log('User document not found, creating default document for:', firebaseUser.email);
+            user = await createDefaultUserDocument(firebaseUser);
+          }
+          
+          setAuthState({
+            isAuthenticated: true,
+            user,
+            isLoading: false,
+            error: null,
+          });
+        } catch (error) {
+          console.error('Error fetching user data:', error);
+          setAuthState({
+            isAuthenticated: false,
+            user: null,
+            isLoading: false,
+            error: 'Failed to load user data',
+          });
+        }
+      } else {
         setAuthState({
           isAuthenticated: false,
           user: null,
@@ -70,55 +96,120 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           error: null,
         });
       }
-    } else {
-      setAuthState((prev) => ({ ...prev, isLoading: false }));
-    }
+    });
+
+    return () => unsubscribe();
   }, []);
 
   const login = async (email: string, password: string) => {
     setAuthState((prev) => ({ ...prev, isLoading: true, error: null }));
 
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const firebaseUser = userCredential.user;
 
-      // Mock authentication
-      const user = MOCK_USERS[email.toLowerCase()];
-      if (user && password === 'password') {
-        localStorage.setItem('user', JSON.stringify(user));
-        setAuthState({
-          isAuthenticated: true,
-          user,
-          isLoading: false,
-          error: null,
-        });
+      // Get user data from Firestore
+      const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+      
+      let user: User;
+      
+      if (userDoc.exists()) {
+        const userData = userDoc.data() as Omit<User, 'id'>;
+        user = {
+          id: firebaseUser.uid,
+          ...userData,
+        };
       } else {
-        setAuthState({
-          isAuthenticated: false,
-          user: null,
-          isLoading: false,
-          error: 'Invalid email or password',
-        });
+        // User document doesn't exist, create one with default values
+        console.log('User document not found during login, creating default document for:', firebaseUser.email);
+        user = await createDefaultUserDocument(firebaseUser);
       }
-    } catch (error) {
+      
+      setAuthState({
+        isAuthenticated: true,
+        user,
+        isLoading: false,
+        error: null,
+      });
+    } catch (error: any) {
       console.error('Login error:', error);
+      let errorMessage = 'An error occurred during login';
+      
+      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+        errorMessage = 'Invalid email or password';
+      } else if (error.code === 'auth/too-many-requests') {
+        errorMessage = 'Too many failed attempts. Please try again later';
+      }
+      
       setAuthState({
         isAuthenticated: false,
         user: null,
         isLoading: false,
-        error: 'An error occurred during login',
+        error: errorMessage,
       });
     }
   };
 
-  const logout = () => {
-    localStorage.removeItem('user');
-    setAuthState({
-      isAuthenticated: false,
-      user: null,
-      isLoading: false,
-      error: null,
-    });
+  const register = async (email: string, password: string, userData: Omit<User, 'id'>) => {
+    setAuthState((prev) => ({ ...prev, isLoading: true, error: null }));
+
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const firebaseUser = userCredential.user;
+
+      // Create user document in Firestore
+      const user: User = {
+        id: firebaseUser.uid,
+        ...userData,
+        dateJoined: new Date().toISOString(),
+      };
+
+      await setDoc(doc(db, 'users', firebaseUser.uid), {
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        phone: user.phone,
+        dateJoined: user.dateJoined,
+        avatarUrl: user.avatarUrl,
+      });
+
+      setAuthState({
+        isAuthenticated: true,
+        user,
+        isLoading: false,
+        error: null,
+      });
+    } catch (error: any) {
+      console.error('Registration error:', error);
+      let errorMessage = 'An error occurred during registration';
+      
+      if (error.code === 'auth/email-already-in-use') {
+        errorMessage = 'Email is already registered';
+      } else if (error.code === 'auth/weak-password') {
+        errorMessage = 'Password is too weak';
+      }
+      
+      setAuthState({
+        isAuthenticated: false,
+        user: null,
+        isLoading: false,
+        error: errorMessage,
+      });
+    }
+  };
+
+  const logout = async () => {
+    try {
+      await signOut(auth);
+      setAuthState({
+        isAuthenticated: false,
+        user: null,
+        isLoading: false,
+        error: null,
+      });
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
   };
 
   const isAdmin = (): boolean => {
@@ -138,6 +229,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       value={{
         ...authState,
         login,
+        register,
         logout,
         isAdmin,
         isManager,

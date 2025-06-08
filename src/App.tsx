@@ -10,6 +10,7 @@ import Training from './pages/training/Training';
 import Friendlies from './pages/friendlies/Friendlies';
 import Leadership from './pages/leadership/Leadership';
 import Contributions from './pages/contributions/Contributions';
+import Attendance from './pages/attendance/Attendance';
 import Profile from './pages/profile/Profile';
 import NotFound from './pages/NotFound';
 import ProtectedRoute from './components/auth/ProtectedRoute';
@@ -81,6 +82,15 @@ function App() {
               element={
                 <ProtectedRoute>
                   <Contributions />
+                </ProtectedRoute>
+              } 
+            />
+            
+            <Route 
+              path="/attendance" 
+              element={
+                <ProtectedRoute>
+                  <Attendance />
                 </ProtectedRoute>
               } 
             />

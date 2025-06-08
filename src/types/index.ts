@@ -59,11 +59,13 @@ export interface Event {
 }
 
 // Attendance Types
+export type AttendanceStatus = 'present' | 'absent' | 'late' | 'excused';
+
 export interface Attendance {
   id: string;
   eventId: string;
   memberId: string;
-  status: 'present' | 'absent' | 'late' | 'excused';
+  status: AttendanceStatus;
   notes?: string;
   recordedBy: string;
   recordedAt: string;
@@ -96,7 +98,7 @@ export interface Contribution {
   memberId: string;
   eventId?: string;
   type: ContributionType;
-  amount?: number;
+  amount?: number; // Amount in UGX
   description: string;
   paymentMethod?: PaymentMethod;
   date: string;

@@ -17,11 +17,6 @@ const Login: React.FC = () => {
   const { login, isAuthenticated, error, isLoading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [demoAccounts] = useState([
-    { role: 'Admin', email: 'admin@fitholicsfc.com', password: 'password' },
-    { role: 'Manager', email: 'manager@fitholicsfc.com', password: 'password' },
-    { role: 'Member', email: 'member@fitholicsfc.com', password: 'password' },
-  ]);
 
   const from = location.state?.from?.pathname || '/';
 
@@ -50,12 +45,6 @@ const Login: React.FC = () => {
     } catch (error) {
       console.error('Login error:', error);
     }
-  };
-
-  const handleDemoLogin = (email: string, password: string) => {
-    setValue('email', email);
-    setValue('password', password);
-    handleSubmit(onSubmit)();
   };
 
   return (
@@ -119,22 +108,13 @@ const Login: React.FC = () => {
           </form>
           
           <div className="mt-8">
-            <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-3">
-              Demo Accounts
-            </h3>
-            <div className="space-y-2">
-              {demoAccounts.map((account) => (
-                <Button
-                  key={account.role}
-                  size="sm"
-                  variant={account.role === 'Admin' ? 'primary' : account.role === 'Manager' ? 'secondary' : 'outline'}
-                  fullWidth
-                  onClick={() => handleDemoLogin(account.email, account.password)}
-                  type="button"
-                >
-                  Sign in as {account.role}
-                </Button>
-              ))}
+            <div className="text-center">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Use your Firebase Authentication credentials to sign in.
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">
+                Contact your administrator if you need access.
+              </p>
             </div>
           </div>
         </Card>
