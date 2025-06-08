@@ -5,6 +5,7 @@ import Layout from './components/layout/Layout';
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
 import ForgotPassword from './pages/auth/ForgotPassword';
+import CreateAdmin from './pages/setup/CreateAdmin';
 import Dashboard from './pages/dashboard/Dashboard';
 import Members from './pages/members/Members';
 import MemberDetail from './pages/members/MemberDetail';
@@ -25,6 +26,7 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/setup/admin" element={<CreateAdmin />} />
           
           <Route element={<Layout />}>
             <Route 
@@ -110,7 +112,7 @@ function App() {
           </Route>
           
           <Route path="/404" element={<NotFound />} />
-          <Route path="*" element={<Navigate to="/404\" replace />} />
+          <Route path="*" element={<Navigate to="/404" replace />} />
         </Routes>
       </Router>
     </AuthProvider>
