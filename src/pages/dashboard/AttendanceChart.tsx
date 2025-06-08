@@ -60,110 +60,192 @@ const AttendanceChart: React.FC<AttendanceChartProps> = ({ className }) => {
   const [stats, setStats] = useState<AttendanceStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [totalActiveMembers, setTotalActiveMembers] = useState(0);
+  const [dataLastUpdated, setDataLastUpdated] = useState<number>(Date.now());
 
-  useEffect(() => {
-    const loadAttendanceData = async () => {
-      try {
-        setLoading(true);
-        
-        // Load all required data
-        const [attendance, events, members] = await Promise.all([
-          AttendanceService.getAllAttendance(),
-          EventService.getAllEvents(),
-          MemberService.getAllMembers(),
-        ]);
+  // Function to combine attendance data with member and event info
+  const combineAttendanceData = (attendanceData: any[], membersData: any[], eventsData: any[]): DailyAttendanceData[] => {
+    return attendanceData.map(attendance => {
+      const member = membersData.find(m => m.id === attendance.memberId);
+      const event = eventsData.find(e => e.id === attendance.eventId);
+      
+      if (!member || !event) {
+        console.warn('Missing member or event for attendance record:', attendance.id);
+        return null;
+      }
+      
+      return {
+        id: attendance.id,
+        member,
+        event,
+        attendance,
+      };
+    }).filter((record): record is any => record !== null);
+  };
 
-        // Get active members count
-        const activeMembers = members.filter(m => m.status === 'active');
-        setTotalActiveMembers(activeMembers.length);
+  // Load attendance data function
+  const loadAttendanceData = async () => {
+    try {
+      setLoading(true);
+      console.log('Loading attendance data...');
+      
+      // Load all required data
+      const [attendance, events, members] = await Promise.all([
+        AttendanceService.getAllAttendance(),
+        EventService.getAllEvents(),
+        MemberService.getAllMembers(),
+      ]);
 
-        // Get training sessions from the last 60 days for better trend analysis
-        const sixtyDaysAgo = new Date();
-        sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
-        
-        // Filter training events from the last 60 days
-        const recentTrainingEvents = events.filter(event => {
-          const eventDate = new Date(event.date);
-          return event.type === 'training' && eventDate >= sixtyDaysAgo && eventDate <= new Date();
-        });
+      console.log('Data loaded:', {
+        attendance: attendance.length,
+        events: events.length,
+        members: members.length
+      });
 
-        // Sort events by date
-        recentTrainingEvents.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      // Get active members count
+      const activeMembers = members.filter(m => m.status === 'active');
+      setTotalActiveMembers(activeMembers.length);
 
-        // Calculate attendance for each training session
-        const dailyAttendanceData: DailyAttendanceData[] = recentTrainingEvents.map(event => {
-          // Count present attendees for this event
-          const eventAttendance = attendance.filter(a => 
-            a.eventId === event.id && a.status === 'present'
-          );
-          
-          const attendeeCount = eventAttendance.length;
-          const attendanceRate = activeMembers.length > 0 ? (attendeeCount / activeMembers.length) * 100 : 0;
-          
-          const eventDate = new Date(event.date);
-          
-          return {
-            date: event.date,
-            formattedDate: formatDate(event.date, 'MMM d'),
-            shortDate: formatDate(event.date, 'M/d'),
-            attendeeCount,
-            totalMembers: activeMembers.length,
-            attendanceRate,
-            eventDescription: event.description || 'Training Session',
-            eventId: event.id,
-          };
-        });
-
-        // Calculate statistics
-        if (dailyAttendanceData.length > 0) {
-          const attendanceCounts = dailyAttendanceData.map(d => d.attendeeCount);
-          const attendanceRates = dailyAttendanceData.map(d => d.attendanceRate);
-          
-          const averageAttendance = attendanceCounts.reduce((sum, count) => sum + count, 0) / attendanceCounts.length;
-          const averageRate = attendanceRates.reduce((sum, rate) => sum + rate, 0) / attendanceRates.length;
-          
-          // Calculate trend (compare first half vs second half)
-          const midPoint = Math.floor(dailyAttendanceData.length / 2);
-          const firstHalf = attendanceRates.slice(0, midPoint);
-          const secondHalf = attendanceRates.slice(midPoint);
-          
-          const firstHalfAvg = firstHalf.length > 0 ? firstHalf.reduce((sum, rate) => sum + rate, 0) / firstHalf.length : 0;
-          const secondHalfAvg = secondHalf.length > 0 ? secondHalf.reduce((sum, rate) => sum + rate, 0) / secondHalf.length : 0;
-          
-          let trend: 'up' | 'down' | 'stable' = 'stable';
-          let trendPercentage = 0;
-          
-          if (firstHalfAvg > 0) {
-            const change = ((secondHalfAvg - firstHalfAvg) / firstHalfAvg) * 100;
-            trendPercentage = Math.abs(change);
-            
-            if (change > 5) trend = 'up';
-            else if (change < -5) trend = 'down';
-            else trend = 'stable';
-          }
-          
-          setStats({
-            averageAttendance: Math.round(averageAttendance),
-            highestAttendance: Math.max(...attendanceCounts),
-            lowestAttendance: Math.min(...attendanceCounts),
-            totalSessions: dailyAttendanceData.length,
-            attendanceRate: Math.round(averageRate),
-            trend,
-            trendPercentage: Math.round(trendPercentage),
-          });
-        }
-
-        setAttendanceData(dailyAttendanceData);
-      } catch (error) {
-        console.error('Error loading attendance data:', error);
+      // If no data exists, set empty state
+      if (attendance.length === 0 || events.length === 0) {
+        console.log('No attendance or events data found');
         setAttendanceData([]);
         setStats(null);
-      } finally {
         setLoading(false);
+        return;
       }
-    };
 
+      // Get training sessions from the last 60 days for better trend analysis
+      const sixtyDaysAgo = new Date();
+      sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+      
+      // Filter training events from the last 60 days
+      const recentTrainingEvents = events.filter(event => {
+        const eventDate = new Date(event.date);
+        return event.type === 'training' && eventDate >= sixtyDaysAgo && eventDate <= new Date();
+      });
+
+      console.log('Recent training events:', recentTrainingEvents.length);
+
+      // If no recent training events, set empty state
+      if (recentTrainingEvents.length === 0) {
+        console.log('No recent training events found');
+        setAttendanceData([]);
+        setStats(null);
+        setLoading(false);
+        return;
+      }
+
+      // Sort events by date
+      recentTrainingEvents.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+      // Calculate attendance for each training session
+      const dailyAttendanceData: DailyAttendanceData[] = recentTrainingEvents.map(event => {
+        // Count present attendees for this event
+        const eventAttendance = attendance.filter(a => 
+          a.eventId === event.id && a.status === 'present'
+        );
+        
+        const attendeeCount = eventAttendance.length;
+        const attendanceRate = activeMembers.length > 0 ? (attendeeCount / activeMembers.length) * 100 : 0;
+        
+        const eventDate = new Date(event.date);
+        
+        return {
+          date: event.date,
+          formattedDate: formatDate(event.date, 'MMM d'),
+          shortDate: formatDate(event.date, 'M/d'),
+          attendeeCount,
+          totalMembers: activeMembers.length,
+          attendanceRate,
+          eventDescription: event.description || 'Training Session',
+          eventId: event.id,
+        };
+      });
+
+      console.log('Daily attendance data:', dailyAttendanceData);
+
+      // Calculate statistics only if we have data
+      if (dailyAttendanceData.length > 0) {
+        const attendanceCounts = dailyAttendanceData.map(d => d.attendeeCount);
+        const attendanceRates = dailyAttendanceData.map(d => d.attendanceRate);
+        
+        const averageAttendance = attendanceCounts.reduce((sum, count) => sum + count, 0) / attendanceCounts.length;
+        const averageRate = attendanceRates.reduce((sum, rate) => sum + rate, 0) / attendanceRates.length;
+        
+        // Calculate trend (compare first half vs second half)
+        const midPoint = Math.floor(dailyAttendanceData.length / 2);
+        const firstHalf = attendanceRates.slice(0, midPoint);
+        const secondHalf = attendanceRates.slice(midPoint);
+        
+        const firstHalfAvg = firstHalf.length > 0 ? firstHalf.reduce((sum, rate) => sum + rate, 0) / firstHalf.length : 0;
+        const secondHalfAvg = secondHalf.length > 0 ? secondHalf.reduce((sum, rate) => sum + rate, 0) / secondHalf.length : 0;
+        
+        let trend: 'up' | 'down' | 'stable' = 'stable';
+        let trendPercentage = 0;
+        
+        if (firstHalfAvg > 0) {
+          const change = ((secondHalfAvg - firstHalfAvg) / firstHalfAvg) * 100;
+          trendPercentage = Math.abs(change);
+          
+          if (change > 5) trend = 'up';
+          else if (change < -5) trend = 'down';
+          else trend = 'stable';
+        }
+        
+        setStats({
+          averageAttendance: Math.round(averageAttendance),
+          highestAttendance: Math.max(...attendanceCounts),
+          lowestAttendance: Math.min(...attendanceCounts),
+          totalSessions: dailyAttendanceData.length,
+          attendanceRate: Math.round(averageRate),
+          trend,
+          trendPercentage: Math.round(trendPercentage),
+        });
+      } else {
+        setStats(null);
+      }
+
+      setAttendanceData(dailyAttendanceData);
+      setDataLastUpdated(Date.now());
+    } catch (error) {
+      console.error('Error loading attendance data:', error);
+      setAttendanceData([]);
+      setStats(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Initial load
+  useEffect(() => {
     loadAttendanceData();
+  }, []);
+
+  // Set up real-time listeners with proper cleanup
+  useEffect(() => {
+    console.log('Setting up real-time listeners...');
+    
+    const unsubscribeAttendance = AttendanceService.subscribeToAttendance((attendanceData) => {
+      console.log('Attendance data updated:', attendanceData.length);
+      loadAttendanceData();
+    });
+    
+    const unsubscribeEvents = EventService.subscribeToEvents((eventsData) => {
+      console.log('Events data updated:', eventsData.length);
+      loadAttendanceData();
+    });
+    
+    const unsubscribeMembers = MemberService.subscribeToMembers((membersData) => {
+      console.log('Members data updated:', membersData.length);
+      loadAttendanceData();
+    });
+
+    return () => {
+      console.log('Cleaning up listeners...');
+      unsubscribeAttendance();
+      unsubscribeEvents();
+      unsubscribeMembers();
+    };
   }, []);
 
   // Chart configuration with improved visuals and restored values
@@ -298,15 +380,6 @@ const AttendanceChart: React.FC<AttendanceChartProps> = ({ className }) => {
             size: 11,
           },
         },
-        title: {
-          display: true,
-          text: 'Number of Members',
-          color: document.documentElement.classList.contains('dark') ? '#D1D5DB' : '#6B7280',
-          font: {
-            size: 12,
-            weight: '500',
-          },
-        },
       },
       y1: {
         type: 'linear' as const,
@@ -325,15 +398,6 @@ const AttendanceChart: React.FC<AttendanceChartProps> = ({ className }) => {
           },
           callback: function(value) {
             return value + '%';
-          },
-        },
-        title: {
-          display: true,
-          text: 'Attendance Rate (%)',
-          color: document.documentElement.classList.contains('dark') ? '#D1D5DB' : '#6B7280',
-          font: {
-            size: 12,
-            weight: '500',
           },
         },
       },
@@ -388,7 +452,7 @@ const AttendanceChart: React.FC<AttendanceChartProps> = ({ className }) => {
   return (
     <Card
       title="Training Attendance Trends"
-      subtitle="Daily attendance tracking for training sessions over the last 60 days"
+      subtitle={`Daily attendance tracking for training sessions${attendanceData.length > 0 ? ' over the last 60 days' : ''}`}
       className={className}
     >
       {loading ? (
@@ -509,11 +573,14 @@ const AttendanceChart: React.FC<AttendanceChartProps> = ({ className }) => {
               <Calendar className="w-8 h-8 text-gray-400" />
             </div>
             <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-              No Training Data
+              No Training Data Available
             </h3>
-            <p className="text-gray-500 dark:text-gray-400">
-              No training sessions with attendance records found in the last 60 days
+            <p className="text-gray-500 dark:text-gray-400 mb-4">
+              No training sessions with attendance records found in the last 60 days.
             </p>
+            <div className="text-sm text-gray-400 dark:text-gray-500">
+              <p>Data last checked: {new Date(dataLastUpdated).toLocaleTimeString()}</p>
+            </div>
           </div>
         </div>
       )}
