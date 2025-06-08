@@ -194,11 +194,11 @@ export class FirestoreService {
         });
 
       case 'events':
-        // Sort events by date (latest first)
+        // Sort events by date (past to present - earliest first)
         return data.sort((a: any, b: any) => {
           const dateA = new Date(a.date || 0);
           const dateB = new Date(b.date || 0);
-          return dateB.getTime() - dateA.getTime();
+          return dateA.getTime() - dateB.getTime();
         });
 
       case 'contributions':
@@ -345,11 +345,11 @@ export class EventService {
         { field: 'type', operator: '==', value: type }
       ]);
       
-      // Sort by date (latest first)
+      // Sort by date (past to present - earliest first)
       return events.sort((a, b) => {
         const dateA = new Date(a.date);
         const dateB = new Date(b.date);
-        return dateB.getTime() - dateA.getTime();
+        return dateA.getTime() - dateB.getTime();
       });
     } catch (error) {
       console.error(`Error fetching events by type ${type}:`, error);

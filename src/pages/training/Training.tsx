@@ -67,7 +67,7 @@ const Training: React.FC = () => {
         .sort((a, b) => {
           const dateA = new Date(a.date);
           const dateB = new Date(b.date);
-          return dateB.getTime() - dateA.getTime(); // Latest first
+          return dateA.getTime() - dateB.getTime(); // Past to present (earliest first)
         });
       setTrainingSessions(trainingEvents);
       setLoading(false);

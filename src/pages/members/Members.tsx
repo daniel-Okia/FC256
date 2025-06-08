@@ -123,15 +123,6 @@ const Members: React.FC = () => {
       ),
     },
     {
-      key: 'jerseyNumber',
-      title: 'Jersey #',
-      render: (member: Member) => (
-        <div className="font-mono text-sm">
-          #{member.jerseyNumber}
-        </div>
-      ),
-    },
-    {
       key: 'position',
       title: 'Position',
     },
