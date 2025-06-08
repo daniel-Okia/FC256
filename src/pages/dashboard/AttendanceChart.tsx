@@ -166,7 +166,7 @@ const AttendanceChart: React.FC<AttendanceChartProps> = ({ className }) => {
     loadAttendanceData();
   }, []);
 
-  // Chart configuration with improved visuals
+  // Chart configuration with improved visuals and restored values
   const data = {
     labels: attendanceData.map(d => d.formattedDate),
     datasets: [
@@ -297,10 +297,15 @@ const AttendanceChart: React.FC<AttendanceChartProps> = ({ className }) => {
           font: {
             size: 11,
           },
-          display: false, // Hide y-axis labels
         },
         title: {
-          display: false, // Hide y-axis title
+          display: true,
+          text: 'Number of Members',
+          color: document.documentElement.classList.contains('dark') ? '#D1D5DB' : '#6B7280',
+          font: {
+            size: 12,
+            weight: '500',
+          },
         },
       },
       y1: {
@@ -318,13 +323,18 @@ const AttendanceChart: React.FC<AttendanceChartProps> = ({ className }) => {
           font: {
             size: 11,
           },
-          display: false, // Hide y1-axis labels
           callback: function(value) {
             return value + '%';
           },
         },
         title: {
-          display: false, // Hide y1-axis title
+          display: true,
+          text: 'Attendance Rate (%)',
+          color: document.documentElement.classList.contains('dark') ? '#D1D5DB' : '#6B7280',
+          font: {
+            size: 12,
+            weight: '500',
+          },
         },
       },
     },
