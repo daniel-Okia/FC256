@@ -166,7 +166,7 @@ const AttendanceChart: React.FC<AttendanceChartProps> = ({ className }) => {
     loadAttendanceData();
   }, []);
 
-  // Chart configuration
+  // Chart configuration with improved visuals
   const data = {
     labels: attendanceData.map(d => d.formattedDate),
     datasets: [
@@ -178,12 +178,12 @@ const AttendanceChart: React.FC<AttendanceChartProps> = ({ className }) => {
         borderWidth: 3,
         pointBackgroundColor: 'rgba(99, 115, 242, 1)',
         pointBorderColor: '#ffffff',
-        pointBorderWidth: 2,
-        pointRadius: 6,
-        pointHoverRadius: 8,
+        pointBorderWidth: 3,
+        pointRadius: 7,
+        pointHoverRadius: 10,
         pointHoverBackgroundColor: 'rgba(99, 115, 242, 1)',
         pointHoverBorderColor: '#ffffff',
-        pointHoverBorderWidth: 3,
+        pointHoverBorderWidth: 4,
         fill: true,
         tension: 0.4,
       },
@@ -192,12 +192,12 @@ const AttendanceChart: React.FC<AttendanceChartProps> = ({ className }) => {
         data: attendanceData.map(d => d.attendanceRate),
         borderColor: 'rgba(34, 197, 94, 1)',
         backgroundColor: 'rgba(34, 197, 94, 0.05)',
-        borderWidth: 2,
+        borderWidth: 3,
         pointBackgroundColor: 'rgba(34, 197, 94, 1)',
         pointBorderColor: '#ffffff',
-        pointBorderWidth: 2,
-        pointRadius: 4,
-        pointHoverRadius: 6,
+        pointBorderWidth: 3,
+        pointRadius: 6,
+        pointHoverRadius: 8,
         fill: false,
         tension: 0.4,
         yAxisID: 'y1',
@@ -220,8 +220,8 @@ const AttendanceChart: React.FC<AttendanceChartProps> = ({ className }) => {
           usePointStyle: true,
           padding: 20,
           font: {
-            size: 12,
-            weight: '500',
+            size: 13,
+            weight: '600',
           },
         },
       },
@@ -231,9 +231,16 @@ const AttendanceChart: React.FC<AttendanceChartProps> = ({ className }) => {
         bodyColor: document.documentElement.classList.contains('dark') ? '#D1D5DB' : '#4B5563',
         borderColor: document.documentElement.classList.contains('dark') ? '#4B5563' : '#E5E7EB',
         borderWidth: 1,
-        cornerRadius: 8,
-        padding: 12,
+        cornerRadius: 12,
+        padding: 16,
         displayColors: true,
+        titleFont: {
+          size: 14,
+          weight: '600',
+        },
+        bodyFont: {
+          size: 13,
+        },
         callbacks: {
           title: function(context) {
             const dataIndex = context[0].dataIndex;
@@ -269,7 +276,8 @@ const AttendanceChart: React.FC<AttendanceChartProps> = ({ className }) => {
           color: document.documentElement.classList.contains('dark') ? '#D1D5DB' : '#6B7280',
           maxTicksLimit: 8,
           font: {
-            size: 11,
+            size: 12,
+            weight: '500',
           },
         },
       },
@@ -289,15 +297,10 @@ const AttendanceChart: React.FC<AttendanceChartProps> = ({ className }) => {
           font: {
             size: 11,
           },
+          display: false, // Hide y-axis labels
         },
         title: {
-          display: true,
-          text: 'Number of Members',
-          color: document.documentElement.classList.contains('dark') ? '#D1D5DB' : '#6B7280',
-          font: {
-            size: 12,
-            weight: '500',
-          },
+          display: false, // Hide y-axis title
         },
       },
       y1: {
@@ -315,18 +318,13 @@ const AttendanceChart: React.FC<AttendanceChartProps> = ({ className }) => {
           font: {
             size: 11,
           },
+          display: false, // Hide y1-axis labels
           callback: function(value) {
             return value + '%';
           },
         },
         title: {
-          display: true,
-          text: 'Attendance Rate (%)',
-          color: document.documentElement.classList.contains('dark') ? '#D1D5DB' : '#6B7280',
-          font: {
-            size: 12,
-            weight: '500',
-          },
+          display: false, // Hide y1-axis title
         },
       },
     },
@@ -392,59 +390,67 @@ const AttendanceChart: React.FC<AttendanceChartProps> = ({ className }) => {
           {/* Statistics Cards */}
           {stats && (
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-              <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
+              <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-xl p-4 border border-blue-200 dark:border-blue-800">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-blue-600 dark:text-blue-400">
+                    <p className="text-sm font-semibold text-blue-600 dark:text-blue-400">
                       Avg Attendance
                     </p>
                     <p className="text-2xl font-bold text-blue-900 dark:text-blue-100">
                       {stats.averageAttendance}
                     </p>
                   </div>
-                  <Users className="h-8 w-8 text-blue-600 dark:text-blue-400" />
+                  <div className="p-2 bg-blue-200 dark:bg-blue-800 rounded-lg">
+                    <Users className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                  </div>
                 </div>
               </div>
               
-              <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4">
+              <div className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-xl p-4 border border-green-200 dark:border-green-800">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-green-600 dark:text-green-400">
+                    <p className="text-sm font-semibold text-green-600 dark:text-green-400">
                       Attendance Rate
                     </p>
                     <p className="text-2xl font-bold text-green-900 dark:text-green-100">
                       {stats.attendanceRate}%
                     </p>
                   </div>
-                  <Activity className="h-8 w-8 text-green-600 dark:text-green-400" />
+                  <div className="p-2 bg-green-200 dark:bg-green-800 rounded-lg">
+                    <Activity className="h-6 w-6 text-green-600 dark:text-green-400" />
+                  </div>
                 </div>
               </div>
               
-              <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-4">
+              <div className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 rounded-xl p-4 border border-purple-200 dark:border-purple-800">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-purple-600 dark:text-purple-400">
+                    <p className="text-sm font-semibold text-purple-600 dark:text-purple-400">
                       Best Session
                     </p>
                     <p className="text-2xl font-bold text-purple-900 dark:text-purple-100">
                       {stats.highestAttendance}
                     </p>
                   </div>
-                  <TrendingUp className="h-8 w-8 text-purple-600 dark:text-purple-400" />
+                  <div className="p-2 bg-purple-200 dark:bg-purple-800 rounded-lg">
+                    <TrendingUp className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+                  </div>
                 </div>
               </div>
               
-              <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
+              <div className="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-700 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                    <p className="text-sm font-semibold text-gray-600 dark:text-gray-400">
                       Total Sessions
                     </p>
                     <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                       {stats.totalSessions}
                     </p>
                   </div>
-                  <Calendar className="h-8 w-8 text-gray-600 dark:text-gray-400" />
+                  <div className="p-2 bg-gray-200 dark:bg-gray-600 rounded-lg">
+                    <Calendar className="h-6 w-6 text-gray-600 dark:text-gray-400" />
+                  </div>
                 </div>
               </div>
             </div>
@@ -452,27 +458,38 @@ const AttendanceChart: React.FC<AttendanceChartProps> = ({ className }) => {
 
           {/* Trend Indicator */}
           {stats && (
-            <div className="mb-4 flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                {getTrendIcon()}
-                <span className={`text-sm font-medium ${getTrendColor()}`}>
-                  {getTrendText()}
-                </span>
+            <div className="mb-6 flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="flex items-center space-x-2 px-3 py-2 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                  {getTrendIcon()}
+                  <span className={`text-sm font-semibold ${getTrendColor()}`}>
+                    {getTrendText()}
+                  </span>
+                </div>
               </div>
-              <Badge variant="info" size="sm">
+              <Badge variant="info" size="sm" className="px-3 py-1">
                 Last 60 days
               </Badge>
             </div>
           )}
 
           {/* Chart */}
-          <div className="h-80">
+          <div className="h-80 bg-gradient-to-br from-gray-50/50 to-white dark:from-gray-800/50 dark:to-gray-900 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
             <Line data={data} options={options} />
           </div>
 
           {/* Chart Legend */}
-          <div className="mt-4 text-xs text-gray-500 dark:text-gray-400 text-center">
-            <p>Blue line shows member count • Green line shows attendance percentage</p>
+          <div className="mt-4 text-center">
+            <div className="inline-flex items-center space-x-6 px-4 py-2 bg-gray-50 dark:bg-gray-800 rounded-lg">
+              <div className="flex items-center space-x-2">
+                <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                <span className="text-xs font-medium text-gray-600 dark:text-gray-400">Member Count</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                <span className="text-xs font-medium text-gray-600 dark:text-gray-400">Attendance %</span>
+              </div>
+            </div>
           </div>
         </div>
       ) : (
