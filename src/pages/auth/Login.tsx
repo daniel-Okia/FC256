@@ -61,7 +61,7 @@ const Login: React.FC = () => {
             </div>
           </div>
           <h2 className="text-3xl font-bold text-gray-900 dark:text-white">
-            Welcome to Fitholics FC
+            Fitholics FC
           </h2>
           <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
             Sign in to access your team management portal
@@ -109,10 +109,7 @@ const Login: React.FC = () => {
           
           <div className="mt-8">
             <div className="text-center">
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                Use your Firebase Authentication credentials to sign in.
-              </p>
-              <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">
+              <p className="text-xs text-gray-500 dark:text-gray-500">
                 Contact your administrator if you need access.
               </p>
             </div>
