@@ -18,18 +18,37 @@ const requiredFields = ['apiKey', 'authDomain', 'projectId', 'storageBucket', 'm
 const missingFields = requiredFields.filter(field => !firebaseConfig[field as keyof typeof firebaseConfig]);
 
 if (missingFields.length > 0) {
-  throw new Error(`Missing required Firebase configuration fields: ${missingFields.join(', ')}`);
+  console.error(`Missing required Firebase configuration fields: ${missingFields.join(', ')}`);
+  console.error('Please check your .env file and ensure all Firebase configuration variables are set.');
 }
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
+let app;
+let auth;
+let db;
+let storage;
 
-// Initialize Firebase services
-export const auth = getAuth(app);
-export const db = getFirestore(app);
-export const storage = getStorage(app);
+try {
+  // Initialize Firebase
+  app = initializeApp(firebaseConfig);
 
-// Ensure auth is ready before exporting
-auth.useDeviceLanguage();
+  // Initialize Firebase services
+  auth = getAuth(app);
+  db = getFirestore(app);
+  storage = getStorage(app);
 
+  // Ensure auth is ready before exporting
+  auth.useDeviceLanguage();
+
+  console.log('Firebase initialized successfully');
+} catch (error) {
+  console.error('Error initializing Firebase:', error);
+  console.error('Please check your Firebase configuration in the .env file');
+  
+  // Create mock services to prevent app crashes
+  auth = null as any;
+  db = null as any;
+  storage = null as any;
+}
+
+export { auth, db, storage };
 export default app;
