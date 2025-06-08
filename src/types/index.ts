@@ -71,14 +71,54 @@ export interface Attendance {
   recordedAt: string;
 }
 
-// Leadership Types
+// Leadership Types - Expanded with comprehensive football club roles
 export type LeadershipRole = 
+  // Technical Staff
   | 'Head Coach' 
   | 'Assistant Coach' 
-  | 'Team Manager' 
+  | 'Goalkeeping Coach'
+  | 'Fitness Trainer'
+  | 'Physiotherapist'
+  | 'Team Doctor'
+  | 'Nutritionist'
+  
+  // Team Leadership
   | 'Captain' 
-  | 'Vice Captain' 
-  | 'Fitness Trainer';
+  | 'Vice Captain'
+  | 'Team Leader'
+  
+  // Administrative Roles
+  | 'Chairman'
+  | 'Vice Chairman'
+  | 'Team Manager' 
+  | 'Secretary'
+  | 'Treasurer'
+  | 'Public Relations Officer'
+  | 'Media Officer'
+  
+  // Equipment & Logistics
+  | 'Equipment Manager'
+  | 'Kit Manager'
+  | 'Transport Coordinator'
+  | 'Groundskeeper'
+  
+  // Disciplinary & Welfare
+  | 'Disciplinary Officer'
+  | 'Welfare Officer'
+  | 'Player Liaison'
+  | 'Youth Coordinator'
+  
+  // Match Officials & Support
+  | 'Match Coordinator'
+  | 'Scout'
+  | 'Analyst'
+  | 'Referee Liaison'
+  
+  // Social & Events
+  | 'Social Secretary'
+  | 'Events Coordinator'
+  | 'Fundraising Officer'
+  | 'Community Outreach Officer';
 
 export interface Leadership {
   id: string;

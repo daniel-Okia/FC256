@@ -44,13 +44,54 @@ const Leadership: React.FC = () => {
     formState: { errors },
   } = useForm<LeadershipFormData>();
 
+  // Comprehensive role options organized by category
   const roleOptions = [
-    { value: 'Head Coach', label: 'Head Coach' },
-    { value: 'Assistant Coach', label: 'Assistant Coach' },
-    { value: 'Team Manager', label: 'Team Manager' },
-    { value: 'Captain', label: 'Captain' },
-    { value: 'Vice Captain', label: 'Vice Captain' },
-    { value: 'Fitness Trainer', label: 'Fitness Trainer' },
+    // Technical Staff
+    { value: 'Head Coach', label: '🏆 Head Coach' },
+    { value: 'Assistant Coach', label: '🥅 Assistant Coach' },
+    { value: 'Goalkeeping Coach', label: '🧤 Goalkeeping Coach' },
+    { value: 'Fitness Trainer', label: '💪 Fitness Trainer' },
+    { value: 'Physiotherapist', label: '🏥 Physiotherapist' },
+    { value: 'Team Doctor', label: '👨‍⚕️ Team Doctor' },
+    { value: 'Nutritionist', label: '🥗 Nutritionist' },
+    
+    // Team Leadership
+    { value: 'Captain', label: '👑 Captain' },
+    { value: 'Vice Captain', label: '🔰 Vice Captain' },
+    { value: 'Team Leader', label: '👥 Team Leader' },
+    
+    // Administrative Roles
+    { value: 'Chairman', label: '🏛️ Chairman' },
+    { value: 'Vice Chairman', label: '🏛️ Vice Chairman' },
+    { value: 'Team Manager', label: '📋 Team Manager' },
+    { value: 'Secretary', label: '📝 Secretary' },
+    { value: 'Treasurer', label: '💰 Treasurer' },
+    { value: 'Public Relations Officer', label: '📢 Public Relations Officer' },
+    { value: 'Media Officer', label: '📺 Media Officer' },
+    
+    // Equipment & Logistics
+    { value: 'Equipment Manager', label: '⚽ Equipment Manager' },
+    { value: 'Kit Manager', label: '👕 Kit Manager' },
+    { value: 'Transport Coordinator', label: '🚌 Transport Coordinator' },
+    { value: 'Groundskeeper', label: '🌱 Groundskeeper' },
+    
+    // Disciplinary & Welfare
+    { value: 'Disciplinary Officer', label: '⚖️ Disciplinary Officer' },
+    { value: 'Welfare Officer', label: '🤝 Welfare Officer' },
+    { value: 'Player Liaison', label: '🔗 Player Liaison' },
+    { value: 'Youth Coordinator', label: '👶 Youth Coordinator' },
+    
+    // Match Officials & Support
+    { value: 'Match Coordinator', label: '📅 Match Coordinator' },
+    { value: 'Scout', label: '🔍 Scout' },
+    { value: 'Analyst', label: '📊 Analyst' },
+    { value: 'Referee Liaison', label: '👨‍⚖️ Referee Liaison' },
+    
+    // Social & Events
+    { value: 'Social Secretary', label: '🎉 Social Secretary' },
+    { value: 'Events Coordinator', label: '🎪 Events Coordinator' },
+    { value: 'Fundraising Officer', label: '💵 Fundraising Officer' },
+    { value: 'Community Outreach Officer', label: '🌍 Community Outreach Officer' },
   ];
 
   // Load data from Firestore
@@ -94,20 +135,47 @@ const Leadership: React.FC = () => {
   const getMemberById = (id: string) => members.find(m => m.id === id);
 
   const getRoleBadgeVariant = (role: LeadershipRole) => {
-    switch (role) {
-      case 'Head Coach':
-      case 'Captain':
-        return 'primary';
-      case 'Assistant Coach':
-      case 'Vice Captain':
-        return 'secondary';
-      case 'Team Manager':
-        return 'success';
-      case 'Fitness Trainer':
-        return 'warning';
-      default:
-        return 'default';
+    // Technical Staff
+    if (['Head Coach', 'Assistant Coach', 'Goalkeeping Coach'].includes(role)) {
+      return 'primary';
     }
+    // Team Leadership
+    if (['Captain', 'Vice Captain', 'Team Leader'].includes(role)) {
+      return 'warning';
+    }
+    // Administrative
+    if (['Chairman', 'Vice Chairman', 'Secretary', 'Treasurer'].includes(role)) {
+      return 'success';
+    }
+    // Equipment & Logistics
+    if (['Equipment Manager', 'Kit Manager', 'Transport Coordinator', 'Groundskeeper'].includes(role)) {
+      return 'info';
+    }
+    // Medical & Fitness
+    if (['Fitness Trainer', 'Physiotherapist', 'Team Doctor', 'Nutritionist'].includes(role)) {
+      return 'secondary';
+    }
+    // Default
+    return 'default';
+  };
+
+  const getRoleCategory = (role: LeadershipRole): string => {
+    const technicalStaff = ['Head Coach', 'Assistant Coach', 'Goalkeeping Coach', 'Fitness Trainer', 'Physiotherapist', 'Team Doctor', 'Nutritionist'];
+    const teamLeadership = ['Captain', 'Vice Captain', 'Team Leader'];
+    const administrative = ['Chairman', 'Vice Chairman', 'Team Manager', 'Secretary', 'Treasurer', 'Public Relations Officer', 'Media Officer'];
+    const equipment = ['Equipment Manager', 'Kit Manager', 'Transport Coordinator', 'Groundskeeper'];
+    const disciplinary = ['Disciplinary Officer', 'Welfare Officer', 'Player Liaison', 'Youth Coordinator'];
+    const matchSupport = ['Match Coordinator', 'Scout', 'Analyst', 'Referee Liaison'];
+    const social = ['Social Secretary', 'Events Coordinator', 'Fundraising Officer', 'Community Outreach Officer'];
+
+    if (technicalStaff.includes(role)) return 'Technical Staff';
+    if (teamLeadership.includes(role)) return 'Team Leadership';
+    if (administrative.includes(role)) return 'Administrative';
+    if (equipment.includes(role)) return 'Equipment & Logistics';
+    if (disciplinary.includes(role)) return 'Disciplinary & Welfare';
+    if (matchSupport.includes(role)) return 'Match Support';
+    if (social.includes(role)) return 'Social & Events';
+    return 'Other';
   };
 
   const columns = [
@@ -118,7 +186,7 @@ const Leadership: React.FC = () => {
         const member = getMemberById(leadership.memberId);
         return member ? (
           <div className="flex items-center">
-            <Avatar size="sm\" className="mr-3" />
+            <Avatar size="sm" className="mr-3" />
             <div>
               <div className="font-medium text-gray-900 dark:text-white">
                 {member.name}
@@ -137,9 +205,14 @@ const Leadership: React.FC = () => {
       key: 'role',
       title: 'Role',
       render: (leadership: LeadershipType) => (
-        <Badge variant={getRoleBadgeVariant(leadership.role)}>
-          {leadership.role}
-        </Badge>
+        <div>
+          <Badge variant={getRoleBadgeVariant(leadership.role)} className="mb-1">
+            {leadership.role}
+          </Badge>
+          <div className="text-xs text-gray-500 dark:text-gray-400">
+            {getRoleCategory(leadership.role)}
+          </div>
+        </div>
       ),
     },
     {
@@ -150,6 +223,11 @@ const Leadership: React.FC = () => {
           {leadership.isActive ? 'Active' : 'Inactive'}
         </Badge>
       ),
+    },
+    {
+      key: 'startDate',
+      title: 'Start Date',
+      render: (leadership: LeadershipType) => formatDate(leadership.startDate),
     },
     {
       key: 'actions',
@@ -256,7 +334,7 @@ const Leadership: React.FC = () => {
     <div>
       <PageHeader
         title="Leadership Roles"
-        description="Manage team leadership positions and responsibilities"
+        description="Manage team leadership positions and responsibilities across all club functions"
         actions={
           canManageLeadership && (
             <Button 
@@ -299,7 +377,7 @@ const Leadership: React.FC = () => {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         title={editingRole ? 'Edit Leadership Role' : 'Add Leadership Role'}
-        size="md"
+        size="lg"
       >
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           <Select
@@ -311,14 +389,19 @@ const Leadership: React.FC = () => {
             {...register('memberId', { required: 'Member is required' })}
           />
 
-          <Select
-            label="Leadership Role"
-            options={roleOptions}
-            placeholder="Select leadership role"
-            error={errors.role?.message}
-            required
-            {...register('role', { required: 'Role is required' })}
-          />
+          <div>
+            <Select
+              label="Leadership Role"
+              options={roleOptions}
+              placeholder="Select leadership role"
+              error={errors.role?.message}
+              required
+              {...register('role', { required: 'Role is required' })}
+            />
+            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+              Choose from technical staff, administrative, equipment management, disciplinary, and social roles
+            </p>
+          </div>
 
           <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
             <div className="flex items-center">
@@ -328,8 +411,41 @@ const Leadership: React.FC = () => {
                   Leadership Assignment
                 </h4>
                 <p className="text-sm text-blue-700 dark:text-blue-300">
-                  The role will be assigned immediately and marked as active
+                  The role will be assigned immediately and marked as active. Members can hold multiple leadership positions.
                 </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Role Categories Info */}
+          <div className="bg-gray-50 dark:bg-neutral-700/30 rounded-lg p-4">
+            <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-3">
+              Role Categories Available:
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+              <div>
+                <p className="font-medium text-primary-600 dark:text-primary-400">🏆 Technical Staff</p>
+                <p className="text-gray-600 dark:text-gray-400">Coaches, trainers, medical staff</p>
+              </div>
+              <div>
+                <p className="font-medium text-yellow-600 dark:text-yellow-400">👑 Team Leadership</p>
+                <p className="text-gray-600 dark:text-gray-400">Captain, vice captain, team leaders</p>
+              </div>
+              <div>
+                <p className="font-medium text-green-600 dark:text-green-400">🏛️ Administrative</p>
+                <p className="text-gray-600 dark:text-gray-400">Chairman, secretary, treasurer</p>
+              </div>
+              <div>
+                <p className="font-medium text-blue-600 dark:text-blue-400">⚽ Equipment & Logistics</p>
+                <p className="text-gray-600 dark:text-gray-400">Equipment, transport, grounds</p>
+              </div>
+              <div>
+                <p className="font-medium text-purple-600 dark:text-purple-400">⚖️ Disciplinary & Welfare</p>
+                <p className="text-gray-600 dark:text-gray-400">Discipline, welfare, player liaison</p>
+              </div>
+              <div>
+                <p className="font-medium text-red-600 dark:text-red-400">🎉 Social & Events</p>
+                <p className="text-gray-600 dark:text-gray-400">Events, fundraising, community</p>
               </div>
             </div>
           </div>
