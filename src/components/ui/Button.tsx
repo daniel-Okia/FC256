@@ -1,7 +1,7 @@
 import React from 'react';
 import { twMerge } from 'tailwind-merge';
 
-export type ButtonVariant = 'primary' | 'secondary' | 'success' | 'danger' | 'warning' | 'outline' | 'ghost';
+export type ButtonVariant = 'primary' | 'secondary' | 'success' | 'danger' | 'warning' | 'outline' | 'ghost' | 'yellow';
 export type ButtonSize = 'sm' | 'md' | 'lg';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -38,6 +38,8 @@ const Button: React.FC<ButtonProps> = ({
         return 'bg-error-600 text-white hover:bg-error-700 focus:ring-error-500';
       case 'warning':
         return 'bg-warning-600 text-white hover:bg-warning-700 focus:ring-warning-500';
+      case 'yellow':
+        return 'bg-yellow-500 text-white hover:bg-yellow-600 focus:ring-yellow-500 shadow-yellow-glow hover:shadow-lg';
       case 'outline':
         return 'bg-transparent border border-gray-300 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-800 focus:ring-gray-400';
       case 'ghost':
@@ -60,7 +62,7 @@ const Button: React.FC<ButtonProps> = ({
     }
   };
 
-  const baseClasses = 'inline-flex items-center justify-center font-medium rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed';
+  const baseClasses = 'inline-flex items-center justify-center font-medium rounded-md transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed';
   const widthClass = fullWidth ? 'w-full' : '';
 
   return (

@@ -31,6 +31,20 @@ export default {
           900: '#83171f',
           950: '#480709',
         },
+        // Enhanced yellow color palette to match the logo
+        yellow: {
+          50: '#fefce8',
+          100: '#fef9c3',
+          200: '#fef08a',
+          300: '#fde047',
+          400: '#facc15',
+          500: '#eab308', // Main yellow from logo
+          600: '#ca8a04',
+          700: '#a16207',
+          800: '#854d0e',
+          900: '#713f12',
+          950: '#422006',
+        },
         success: {
           50: '#f0fdf4',
           100: '#dcfce7',
@@ -91,6 +105,7 @@ export default {
       boxShadow: {
         card: '0 2px 8px 0 rgba(0, 0, 0, 0.08)',
         'card-hover': '0 4px 12px 0 rgba(0, 0, 0, 0.12)',
+        'yellow-glow': '0 0 20px rgba(234, 179, 8, 0.3)',
       },
       animation: {
         'fade-in': 'fade-in 0.3s ease-in-out',
@@ -98,6 +113,7 @@ export default {
         'slide-down': 'slide-down 0.3s ease-in-out',
         'slide-left': 'slide-left 0.3s ease-in-out',
         'slide-right': 'slide-right 0.3s ease-in-out',
+        'pulse-yellow': 'pulse-yellow 2s ease-in-out infinite',
       },
       keyframes: {
         'fade-in': {
@@ -120,6 +136,14 @@ export default {
           '0%': { transform: 'translateX(-10px)', opacity: '0' },
           '100%': { transform: 'translateX(0)', opacity: '1' },
         },
+        'pulse-yellow': {
+          '0%, 100%': { boxShadow: '0 0 0 0 rgba(234, 179, 8, 0.7)' },
+          '70%': { boxShadow: '0 0 0 10px rgba(234, 179, 8, 0)' },
+        },
+      },
+      backgroundImage: {
+        'gradient-fitholics': 'linear-gradient(135deg, #4f4fe6 0%, #eab308 50%, #f43f4e 100%)',
+        'gradient-yellow-primary': 'linear-gradient(135deg, #eab308 0%, #4f4fe6 100%)',
       },
     },
   },
