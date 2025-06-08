@@ -86,10 +86,13 @@ const Contributions: React.FC = () => {
     };
   }, []);
 
-  const memberOptions = members.map(member => ({
-    value: member.id,
-    label: `${member.name} (#${member.jerseyNumber})`,
-  }));
+  // Sort member options alphabetically
+  const memberOptions = members
+    .sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()))
+    .map(member => ({
+      value: member.id,
+      label: `${member.name} (#${member.jerseyNumber})`,
+    }));
 
   const typeOptions = [
     { value: 'monetary', label: 'Monetary' },
@@ -278,7 +281,7 @@ const Contributions: React.FC = () => {
     <div>
       <PageHeader
         title="Contributions"
-        description="Track and manage team contributions in UGX"
+        description={`Track and manage team contributions in UGX (${contributions.length} contributions)`}
         actions={
           canCreateContribution && (
             <Button 

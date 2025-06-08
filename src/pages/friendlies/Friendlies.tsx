@@ -63,7 +63,13 @@ const Friendlies: React.FC = () => {
 
     // Set up real-time listener for friendly events
     const unsubscribe = EventService.subscribeToEvents((events) => {
-      const friendlyEvents = events.filter(event => event.type === 'friendly');
+      const friendlyEvents = events
+        .filter(event => event.type === 'friendly')
+        .sort((a, b) => {
+          const dateA = new Date(a.date);
+          const dateB = new Date(b.date);
+          return dateB.getTime() - dateA.getTime(); // Latest first
+        });
       setFriendlies(friendlyEvents);
       setLoading(false);
     });
@@ -75,7 +81,16 @@ const Friendlies: React.FC = () => {
     {
       key: 'date',
       title: 'Date',
-      render: (friendly: Event) => formatDate(friendly.date),
+      render: (friendly: Event) => (
+        <div>
+          <div className="font-medium text-gray-900 dark:text-white">
+            {formatDate(friendly.date)}
+          </div>
+          <div className="text-sm text-gray-500 dark:text-gray-400">
+            {new Date(friendly.date) > new Date() ? 'Upcoming' : 'Past'}
+          </div>
+        </div>
+      ),
     },
     {
       key: 'time',
@@ -223,7 +238,7 @@ const Friendlies: React.FC = () => {
     <div>
       <PageHeader
         title="Friendly Matches"
-        description="Schedule and manage friendly matches"
+        description={`Schedule and manage friendly matches (${friendlies.length} matches)`}
         actions={
           canCreateFriendly && (
             <Button 
@@ -247,7 +262,7 @@ const Friendlies: React.FC = () => {
         ) : (
           <EmptyState
             title="No friendly matches scheduled"
-            description="There are no upcoming friendly matches scheduled at the moment."
+            description="There are no friendly matches scheduled at the moment."
             icon={<Calendar size={24} />}
             action={
               canCreateFriendly

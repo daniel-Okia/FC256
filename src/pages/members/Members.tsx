@@ -88,11 +88,14 @@ const Members: React.FC = () => {
     return () => unsubscribe();
   }, []);
 
-  const filteredMembers = members.filter((member) =>
-    member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    member.position.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    member.email.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Filter and sort members
+  const filteredMembers = members
+    .filter((member) =>
+      member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      member.position.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      member.email.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+    .sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
 
   const getStatusBadgeVariant = (status: string) => {
     switch (status) {
@@ -116,6 +119,15 @@ const Members: React.FC = () => {
       render: (member: Member) => (
         <div className="font-medium text-gray-900 dark:text-white">
           {member.name}
+        </div>
+      ),
+    },
+    {
+      key: 'jerseyNumber',
+      title: 'Jersey #',
+      render: (member: Member) => (
+        <div className="font-mono text-sm">
+          #{member.jerseyNumber}
         </div>
       ),
     },
@@ -258,7 +270,12 @@ const Members: React.FC = () => {
       { key: 'dateJoined', label: 'Date Joined' },
     ];
 
-    exportToCSV(members, 'members-list', headers);
+    // Sort members alphabetically for export
+    const sortedMembers = [...members].sort((a, b) => 
+      a.name.toLowerCase().localeCompare(b.name.toLowerCase())
+    );
+
+    exportToCSV(sortedMembers, 'members-list', headers);
   };
 
   if (loading) {
@@ -273,7 +290,7 @@ const Members: React.FC = () => {
     <div>
       <PageHeader
         title="Team Members"
-        description="Manage your team roster and player information"
+        description={`Manage your team roster and player information (${filteredMembers.length} members)`}
         actions={
           <div className="flex space-x-2">
             {canCreateMember && (
@@ -301,7 +318,7 @@ const Members: React.FC = () => {
 
       <div className="mb-6">
         <Input
-          placeholder="Search members..."
+          placeholder="Search members by name, position, or email..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           leftIcon={<Search size={18} />}
@@ -318,11 +335,15 @@ const Members: React.FC = () => {
         />
       ) : (
         <EmptyState
-          title="No members found"
-          description="There are no team members at the moment."
+          title={searchTerm ? "No members found" : "No members yet"}
+          description={
+            searchTerm 
+              ? `No members match "${searchTerm}". Try adjusting your search.`
+              : "There are no team members at the moment."
+          }
           icon={<UserPlus size={24} />}
           action={
-            canCreateMember
+            canCreateMember && !searchTerm
               ? {
                   label: 'Add Member',
                   onClick: handleCreate,

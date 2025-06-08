@@ -42,7 +42,7 @@ export class FirestoreService {
     }
   }
 
-  // Read all documents
+  // Read all documents with automatic sorting
   static async getAll<T>(collectionName: string): Promise<T[]> {
     if (!db) {
       console.warn('Firestore is not initialized. Returning empty array.');
@@ -51,10 +51,13 @@ export class FirestoreService {
 
     try {
       const querySnapshot = await getDocs(collection(db, collectionName));
-      return querySnapshot.docs.map(doc => ({
+      const data = querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
       })) as T[];
+
+      // Apply automatic sorting based on collection type
+      return this.applySorting(data, collectionName);
     } catch (error: any) {
       console.error(`Error fetching documents from ${collectionName}:`, error);
       if (error.code === 'permission-denied') {
@@ -132,7 +135,7 @@ export class FirestoreService {
     }
   }
 
-  // Query with conditions
+  // Query with conditions and automatic sorting
   static async query<T>(
     collectionName: string,
     conditions: { field: string; operator: any; value: any }[] = [],
@@ -158,10 +161,17 @@ export class FirestoreService {
       }
       
       const querySnapshot = await getDocs(q);
-      return querySnapshot.docs.map(doc => ({
+      const data = querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
       })) as T[];
+
+      // Apply automatic sorting if no specific ordering was requested
+      if (!orderByField) {
+        return this.applySorting(data, collectionName);
+      }
+
+      return data;
     } catch (error: any) {
       console.error(`Error querying ${collectionName}:`, error);
       if (error.code === 'permission-denied') {
@@ -172,7 +182,55 @@ export class FirestoreService {
     }
   }
 
-  // Real-time listener
+  // Apply automatic sorting based on collection type
+  private static applySorting<T>(data: T[], collectionName: string): T[] {
+    switch (collectionName) {
+      case 'members':
+        // Sort members alphabetically by name
+        return data.sort((a: any, b: any) => {
+          const nameA = a.name?.toLowerCase() || '';
+          const nameB = b.name?.toLowerCase() || '';
+          return nameA.localeCompare(nameB);
+        });
+
+      case 'events':
+        // Sort events by date (latest first)
+        return data.sort((a: any, b: any) => {
+          const dateA = new Date(a.date || 0);
+          const dateB = new Date(b.date || 0);
+          return dateB.getTime() - dateA.getTime();
+        });
+
+      case 'contributions':
+        // Sort contributions by date (latest first)
+        return data.sort((a: any, b: any) => {
+          const dateA = new Date(a.date || 0);
+          const dateB = new Date(b.date || 0);
+          return dateB.getTime() - dateA.getTime();
+        });
+
+      case 'attendance':
+        // Sort attendance by recorded date (latest first)
+        return data.sort((a: any, b: any) => {
+          const dateA = new Date(a.recordedAt || 0);
+          const dateB = new Date(b.recordedAt || 0);
+          return dateB.getTime() - dateA.getTime();
+        });
+
+      case 'leadership':
+        // Sort leadership by member name alphabetically
+        return data.sort((a: any, b: any) => {
+          const roleA = a.role?.toLowerCase() || '';
+          const roleB = b.role?.toLowerCase() || '';
+          return roleA.localeCompare(roleB);
+        });
+
+      default:
+        return data;
+    }
+  }
+
+  // Real-time listener with automatic sorting
   static subscribeToCollection<T>(
     collectionName: string,
     callback: (data: T[]) => void,
@@ -197,7 +255,10 @@ export class FirestoreService {
             id: doc.id,
             ...doc.data(),
           })) as T[];
-          callback(data);
+          
+          // Apply automatic sorting
+          const sortedData = this.applySorting(data, collectionName);
+          callback(sortedData);
         },
         (error) => {
           console.error(`Error in subscription to ${collectionName}:`, error);
@@ -242,9 +303,11 @@ export class MemberService {
   }
 
   static async getActiveMembers(): Promise<Member[]> {
-    return FirestoreService.query<Member>(this.collection, [
+    const members = await FirestoreService.query<Member>(this.collection, [
       { field: 'status', operator: '==', value: 'active' }
     ]);
+    // Sort alphabetically by name
+    return members.sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
   }
 
   static subscribeToMembers(callback: (members: Member[]) => void): () => void {
@@ -282,11 +345,11 @@ export class EventService {
         { field: 'type', operator: '==', value: type }
       ]);
       
-      // Sort by date in JavaScript instead of Firestore
+      // Sort by date (latest first)
       return events.sort((a, b) => {
         const dateA = new Date(a.date);
         const dateB = new Date(b.date);
-        return dateA.getTime() - dateB.getTime();
+        return dateB.getTime() - dateA.getTime();
       });
     } catch (error) {
       console.error(`Error fetching events by type ${type}:`, error);
@@ -297,9 +360,16 @@ export class EventService {
   static async getUpcomingEvents(): Promise<Event[]> {
     try {
       const now = new Date();
-      return FirestoreService.query<Event>(this.collection, [
-        { field: 'date', operator: '>=', value: Timestamp.fromDate(now) }
-      ], 'date', 'asc');
+      const events = await FirestoreService.getAll<Event>(this.collection);
+      
+      // Filter for upcoming events and sort by date (earliest first for upcoming)
+      return events
+        .filter(event => new Date(event.date) >= now)
+        .sort((a, b) => {
+          const dateA = new Date(a.date);
+          const dateB = new Date(b.date);
+          return dateA.getTime() - dateB.getTime();
+        });
     } catch (error) {
       console.error('Error fetching upcoming events:', error);
       return [];
@@ -335,15 +405,27 @@ export class ContributionService {
   }
 
   static async getContributionsByMember(memberId: string): Promise<Contribution[]> {
-    return FirestoreService.query<Contribution>(this.collection, [
+    const contributions = await FirestoreService.query<Contribution>(this.collection, [
       { field: 'memberId', operator: '==', value: memberId }
-    ], 'date', 'desc');
+    ]);
+    // Sort by date (latest first)
+    return contributions.sort((a, b) => {
+      const dateA = new Date(a.date);
+      const dateB = new Date(b.date);
+      return dateB.getTime() - dateA.getTime();
+    });
   }
 
   static async getContributionsByType(type: 'monetary' | 'in-kind'): Promise<Contribution[]> {
-    return FirestoreService.query<Contribution>(this.collection, [
+    const contributions = await FirestoreService.query<Contribution>(this.collection, [
       { field: 'type', operator: '==', value: type }
-    ], 'date', 'desc');
+    ]);
+    // Sort by date (latest first)
+    return contributions.sort((a, b) => {
+      const dateA = new Date(a.date);
+      const dateB = new Date(b.date);
+      return dateB.getTime() - dateA.getTime();
+    });
   }
 
   static subscribeToContributions(callback: (contributions: Contribution[]) => void): () => void {
@@ -375,15 +457,19 @@ export class LeadershipService {
   }
 
   static async getActiveLeadership(): Promise<Leadership[]> {
-    return FirestoreService.query<Leadership>(this.collection, [
+    const leadership = await FirestoreService.query<Leadership>(this.collection, [
       { field: 'isActive', operator: '==', value: true }
     ]);
+    // Sort by role alphabetically
+    return leadership.sort((a, b) => a.role.toLowerCase().localeCompare(b.role.toLowerCase()));
   }
 
   static async getLeadershipByMember(memberId: string): Promise<Leadership[]> {
-    return FirestoreService.query<Leadership>(this.collection, [
+    const leadership = await FirestoreService.query<Leadership>(this.collection, [
       { field: 'memberId', operator: '==', value: memberId }
     ]);
+    // Sort by role alphabetically
+    return leadership.sort((a, b) => a.role.toLowerCase().localeCompare(b.role.toLowerCase()));
   }
 
   static subscribeToLeadership(callback: (leadership: Leadership[]) => void): () => void {
@@ -415,15 +501,27 @@ export class AttendanceService {
   }
 
   static async getAttendanceByEvent(eventId: string): Promise<Attendance[]> {
-    return FirestoreService.query<Attendance>(this.collection, [
+    const attendance = await FirestoreService.query<Attendance>(this.collection, [
       { field: 'eventId', operator: '==', value: eventId }
     ]);
+    // Sort by recorded date (latest first)
+    return attendance.sort((a, b) => {
+      const dateA = new Date(a.recordedAt);
+      const dateB = new Date(b.recordedAt);
+      return dateB.getTime() - dateA.getTime();
+    });
   }
 
   static async getAttendanceByMember(memberId: string): Promise<Attendance[]> {
-    return FirestoreService.query<Attendance>(this.collection, [
+    const attendance = await FirestoreService.query<Attendance>(this.collection, [
       { field: 'memberId', operator: '==', value: memberId }
-    ], 'recordedAt', 'desc');
+    ]);
+    // Sort by recorded date (latest first)
+    return attendance.sort((a, b) => {
+      const dateA = new Date(a.recordedAt);
+      const dateB = new Date(b.recordedAt);
+      return dateB.getTime() - dateA.getTime();
+    });
   }
 
   static subscribeToAttendance(callback: (attendance: Attendance[]) => void): () => void {

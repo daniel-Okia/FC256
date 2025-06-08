@@ -38,7 +38,7 @@ const RecentContributions: React.FC<RecentContributionsProps> = ({ className }) 
           MemberService.getAllMembers(),
         ]);
 
-        // Get recent contributions (last 30 days)
+        // Get recent contributions (last 30 days) and sort by date (latest first)
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
         
@@ -50,13 +50,14 @@ const RecentContributions: React.FC<RecentContributionsProps> = ({ className }) 
           .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
           .slice(0, 10); // Get latest 10 contributions
 
-        // Combine with member data
+        // Combine with member data and sort by member name
         const contributionsWithMemberData: ContributionWithMember[] = recentContributions
           .map(contribution => {
             const member = members.find(m => m.id === contribution.memberId);
             return member ? { contribution, member } : null;
           })
-          .filter((item): item is ContributionWithMember => item !== null);
+          .filter((item): item is ContributionWithMember => item !== null)
+          .sort((a, b) => a.member.name.toLowerCase().localeCompare(b.member.name.toLowerCase()));
 
         setContributionsWithMembers(contributionsWithMemberData);
 

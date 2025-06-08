@@ -8,7 +8,6 @@ import Button from '../../components/ui/Button';
 import Table from '../../components/ui/Table';
 import Modal from '../../components/ui/Modal';
 import Input from '../../components/ui/Input';
-import Select from '../../components/ui/Select';
 import EmptyState from '../../components/common/EmptyState';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { Event } from '../../types';
@@ -45,10 +44,6 @@ const Training: React.FC = () => {
     formState: { errors },
   } = useForm<TrainingFormData>();
 
-  const locationOptions = [
-    { value: 'Kiyinda Main Field', label: 'Kiyinda Main Field' },
-  ];
-
   // Load training sessions from Firestore
   useEffect(() => {
     const loadTrainingSessions = async () => {
@@ -67,7 +62,13 @@ const Training: React.FC = () => {
 
     // Set up real-time listener for training events
     const unsubscribe = EventService.subscribeToEvents((events) => {
-      const trainingEvents = events.filter(event => event.type === 'training');
+      const trainingEvents = events
+        .filter(event => event.type === 'training')
+        .sort((a, b) => {
+          const dateA = new Date(a.date);
+          const dateB = new Date(b.date);
+          return dateB.getTime() - dateA.getTime(); // Latest first
+        });
       setTrainingSessions(trainingEvents);
       setLoading(false);
     });
@@ -79,12 +80,26 @@ const Training: React.FC = () => {
     {
       key: 'date',
       title: 'Date',
-      render: (session: Event) => formatDate(session.date),
+      render: (session: Event) => (
+        <div>
+          <div className="font-medium text-gray-900 dark:text-white">
+            {formatDate(session.date)}
+          </div>
+          <div className="text-sm text-gray-500 dark:text-gray-400">
+            {new Date(session.date) > new Date() ? 'Upcoming' : 'Past'}
+          </div>
+        </div>
+      ),
     },
     {
       key: 'time',
       title: 'Time',
-      render: (session: Event) => session.time,
+      render: (session: Event) => (
+        <div className="flex items-center">
+          <Clock size={16} className="mr-2 text-gray-400" />
+          {session.time}
+        </div>
+      ),
     },
     {
       key: 'location',
@@ -212,7 +227,7 @@ const Training: React.FC = () => {
     <div>
       <PageHeader
         title="Training Sessions"
-        description="Schedule and manage team training sessions at Kiyinda Main Field"
+        description={`Schedule and manage team training sessions at Kiyinda Main Field (${trainingSessions.length} sessions)`}
         actions={
           canCreateTraining && (
             <Button 
@@ -236,7 +251,7 @@ const Training: React.FC = () => {
         ) : (
           <EmptyState
             title="No training sessions scheduled"
-            description="There are no upcoming training sessions scheduled at the moment."
+            description="There are no training sessions scheduled at the moment."
             icon={<Calendar size={24} />}
             action={
               canCreateTraining

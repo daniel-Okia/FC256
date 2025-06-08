@@ -33,7 +33,7 @@ const UpcomingEvents: React.FC<UpcomingEventsProps> = ({ className }) => {
             eventDate.setHours(0, 0, 0, 0); // Set to start of event day
             return eventDate >= now;
           })
-          .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+          .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()) // Earliest first for upcoming
           .slice(0, 5); // Limit to next 5 events
         
         console.log('All events:', allEvents.length);
@@ -63,7 +63,7 @@ const UpcomingEvents: React.FC<UpcomingEventsProps> = ({ className }) => {
             eventDate.setHours(0, 0, 0, 0); // Set to start of event day
             return eventDate >= now;
           })
-          .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+          .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()) // Earliest first for upcoming
           .slice(0, 5);
         
         console.log('Real-time update - upcoming events:', upcoming.length);

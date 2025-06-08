@@ -158,7 +158,7 @@ const AttendancePage: React.FC = () => {
     }
   }, [members, events]);
 
-  // Initialize attendance data when event is selected - FIXED VERSION
+  // Initialize attendance data when event is selected
   useEffect(() => {
     if (watchEventId && events.length > 0 && members.length > 0) {
       const event = events.find(e => e.id === watchEventId);
@@ -197,6 +197,7 @@ const AttendancePage: React.FC = () => {
     }
   }, [watchEventId, events, members, attendanceRecords]);
 
+  // Sort event options by date (latest first)
   const eventOptions = [
     { value: 'all', label: 'All Events' },
     ...events
@@ -254,10 +255,11 @@ const AttendancePage: React.FC = () => {
     }
   };
 
-  // Filter attendance records based on selected event
-  const filteredRecords = filterEvent === 'all' 
+  // Filter attendance records based on selected event and sort by member name
+  const filteredRecords = (filterEvent === 'all' 
     ? attendanceRecords 
-    : attendanceRecords.filter(record => record.event.id === filterEvent);
+    : attendanceRecords.filter(record => record.event.id === filterEvent))
+    .sort((a, b) => a.member.name.toLowerCase().localeCompare(b.member.name.toLowerCase()));
 
   const columns = [
     {
@@ -377,7 +379,7 @@ const AttendancePage: React.FC = () => {
     }
   };
 
-  // Update member attendance status - FIXED VERSION
+  // Update member attendance status
   const updateMemberStatus = (memberId: string, status: AttendanceStatus) => {
     setMemberAttendance(prev => {
       const newMap = new Map(prev);
@@ -387,7 +389,7 @@ const AttendancePage: React.FC = () => {
     });
   };
 
-  // Update member attendance notes - FIXED VERSION
+  // Update member attendance notes
   const updateMemberNotes = (memberId: string, notes: string) => {
     setMemberAttendance(prev => {
       const newMap = new Map(prev);
@@ -480,8 +482,10 @@ const AttendancePage: React.FC = () => {
     setFilterEvent(value);
   };
 
-  // Get active members for display
-  const activeMembers = members.filter(m => m.status === 'active');
+  // Get active members sorted alphabetically
+  const activeMembers = members
+    .filter(m => m.status === 'active')
+    .sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
 
   if (loading) {
     return (
@@ -495,7 +499,7 @@ const AttendancePage: React.FC = () => {
     <div>
       <PageHeader
         title="Attendance Management"
-        description="Record and track member attendance for training sessions and friendly matches"
+        description={`Record and track member attendance for training sessions and friendly matches (${filteredRecords.length} records)`}
         actions={
           canMarkAttendance && (
             <Button 
