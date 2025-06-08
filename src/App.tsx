@@ -6,6 +6,7 @@ import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
 import ForgotPassword from './pages/auth/ForgotPassword';
 import CreateAdmin from './pages/setup/CreateAdmin';
+import InitializeAccounts from './pages/setup/InitializeAccounts';
 import Dashboard from './pages/dashboard/Dashboard';
 import Members from './pages/members/Members';
 import MemberDetail from './pages/members/MemberDetail';
@@ -27,6 +28,7 @@ function App() {
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/setup/admin" element={<CreateAdmin />} />
+          <Route path="/setup/accounts" element={<InitializeAccounts />} />
           
           <Route element={<Layout />}>
             <Route 
@@ -112,7 +114,7 @@ function App() {
           </Route>
           
           <Route path="/404" element={<NotFound />} />
-          <Route path="*" element={<Navigate to="/404\" replace />} />
+          <Route path="*" element={<Navigate to="/404" replace />} />
         </Routes>
       </Router>
     </AuthProvider>
