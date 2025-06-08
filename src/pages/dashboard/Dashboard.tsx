@@ -6,6 +6,7 @@ import PageHeader from '../../components/layout/PageHeader';
 import DashboardCard from './DashboardCard';
 import AttendanceChart from './AttendanceChart';
 import UpcomingEvents from './UpcomingEvents';
+import RecentContributions from './RecentContributions';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { formatUGX } from '../../utils/currency-utils';
 
@@ -192,6 +193,11 @@ const Dashboard: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         <AttendanceChart />
         <UpcomingEvents />
+      </div>
+
+      {/* Recent Contributions Section */}
+      <div className="mb-8">
+        <RecentContributions />
       </div>
     </div>
   );

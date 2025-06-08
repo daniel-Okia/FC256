@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
-import { Mail, Lock, User } from 'lucide-react';
+import { Mail, Lock } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
@@ -55,20 +55,27 @@ const Login: React.FC = () => {
       
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="flex justify-center mb-4">
-            <div className="h-12 w-12 rounded-full bg-primary-100 dark:bg-primary-900 flex items-center justify-center">
-              <User className="h-6 w-6 text-primary-600 dark:text-primary-400" />
+          {/* Logo */}
+          <div className="flex justify-center mb-6">
+            <div className="relative">
+              <img 
+                src="/Fitholics Logo.png" 
+                alt="Fitholics FC Logo" 
+                className="h-20 w-20 object-contain"
+              />
             </div>
           </div>
-          <h2 className="text-3xl font-bold text-gray-900 dark:text-white">
-            Welcome to Fitholics FC
+          
+          {/* Title with gradient */}
+          <h2 className="text-3xl font-bold bg-gradient-to-r from-primary-600 via-yellow-500 to-secondary-600 bg-clip-text text-transparent">
+            Fitholics FC
           </h2>
           <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
             Sign in to access your team management portal
           </p>
         </div>
         
-        <Card className="animate-fade-in">
+        <Card className="animate-fade-in border border-yellow-200 dark:border-yellow-800/30 shadow-lg">
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             <Input
               label="Email address"
@@ -102,17 +109,19 @@ const Login: React.FC = () => {
 
             {error && <p className="text-error-600 text-sm">{error}</p>}
 
-            <Button type="submit" fullWidth isLoading={isLoading}>
+            <Button 
+              type="submit" 
+              fullWidth 
+              isLoading={isLoading}
+              className="bg-gradient-to-r from-primary-600 to-yellow-500 hover:from-primary-700 hover:to-yellow-600 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
+            >
               Sign in
             </Button>
           </form>
           
           <div className="mt-8">
             <div className="text-center">
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                Use your Firebase Authentication credentials to sign in.
-              </p>
-              <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">
+              <p className="text-xs text-gray-500 dark:text-gray-500">
                 Contact your administrator if you need access.
               </p>
             </div>

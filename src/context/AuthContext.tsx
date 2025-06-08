@@ -34,6 +34,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   });
 
   const createDefaultUserDocument = async (firebaseUser: FirebaseUser): Promise<User> => {
+    if (!db) {
+      throw new Error('Firestore is not initialized. Please check your Firebase configuration.');
+    }
+
     const defaultUserData = {
       name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User',
       email: firebaseUser.email || '',
@@ -43,19 +47,39 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       avatarUrl: firebaseUser.photoURL || '',
     };
 
-    // Create the user document in Firestore
-    await setDoc(doc(db, 'users', firebaseUser.uid), defaultUserData);
+    try {
+      // Create the user document in Firestore
+      await setDoc(doc(db, 'users', firebaseUser.uid), defaultUserData);
 
-    return {
-      id: firebaseUser.uid,
-      ...defaultUserData,
-    };
+      return {
+        id: firebaseUser.uid,
+        ...defaultUserData,
+      };
+    } catch (error) {
+      console.error('Error creating user document:', error);
+      throw new Error('Failed to create user profile. Please try again.');
+    }
   };
 
   useEffect(() => {
+    if (!auth) {
+      console.error('Firebase Auth is not initialized');
+      setAuthState({
+        isAuthenticated: false,
+        user: null,
+        isLoading: false,
+        error: 'Firebase configuration error. Please check your setup.',
+      });
+      return;
+    }
+
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         try {
+          if (!db) {
+            throw new Error('Firestore is not initialized');
+          }
+
           // Get user data from Firestore
           const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
           
@@ -79,13 +103,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             isLoading: false,
             error: null,
           });
-        } catch (error) {
+        } catch (error: any) {
           console.error('Error fetching user data:', error);
+          let errorMessage = 'Failed to load user data';
+          
+          if (error.code === 'permission-denied') {
+            errorMessage = 'Access denied. Please check your permissions.';
+          } else if (error.code === 'not-found') {
+            errorMessage = 'User profile not found. Please contact support.';
+          } else if (error.message) {
+            errorMessage = error.message;
+          }
+          
           setAuthState({
             isAuthenticated: false,
             user: null,
             isLoading: false,
-            error: 'Failed to load user data',
+            error: errorMessage,
           });
         }
       } else {
@@ -102,11 +136,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }, []);
 
   const login = async (email: string, password: string) => {
+    if (!auth) {
+      throw new Error('Firebase Auth is not initialized. Please check your configuration.');
+    }
+
     setAuthState((prev) => ({ ...prev, isLoading: true, error: null }));
 
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const firebaseUser = userCredential.user;
+
+      if (!db) {
+        throw new Error('Firestore is not initialized');
+      }
 
       // Get user data from Firestore
       const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
@@ -139,6 +181,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         errorMessage = 'Invalid email or password';
       } else if (error.code === 'auth/too-many-requests') {
         errorMessage = 'Too many failed attempts. Please try again later';
+      } else if (error.code === 'permission-denied') {
+        errorMessage = 'Access denied. Please check your permissions.';
+      } else if (error.message) {
+        errorMessage = error.message;
       }
       
       setAuthState({
@@ -151,6 +197,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const register = async (email: string, password: string, userData: Omit<User, 'id'>) => {
+    if (!auth || !db) {
+      throw new Error('Firebase services are not initialized. Please check your configuration.');
+    }
+
     setAuthState((prev) => ({ ...prev, isLoading: true, error: null }));
 
     try {
@@ -187,6 +237,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         errorMessage = 'Email is already registered';
       } else if (error.code === 'auth/weak-password') {
         errorMessage = 'Password is too weak';
+      } else if (error.message) {
+        errorMessage = error.message;
       }
       
       setAuthState({
@@ -199,6 +251,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const logout = async () => {
+    if (!auth) {
+      console.error('Firebase Auth is not initialized');
+      return;
+    }
+
     try {
       await signOut(auth);
       setAuthState({

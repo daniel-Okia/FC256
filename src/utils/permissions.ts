@@ -22,13 +22,13 @@ export const Permissions = {
   DELETE_MEMBER: ['admin', 'manager'] as UserRole[],
   
   // Event permissions
-  VIEW_EVENTS: ['admin', 'manager', 'member'] as UserRole[],
+  VIEW_EVENTS: ['admin', 'manager'] as UserRole[], // Members can no longer view events
   CREATE_EVENT: ['admin', 'manager'] as UserRole[],
   EDIT_EVENT: ['admin', 'manager'] as UserRole[],
   DELETE_EVENT: ['admin', 'manager'] as UserRole[],
   
   // Attendance permissions
-  VIEW_ATTENDANCE: ['admin', 'manager', 'member'] as UserRole[],
+  VIEW_ATTENDANCE: ['admin', 'manager'] as UserRole[], // Members can no longer view attendance
   MARK_ATTENDANCE: ['admin', 'manager'] as UserRole[],
   
   // Leadership permissions
@@ -36,7 +36,7 @@ export const Permissions = {
   MANAGE_LEADERSHIP: ['admin', 'manager'] as UserRole[],
   
   // Contribution permissions
-  VIEW_CONTRIBUTIONS: ['admin', 'manager', 'member'] as UserRole[],
+  VIEW_CONTRIBUTIONS: ['admin', 'manager'] as UserRole[], // Members can no longer view contributions
   CREATE_CONTRIBUTION: ['admin', 'manager'] as UserRole[],
   EDIT_CONTRIBUTION: ['admin', 'manager'] as UserRole[],
   DELETE_CONTRIBUTION: ['admin', 'manager'] as UserRole[],

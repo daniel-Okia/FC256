@@ -99,8 +99,15 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       >
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-800">
-          <Link to="/" className="flex items-center" onClick={onClose}>
-            <span className="text-xl font-bold bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent">
+          <Link to="/" className="flex items-center space-x-3" onClick={onClose}>
+            {/* Logo */}
+            <img 
+              src="/Fitholics Logo.png" 
+              alt="Fitholics FC Logo" 
+              className="h-8 w-8 object-contain"
+            />
+            {/* Text with gradient */}
+            <span className="text-xl font-bold bg-gradient-to-r from-primary-600 via-yellow-500 to-secondary-600 bg-clip-text text-transparent">
               Fitholics FC
             </span>
           </Link>
@@ -126,7 +133,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                 className={twMerge(
                   'flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors',
                   isActive
-                    ? 'bg-primary-100 text-primary-700 dark:bg-primary-900/20 dark:text-primary-400'
+                    ? 'bg-gradient-to-r from-primary-100 via-yellow-50 to-secondary-100 text-primary-700 dark:from-primary-900/20 dark:via-yellow-900/10 dark:to-secondary-900/20 dark:text-primary-400 border border-yellow-200 dark:border-yellow-800/30'
                     : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-neutral-800 dark:hover:text-white'
                 )}
               >
@@ -150,7 +157,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
           <div className="p-4 border-t border-gray-200 dark:border-gray-800">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <div className="h-8 w-8 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
+                <div className="h-8 w-8 rounded-full bg-gradient-to-r from-primary-100 via-yellow-100 to-secondary-100 dark:from-primary-900/30 dark:via-yellow-900/20 dark:to-secondary-900/30 flex items-center justify-center border border-yellow-200 dark:border-yellow-800/30">
                   <User size={16} className="text-primary-600 dark:text-primary-400" />
                 </div>
               </div>

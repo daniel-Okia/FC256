@@ -22,6 +22,10 @@ import { Member, Event, Contribution, Leadership, Attendance } from '../types';
 export class FirestoreService {
   // Create document
   static async create<T>(collectionName: string, data: Omit<T, 'id'>): Promise<string> {
+    if (!db) {
+      throw new Error('Firestore is not initialized. Please check your Firebase configuration.');
+    }
+
     try {
       const docRef = await addDoc(collection(db, collectionName), {
         ...data,
@@ -29,28 +33,45 @@ export class FirestoreService {
         updatedAt: Timestamp.now(),
       });
       return docRef.id;
-    } catch (error) {
+    } catch (error: any) {
       console.error(`Error creating document in ${collectionName}:`, error);
+      if (error.code === 'permission-denied') {
+        throw new Error('Permission denied. Please check your Firestore security rules.');
+      }
       throw error;
     }
   }
 
   // Read all documents
   static async getAll<T>(collectionName: string): Promise<T[]> {
+    if (!db) {
+      console.warn('Firestore is not initialized. Returning empty array.');
+      return [];
+    }
+
     try {
       const querySnapshot = await getDocs(collection(db, collectionName));
       return querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
       })) as T[];
-    } catch (error) {
+    } catch (error: any) {
       console.error(`Error fetching documents from ${collectionName}:`, error);
+      if (error.code === 'permission-denied') {
+        console.warn(`Permission denied for collection ${collectionName}. Returning empty array.`);
+        return [];
+      }
       throw error;
     }
   }
 
   // Read single document
   static async getById<T>(collectionName: string, id: string): Promise<T | null> {
+    if (!db) {
+      console.warn('Firestore is not initialized. Returning null.');
+      return null;
+    }
+
     try {
       const docRef = doc(db, collectionName, id);
       const docSnap = await getDoc(docRef);
@@ -62,33 +83,51 @@ export class FirestoreService {
         } as T;
       }
       return null;
-    } catch (error) {
+    } catch (error: any) {
       console.error(`Error fetching document ${id} from ${collectionName}:`, error);
+      if (error.code === 'permission-denied') {
+        console.warn(`Permission denied for document ${id} in ${collectionName}.`);
+        return null;
+      }
       throw error;
     }
   }
 
   // Update document
   static async update<T>(collectionName: string, id: string, data: Partial<T>): Promise<void> {
+    if (!db) {
+      throw new Error('Firestore is not initialized. Please check your Firebase configuration.');
+    }
+
     try {
       const docRef = doc(db, collectionName, id);
       await updateDoc(docRef, {
         ...data,
         updatedAt: Timestamp.now(),
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error(`Error updating document ${id} in ${collectionName}:`, error);
+      if (error.code === 'permission-denied') {
+        throw new Error('Permission denied. Please check your Firestore security rules.');
+      }
       throw error;
     }
   }
 
   // Delete document
   static async delete(collectionName: string, id: string): Promise<void> {
+    if (!db) {
+      throw new Error('Firestore is not initialized. Please check your Firebase configuration.');
+    }
+
     try {
       const docRef = doc(db, collectionName, id);
       await deleteDoc(docRef);
-    } catch (error) {
+    } catch (error: any) {
       console.error(`Error deleting document ${id} from ${collectionName}:`, error);
+      if (error.code === 'permission-denied') {
+        throw new Error('Permission denied. Please check your Firestore security rules.');
+      }
       throw error;
     }
   }
@@ -100,6 +139,11 @@ export class FirestoreService {
     orderByField?: string,
     orderDirection: 'asc' | 'desc' = 'asc'
   ): Promise<T[]> {
+    if (!db) {
+      console.warn('Firestore is not initialized. Returning empty array.');
+      return [];
+    }
+
     try {
       let q = collection(db, collectionName);
       
@@ -118,8 +162,12 @@ export class FirestoreService {
         id: doc.id,
         ...doc.data(),
       })) as T[];
-    } catch (error) {
+    } catch (error: any) {
       console.error(`Error querying ${collectionName}:`, error);
+      if (error.code === 'permission-denied') {
+        console.warn(`Permission denied for querying ${collectionName}. Returning empty array.`);
+        return [];
+      }
       throw error;
     }
   }
@@ -130,6 +178,12 @@ export class FirestoreService {
     callback: (data: T[]) => void,
     conditions: { field: string; operator: any; value: any }[] = []
   ): () => void {
+    if (!db) {
+      console.warn('Firestore is not initialized. Subscription will not work.');
+      callback([]);
+      return () => {};
+    }
+
     try {
       let q = collection(db, collectionName);
       
@@ -137,18 +191,28 @@ export class FirestoreService {
         q = query(q, where(condition.field, condition.operator, condition.value)) as any;
       });
       
-      const unsubscribe = onSnapshot(q, (querySnapshot) => {
-        const data = querySnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-        })) as T[];
-        callback(data);
-      });
+      const unsubscribe = onSnapshot(q, 
+        (querySnapshot) => {
+          const data = querySnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data(),
+          })) as T[];
+          callback(data);
+        },
+        (error) => {
+          console.error(`Error in subscription to ${collectionName}:`, error);
+          if (error.code === 'permission-denied') {
+            console.warn(`Permission denied for subscription to ${collectionName}.`);
+          }
+          callback([]);
+        }
+      );
       
       return unsubscribe;
-    } catch (error) {
+    } catch (error: any) {
       console.error(`Error subscribing to ${collectionName}:`, error);
-      throw error;
+      callback([]);
+      return () => {};
     }
   }
 }
@@ -226,15 +290,20 @@ export class EventService {
       });
     } catch (error) {
       console.error(`Error fetching events by type ${type}:`, error);
-      throw error;
+      return [];
     }
   }
 
   static async getUpcomingEvents(): Promise<Event[]> {
-    const now = new Date();
-    return FirestoreService.query<Event>(this.collection, [
-      { field: 'date', operator: '>=', value: Timestamp.fromDate(now) }
-    ], 'date', 'asc');
+    try {
+      const now = new Date();
+      return FirestoreService.query<Event>(this.collection, [
+        { field: 'date', operator: '>=', value: Timestamp.fromDate(now) }
+      ], 'date', 'asc');
+    } catch (error) {
+      console.error('Error fetching upcoming events:', error);
+      return [];
+    }
   }
 
   static subscribeToEvents(callback: (events: Event[]) => void): () => void {
