@@ -158,7 +158,7 @@ const AttendancePage: React.FC = () => {
     }
   }, [members, events]);
 
-  // Watch for event selection changes and initialize attendance data
+  // Initialize attendance data when event is selected - FIXED VERSION
   useEffect(() => {
     if (watchEventId && events.length > 0 && members.length > 0) {
       const event = events.find(e => e.id === watchEventId);
@@ -175,10 +175,18 @@ const AttendancePage: React.FC = () => {
             record => record.member.id === member.id && record.event.id === watchEventId
           );
           
-          newAttendanceMap.set(member.id, {
-            status: existingAttendance?.attendance.status || 'present',
-            notes: existingAttendance?.attendance.notes || '',
-          });
+          // Use existing attendance data if available, otherwise default to 'present'
+          if (existingAttendance) {
+            newAttendanceMap.set(member.id, {
+              status: existingAttendance.attendance.status,
+              notes: existingAttendance.attendance.notes || '',
+            });
+          } else {
+            newAttendanceMap.set(member.id, {
+              status: 'present', // Default status for new records
+              notes: '',
+            });
+          }
         });
         
         setMemberAttendance(newAttendanceMap);
@@ -369,7 +377,7 @@ const AttendancePage: React.FC = () => {
     }
   };
 
-  // Update member attendance status
+  // Update member attendance status - FIXED VERSION
   const updateMemberStatus = (memberId: string, status: AttendanceStatus) => {
     setMemberAttendance(prev => {
       const newMap = new Map(prev);
@@ -379,7 +387,7 @@ const AttendancePage: React.FC = () => {
     });
   };
 
-  // Update member attendance notes
+  // Update member attendance notes - FIXED VERSION
   const updateMemberNotes = (memberId: string, notes: string) => {
     setMemberAttendance(prev => {
       const newMap = new Map(prev);
