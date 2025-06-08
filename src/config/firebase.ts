@@ -4,13 +4,13 @@ import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
 import { getStorage, connectStorageEmulator } from 'firebase/storage';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyANfTIpkk7g5LjwPXC9CLDm3SSLVD8WUAY",
-  authDomain: "fitholics-2f508.firebaseapp.com",
-  projectId: "fitholics-2f508",
-  storageBucket: "fitholics-2f508.firebasestorage.app",
-  messagingSenderId: "205563792625",
-  appId: "1:205563792625:web:7084095bf95a0a8cb96d50",
-  measurementId: "G-5ZN4XKGQFN"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
 };
 
 // Validate required config fields
