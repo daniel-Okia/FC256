@@ -47,6 +47,10 @@ const Login: React.FC = () => {
     }
   };
 
+  const togglePasswordVisibility = () => {
+    setShowPassword(!showPassword);
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-neutral-900 px-4 sm:px-6 lg:px-8 relative">
       <div className="absolute top-4 right-4">
@@ -100,8 +104,9 @@ const Login: React.FC = () => {
                 rightIcon={
                   <button
                     type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                    onClick={togglePasswordVisibility}
+                    className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 focus:outline-none"
+                    tabIndex={-1}
                   >
                     {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
