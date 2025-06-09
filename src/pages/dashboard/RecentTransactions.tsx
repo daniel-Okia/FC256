@@ -51,18 +51,21 @@ const RecentTransactions: React.FC<RecentTransactionsProps> = ({ className }) =>
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
         
-        // Convert contributions to transactions
+        // Convert contributions to transactions with proper number handling
         const contributionTransactions: Transaction[] = contributions
           .filter(contribution => {
             const contributionDate = new Date(contribution.date);
-            return contributionDate >= thirtyDaysAgo && contribution.type === 'monetary' && contribution.amount;
+            return contributionDate >= thirtyDaysAgo && 
+                   contribution.type === 'monetary' && 
+                   contribution.amount !== undefined && 
+                   contribution.amount !== null;
           })
           .map(contribution => {
             const member = members.find(m => m.id === contribution.memberId);
             return {
               id: contribution.id,
               type: 'contribution' as const,
-              amount: contribution.amount || 0,
+              amount: parseFloat(String(contribution.amount)) || 0,
               description: contribution.description,
               date: contribution.date,
               member,
@@ -70,16 +73,18 @@ const RecentTransactions: React.FC<RecentTransactionsProps> = ({ className }) =>
             };
           });
 
-        // Convert expenses to transactions
+        // Convert expenses to transactions with proper number handling
         const expenseTransactions: Transaction[] = expenses
           .filter(expense => {
             const expenseDate = new Date(expense.date);
-            return expenseDate >= thirtyDaysAgo;
+            return expenseDate >= thirtyDaysAgo && 
+                   expense.amount !== undefined && 
+                   expense.amount !== null;
           })
           .map(expense => ({
             id: expense.id,
             type: 'expense' as const,
-            amount: expense.amount,
+            amount: parseFloat(String(expense.amount)) || 0,
             description: expense.description,
             date: expense.date,
             category: expense.category,
@@ -93,7 +98,7 @@ const RecentTransactions: React.FC<RecentTransactionsProps> = ({ className }) =>
 
         setTransactions(allTransactions);
 
-        // Calculate stats
+        // Calculate stats with proper number handling
         const currentMonth = new Date().getMonth();
         const currentYear = new Date().getFullYear();
         
@@ -102,31 +107,38 @@ const RecentTransactions: React.FC<RecentTransactionsProps> = ({ className }) =>
             const contributionDate = new Date(contribution.date);
             return contributionDate.getMonth() === currentMonth && 
                    contributionDate.getFullYear() === currentYear &&
-                   contribution.type === 'monetary';
+                   contribution.type === 'monetary' &&
+                   contribution.amount !== undefined &&
+                   contribution.amount !== null;
           })
-          .reduce((sum, c) => sum + (c.amount || 0), 0);
+          .reduce((sum, c) => sum + (parseFloat(String(c.amount)) || 0), 0);
 
         const thisMonthExpenses = expenses
           .filter(expense => {
             const expenseDate = new Date(expense.date);
             return expenseDate.getMonth() === currentMonth && 
-                   expenseDate.getFullYear() === currentYear;
+                   expenseDate.getFullYear() === currentYear &&
+                   expense.amount !== undefined &&
+                   expense.amount !== null;
           })
-          .reduce((sum, e) => sum + (e.amount || 0), 0);
+          .reduce((sum, e) => sum + (parseFloat(String(e.amount)) || 0), 0);
 
         const uniqueContributors = new Set(contributions.map(c => c.memberId)).size;
+        
         const totalContributions = contributions
-          .filter(c => c.type === 'monetary' && c.amount)
-          .reduce((sum, c) => sum + (c.amount || 0), 0);
+          .filter(c => c.type === 'monetary' && c.amount !== undefined && c.amount !== null)
+          .reduce((sum, c) => sum + (parseFloat(String(c.amount)) || 0), 0);
+        
         const totalExpenses = expenses
-          .reduce((sum, e) => sum + (e.amount || 0), 0);
+          .filter(e => e.amount !== undefined && e.amount !== null)
+          .reduce((sum, e) => sum + (parseFloat(String(e.amount)) || 0), 0);
 
         setStats({
           totalContributors: uniqueContributors,
-          totalContributions,
-          totalExpenses,
-          thisMonthContributions,
-          thisMonthExpenses,
+          totalContributions: Math.round(totalContributions),
+          totalExpenses: Math.round(totalExpenses),
+          thisMonthContributions: Math.round(thisMonthContributions),
+          thisMonthExpenses: Math.round(thisMonthExpenses),
         });
       } catch (error) {
         console.error('Error loading transactions data:', error);
@@ -297,7 +309,7 @@ const RecentTransactions: React.FC<RecentTransactionsProps> = ({ className }) =>
                     ? 'text-green-600 dark:text-green-400'
                     : 'text-red-600 dark:text-red-400'
                 }`}>
-                  {transaction.type === 'contribution' ? '+' : '-'}{formatUGX(transaction.amount)}
+                  {transaction.type === 'contribution' ? '+' : '-'}{formatUGX(Math.round(transaction.amount))}
                 </p>
                 {transaction.paymentMethod && (
                   <p className="text-xs text-gray-500 dark:text-gray-500 capitalize">

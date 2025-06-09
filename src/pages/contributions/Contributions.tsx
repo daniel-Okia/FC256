@@ -356,13 +356,17 @@ const Contributions: React.FC = () => {
         description: data.description,
         date: new Date(data.date).toISOString(),
         recordedBy: user?.id || '',
+        recordedAt: new Date().toISOString(),
       };
 
       // Only include amount and paymentMethod for monetary contributions
       if (data.type === 'monetary') {
-        contributionData.amount = data.amount;
+        // Ensure amount is properly converted to number
+        contributionData.amount = parseFloat(String(data.amount)) || 0;
         contributionData.paymentMethod = data.paymentMethod;
       }
+
+      console.log('Submitting contribution:', contributionData);
 
       if (editingContribution) {
         await ContributionService.updateContribution(editingContribution.id, contributionData);
@@ -385,13 +389,16 @@ const Contributions: React.FC = () => {
       
       const expenseData = {
         category: data.category,
-        amount: data.amount,
+        amount: parseFloat(String(data.amount)) || 0, // Ensure proper number conversion
         description: data.description,
         paymentMethod: data.paymentMethod,
         date: new Date(data.date).toISOString(),
         receipt: data.receipt || '',
         recordedBy: user?.id || '',
+        recordedAt: new Date().toISOString(),
       };
+
+      console.log('Submitting expense:', expenseData);
 
       if (editingExpense) {
         await ExpenseService.updateExpense(editingExpense.id, expenseData);
@@ -408,13 +415,20 @@ const Contributions: React.FC = () => {
     }
   };
 
-  // Calculate totals
+  // Calculate totals with proper number handling
   const totalContributions = contributions
-    .filter(c => c.type === 'monetary' && c.amount)
-    .reduce((sum, c) => sum + (c.amount || 0), 0);
+    .filter(c => c.type === 'monetary' && c.amount !== undefined && c.amount !== null)
+    .reduce((sum, c) => {
+      const amount = parseFloat(String(c.amount)) || 0;
+      return sum + amount;
+    }, 0);
   
   const totalExpenses = expenses
-    .reduce((sum, e) => sum + (e.amount || 0), 0);
+    .filter(e => e.amount !== undefined && e.amount !== null)
+    .reduce((sum, e) => {
+      const amount = parseFloat(String(e.amount)) || 0;
+      return sum + amount;
+    }, 0);
   
   const remainingBalance = totalContributions - totalExpenses;
 
@@ -462,7 +476,7 @@ const Contributions: React.FC = () => {
                 Total Contributions
               </p>
               <p className="text-2xl font-bold text-green-900 dark:text-green-100">
-                {formatUGX(totalContributions)}
+                {formatUGX(Math.round(totalContributions))}
               </p>
             </div>
             <CreditCard className="h-8 w-8 text-green-600 dark:text-green-400" />
@@ -476,7 +490,7 @@ const Contributions: React.FC = () => {
                 Total Expenses
               </p>
               <p className="text-2xl font-bold text-red-900 dark:text-red-100">
-                {formatUGX(totalExpenses)}
+                {formatUGX(Math.round(totalExpenses))}
               </p>
             </div>
             <TrendingDown className="h-8 w-8 text-red-600 dark:text-red-400" />
@@ -502,7 +516,7 @@ const Contributions: React.FC = () => {
                   ? 'text-blue-900 dark:text-blue-100'
                   : 'text-yellow-900 dark:text-yellow-100'
               }`}>
-                {formatUGX(Math.abs(remainingBalance))}
+                {formatUGX(Math.round(Math.abs(remainingBalance)))}
               </p>
             </div>
           </div>
@@ -620,7 +634,8 @@ const Contributions: React.FC = () => {
                   required
                   {...registerContribution('amount', { 
                     required: watchContributionType === 'monetary' ? 'Amount is required for monetary contributions' : false,
-                    min: { value: 0, message: 'Amount must be positive' }
+                    min: { value: 0, message: 'Amount must be positive' },
+                    valueAsNumber: true
                   })}
                 />
                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
@@ -707,7 +722,8 @@ const Contributions: React.FC = () => {
                 required
                 {...registerExpense('amount', { 
                   required: 'Amount is required',
-                  min: { value: 0, message: 'Amount must be positive' }
+                  min: { value: 0, message: 'Amount must be positive' },
+                  valueAsNumber: true
                 })}
               />
               <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">

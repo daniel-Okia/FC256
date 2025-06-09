@@ -46,6 +46,13 @@ const Dashboard: React.FC = () => {
           ExpenseService.getAllExpenses(),
         ]);
 
+        console.log('Dashboard data loaded:', {
+          members: members.length,
+          events: events.length,
+          contributions: contributions.length,
+          expenses: expenses.length
+        });
+
         // Get current date info
         const now = new Date();
         const currentMonth = now.getMonth();
@@ -62,26 +69,54 @@ const Dashboard: React.FC = () => {
         const trainingSessionsThisMonth = eventsThisMonth.filter(e => e.type === 'training').length;
         const friendliesThisMonth = eventsThisMonth.filter(e => e.type === 'friendly').length;
         
-        // Calculate total contributions (monetary only)
-        const totalContributions = contributions
-          .filter(c => c.type === 'monetary' && c.amount)
-          .reduce((sum, c) => sum + (c.amount || 0), 0);
+        // Calculate total contributions (monetary only) with proper number handling
+        const monetaryContributions = contributions.filter(c => 
+          c.type === 'monetary' && 
+          c.amount !== undefined && 
+          c.amount !== null && 
+          !isNaN(Number(c.amount)) && 
+          Number(c.amount) > 0
+        );
+        
+        const totalContributions = monetaryContributions.reduce((sum, c) => {
+          const amount = parseFloat(String(c.amount)) || 0;
+          console.log('Processing contribution:', { id: c.id, amount: c.amount, parsed: amount });
+          return sum + amount;
+        }, 0);
           
-        // Calculate total expenses
-        const totalExpenses = expenses
-          .reduce((sum, e) => sum + (e.amount || 0), 0);
+        // Calculate total expenses with proper number handling
+        const validExpenses = expenses.filter(e => 
+          e.amount !== undefined && 
+          e.amount !== null && 
+          !isNaN(Number(e.amount)) && 
+          Number(e.amount) > 0
+        );
+        
+        const totalExpenses = validExpenses.reduce((sum, e) => {
+          const amount = parseFloat(String(e.amount)) || 0;
+          console.log('Processing expense:', { id: e.id, amount: e.amount, parsed: amount });
+          return sum + amount;
+        }, 0);
           
         // Calculate remaining balance
         const remainingBalance = totalContributions - totalExpenses;
+
+        console.log('Financial calculations:', {
+          monetaryContributions: monetaryContributions.length,
+          totalContributions,
+          validExpenses: validExpenses.length,
+          totalExpenses,
+          remainingBalance
+        });
 
         setStats({
           totalMembers: members.length,
           activeMembers,
           trainingSessionsThisMonth,
           friendliesThisMonth,
-          totalContributions,
-          totalExpenses,
-          remainingBalance,
+          totalContributions: Math.round(totalContributions), // Round to avoid floating point issues
+          totalExpenses: Math.round(totalExpenses),
+          remainingBalance: Math.round(remainingBalance),
         });
       } catch (error) {
         console.error('Error loading dashboard data:', error);
@@ -91,6 +126,22 @@ const Dashboard: React.FC = () => {
     };
 
     loadDashboardData();
+
+    // Set up real-time listeners for automatic updates
+    const unsubscribeContributions = ContributionService.subscribeToContributions(() => {
+      console.log('Contributions updated, reloading dashboard data');
+      loadDashboardData();
+    });
+
+    const unsubscribeExpenses = ExpenseService.subscribeToExpenses(() => {
+      console.log('Expenses updated, reloading dashboard data');
+      loadDashboardData();
+    });
+
+    return () => {
+      unsubscribeContributions();
+      unsubscribeExpenses();
+    };
   }, []);
 
   if (loading) {
@@ -148,7 +199,11 @@ const Dashboard: React.FC = () => {
 
       {/* Balance Summary */}
       <div className="mb-8">
-        <div className="bg-gradient-to-r from-blue-50 to-green-50 dark:from-blue-900/20 dark:to-green-900/20 rounded-lg p-6 border border-blue-200 dark:border-blue-800">
+        <div className={`rounded-lg p-6 border ${
+          stats.remainingBalance >= 0 
+            ? 'bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-900/20 dark:to-blue-900/20 border-green-200 dark:border-green-800'
+            : 'bg-gradient-to-r from-red-50 to-orange-50 dark:from-red-900/20 dark:to-orange-900/20 border-red-200 dark:border-red-800'
+        }`}>
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -157,10 +212,18 @@ const Dashboard: React.FC = () => {
               <p className="text-sm text-gray-600 dark:text-gray-400">
                 Current balance after all contributions and expenses
               </p>
+              <div className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                <span className="font-medium">In:</span> {formatUGX(stats.totalContributions)} • 
+                <span className="font-medium ml-2">Out:</span> {formatUGX(stats.totalExpenses)}
+              </div>
             </div>
             <div className="text-right">
-              <p className="text-3xl font-bold text-gray-900 dark:text-white">
-                {formatUGX(stats.remainingBalance)}
+              <p className={`text-3xl font-bold ${
+                stats.remainingBalance >= 0 
+                  ? 'text-green-600 dark:text-green-400' 
+                  : 'text-red-600 dark:text-red-400'
+              }`}>
+                {formatUGX(Math.abs(stats.remainingBalance))}
               </p>
               <p className={`text-sm font-medium ${
                 stats.remainingBalance >= 0 
