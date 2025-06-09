@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Plus, CheckCircle, XCircle, Clock, AlertCircle, Edit, Trash2 } from 'lucide-react';
+import { Users, Plus, CheckCircle, XCircle, Clock, AlertCircle, Edit, Trash2, Download } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { AttendanceService, MemberService, EventService } from '../../services/firestore';
 import PageHeader from '../../components/layout/PageHeader';
@@ -15,6 +15,7 @@ import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { Attendance, Member, Event, AttendanceStatus } from '../../types';
 import { formatDate } from '../../utils/date-utils';
 import { canUserAccess, Permissions } from '../../utils/permissions';
+import { AttendancePDFExporter } from '../../utils/pdf-export';
 import { useForm } from 'react-hook-form';
 
 interface AttendanceFormData {
@@ -40,6 +41,7 @@ const AttendancePage: React.FC = () => {
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -52,6 +54,7 @@ const AttendancePage: React.FC = () => {
   const canMarkAttendance = user && canUserAccess(user.role, Permissions.MARK_ATTENDANCE);
   const canEditAttendance = user && canUserAccess(user.role, Permissions.MARK_ATTENDANCE);
   const canDeleteAttendance = user && canUserAccess(user.role, Permissions.MARK_ATTENDANCE);
+  const canExport = user && canUserAccess(user.role, Permissions.EXPORT_REPORTS);
 
   const {
     register,
@@ -259,7 +262,7 @@ const AttendancePage: React.FC = () => {
   const filteredRecords = (filterEvent === 'all' 
     ? attendanceRecords 
     : attendanceRecords.filter(record => record.event.id === filterEvent))
-    .sort((a, b) => a.member.name.toLowerCase().localeCompare(b.member.name.toLowerCase()));
+    .sort((a, b) =>a.member.name.toLowerCase().localeCompare(b.member.name.toLowerCase()));
 
   const columns = [
     {
@@ -482,6 +485,48 @@ const AttendancePage: React.FC = () => {
     setFilterEvent(value);
   };
 
+  const handleExport = async () => {
+    try {
+      setExporting(true);
+      
+      // Calculate stats
+      const totalSessions = new Set(attendanceRecords.map(r => r.event.id)).size;
+      const sessionAttendance = attendanceRecords.reduce((acc, record) => {
+        const eventId = record.event.id;
+        if (!acc[eventId]) {
+          acc[eventId] = { present: 0, total: 0 };
+        }
+        acc[eventId].total++;
+        if (record.attendance.status === 'present') {
+          acc[eventId].present++;
+        }
+        return acc;
+      }, {} as Record<string, { present: number; total: number }>);
+
+      const attendanceCounts = Object.values(sessionAttendance).map(s => s.present);
+      const averageAttendance = attendanceCounts.length > 0 
+        ? Math.round(attendanceCounts.reduce((sum, count) => sum + count, 0) / attendanceCounts.length)
+        : 0;
+      const highestAttendance = attendanceCounts.length > 0 ? Math.max(...attendanceCounts) : 0;
+      const lowestAttendance = attendanceCounts.length > 0 ? Math.min(...attendanceCounts) : 0;
+
+      const exporter = new AttendancePDFExporter();
+      exporter.exportAttendance({
+        attendanceRecords: filteredRecords,
+        stats: {
+          totalSessions,
+          averageAttendance,
+          highestAttendance,
+          lowestAttendance,
+        },
+      });
+    } catch (error) {
+      console.error('Error exporting attendance:', error);
+    } finally {
+      setExporting(false);
+    }
+  };
+
   // Get active members sorted alphabetically
   const activeMembers = members
     .filter(m => m.status === 'active')
@@ -501,15 +546,27 @@ const AttendancePage: React.FC = () => {
         title="Attendance Management"
         description={`Record and track member attendance for training sessions and friendly matches (${filteredRecords.length} records)`}
         actions={
-          canMarkAttendance && (
-            <Button 
-              onClick={handleCreate} 
-              leftIcon={<Plus size={18} />}
-              className="bg-primary-600 hover:bg-primary-700 text-white"
-            >
-              Record Attendance
-            </Button>
-          )
+          <div className="flex space-x-2">
+            {canMarkAttendance && (
+              <Button 
+                onClick={handleCreate} 
+                leftIcon={<Plus size={18} />}
+                className="bg-primary-600 hover:bg-primary-700 text-white"
+              >
+                Record Attendance
+              </Button>
+            )}
+            {canExport && (
+              <Button
+                onClick={handleExport}
+                leftIcon={<Download size={18} />}
+                isLoading={exporting}
+                variant="outline"
+              >
+                Export PDF
+              </Button>
+            )}
+          </div>
         }
       />
 

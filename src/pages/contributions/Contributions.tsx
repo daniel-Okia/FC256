@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CreditCard, Plus, Edit, Trash2, TrendingDown } from 'lucide-react';
+import { CreditCard, Plus, Edit, Trash2, TrendingDown, Download } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { ContributionService, ExpenseService, MemberService } from '../../services/firestore';
 import PageHeader from '../../components/layout/PageHeader';
@@ -16,6 +16,7 @@ import { Contribution, Expense, Member, ContributionType, PaymentMethod, Expense
 import { formatDate } from '../../utils/date-utils';
 import { formatUGX } from '../../utils/currency-utils';
 import { canUserAccess, Permissions } from '../../utils/permissions';
+import { ContributionsPDFExporter } from '../../utils/pdf-export';
 import { useForm } from 'react-hook-form';
 
 interface ContributionFormData {
@@ -45,6 +46,7 @@ const Contributions: React.FC = () => {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalType, setModalType] = useState<TransactionType>('contribution');
   const [editingContribution, setEditingContribution] = useState<Contribution | null>(null);
@@ -56,6 +58,7 @@ const Contributions: React.FC = () => {
   const canCreateTransaction = user && canUserAccess(user.role, Permissions.CREATE_CONTRIBUTION);
   const canEditTransaction = user && canUserAccess(user.role, Permissions.EDIT_CONTRIBUTION);
   const canDeleteTransaction = user && canUserAccess(user.role, Permissions.DELETE_CONTRIBUTION);
+  const canExport = user && canUserAccess(user.role, Permissions.EXPORT_REPORTS);
 
   const {
     register: registerContribution,
@@ -415,6 +418,43 @@ const Contributions: React.FC = () => {
     }
   };
 
+  const handleExport = async () => {
+    try {
+      setExporting(true);
+      
+      // Calculate totals with proper number handling
+      const totalContributions = contributions
+        .filter(c => c.type === 'monetary' && c.amount !== undefined && c.amount !== null)
+        .reduce((sum, c) => {
+          const amount = parseFloat(String(c.amount)) || 0;
+          return sum + amount;
+        }, 0);
+      
+      const totalExpenses = expenses
+        .filter(e => e.amount !== undefined && e.amount !== null)
+        .reduce((sum, e) => {
+          const amount = parseFloat(String(e.amount)) || 0;
+          return sum + amount;
+        }, 0);
+      
+      const remainingBalance = totalContributions - totalExpenses;
+
+      const exporter = new ContributionsPDFExporter();
+      exporter.exportContributions({
+        contributions,
+        expenses,
+        members,
+        totalContributions: Math.round(totalContributions),
+        totalExpenses: Math.round(totalExpenses),
+        remainingBalance: Math.round(remainingBalance),
+      });
+    } catch (error) {
+      console.error('Error exporting contributions:', error);
+    } finally {
+      setExporting(false);
+    }
+  };
+
   // Calculate totals with proper number handling
   const totalContributions = contributions
     .filter(c => c.type === 'monetary' && c.amount !== undefined && c.amount !== null)
@@ -446,24 +486,36 @@ const Contributions: React.FC = () => {
         title="Contributions & Expenses"
         description={`Track team contributions and expenses in UGX (${filteredTransactions.length} transactions)`}
         actions={
-          canCreateTransaction && (
-            <div className="flex space-x-2">
-              <Button 
-                onClick={handleCreateContribution} 
-                leftIcon={<Plus size={18} />}
-                className="bg-green-600 hover:bg-green-700 text-white"
+          <div className="flex space-x-2">
+            {canCreateTransaction && (
+              <>
+                <Button 
+                  onClick={handleCreateContribution} 
+                  leftIcon={<Plus size={18} />}
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                >
+                  Add Contribution
+                </Button>
+                <Button 
+                  onClick={handleCreateExpense} 
+                  leftIcon={<TrendingDown size={18} />}
+                  className="bg-red-600 hover:bg-red-700 text-white"
+                >
+                  Add Expense
+                </Button>
+              </>
+            )}
+            {canExport && (
+              <Button
+                onClick={handleExport}
+                leftIcon={<Download size={18} />}
+                isLoading={exporting}
+                variant="outline"
               >
-                Add Contribution
+                Export PDF
               </Button>
-              <Button 
-                onClick={handleCreateExpense} 
-                leftIcon={<TrendingDown size={18} />}
-                className="bg-red-600 hover:bg-red-700 text-white"
-              >
-                Add Expense
-              </Button>
-            </div>
-          )
+            )}
+          </div>
         }
       />
 

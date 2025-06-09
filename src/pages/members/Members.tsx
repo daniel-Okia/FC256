@@ -13,7 +13,7 @@ import Badge from '../../components/ui/Badge';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import EmptyState from '../../components/common/EmptyState';
 import { canUserAccess, Permissions } from '../../utils/permissions';
-import { exportToCSV } from '../../utils/export-utils';
+import { MembersPDFExporter } from '../../utils/pdf-export';
 import { useForm } from 'react-hook-form';
 
 interface MemberFormData {
@@ -34,10 +34,12 @@ const Members: React.FC = () => {
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const canCreateMember = user && canUserAccess(user.role, Permissions.CREATE_MEMBER);
   const canEditMember = user && canUserAccess(user.role, Permissions.EDIT_MEMBER);
   const canDeleteMember = user && canUserAccess(user.role, Permissions.DELETE_MEMBER);
+  const canExport = user && canUserAccess(user.role, Permissions.EXPORT_REPORTS);
 
   const {
     register,
@@ -250,23 +252,16 @@ const Members: React.FC = () => {
     }
   };
 
-  const handleExport = () => {
-    const headers = [
-      { key: 'jerseyNumber', label: 'Jersey Number' },
-      { key: 'name', label: 'Name' },
-      { key: 'position', label: 'Position' },
-      { key: 'email', label: 'Email' },
-      { key: 'phone', label: 'Phone' },
-      { key: 'status', label: 'Status' },
-      { key: 'dateJoined', label: 'Date Joined' },
-    ];
-
-    // Sort members alphabetically for export
-    const sortedMembers = [...members].sort((a, b) => 
-      a.name.toLowerCase().localeCompare(b.name.toLowerCase())
-    );
-
-    exportToCSV(sortedMembers, 'members-list', headers);
+  const handleExport = async () => {
+    try {
+      setExporting(true);
+      const exporter = new MembersPDFExporter();
+      exporter.exportMembers(members);
+    } catch (error) {
+      console.error('Error exporting members:', error);
+    } finally {
+      setExporting(false);
+    }
   };
 
   if (loading) {
@@ -294,13 +289,14 @@ const Members: React.FC = () => {
                 Add Member
               </Button>
             )}
-            {canUserAccess(user?.role, Permissions.EXPORT_REPORTS) && (
+            {canExport && (
               <Button
                 variant="outline"
                 leftIcon={<Download size={18} />}
                 onClick={handleExport}
+                isLoading={exporting}
               >
-                Export
+                Export PDF
               </Button>
             )}
           </div>

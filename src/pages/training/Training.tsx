@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Plus, Edit, Trash2, MapPin, Clock } from 'lucide-react';
+import { Calendar, Plus, Edit, Trash2, MapPin, Clock, Download } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { EventService } from '../../services/firestore';
 import PageHeader from '../../components/layout/PageHeader';
@@ -13,6 +13,7 @@ import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { Event } from '../../types';
 import { formatDate } from '../../utils/date-utils';
 import { canUserAccess, Permissions } from '../../utils/permissions';
+import { EventsPDFExporter } from '../../utils/pdf-export';
 import { useForm } from 'react-hook-form';
 
 interface TrainingFormData {
@@ -27,6 +28,7 @@ const Training: React.FC = () => {
   const [trainingSessions, setTrainingSessions] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSession, setEditingSession] = useState<Event | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -35,6 +37,7 @@ const Training: React.FC = () => {
   const canCreateTraining = user && canUserAccess(user.role, Permissions.CREATE_EVENT);
   const canEditTraining = user && canUserAccess(user.role, Permissions.EDIT_EVENT);
   const canDeleteTraining = user && canUserAccess(user.role, Permissions.DELETE_EVENT);
+  const canExport = user && canUserAccess(user.role, Permissions.EXPORT_REPORTS);
 
   const {
     register,
@@ -215,6 +218,18 @@ const Training: React.FC = () => {
     }
   };
 
+  const handleExport = async () => {
+    try {
+      setExporting(true);
+      const exporter = new EventsPDFExporter();
+      exporter.exportEvents(trainingSessions, 'training');
+    } catch (error) {
+      console.error('Error exporting training sessions:', error);
+    } finally {
+      setExporting(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-64">
@@ -229,15 +244,27 @@ const Training: React.FC = () => {
         title="Training Sessions"
         description={`Schedule and manage team training sessions at Kiyinda Main Field (${trainingSessions.length} sessions)`}
         actions={
-          canCreateTraining && (
-            <Button 
-              onClick={handleCreate} 
-              leftIcon={<Plus size={18} />}
-              className="bg-primary-600 hover:bg-primary-700 text-white"
-            >
-              Add Training Session
-            </Button>
-          )
+          <div className="flex space-x-2">
+            {canCreateTraining && (
+              <Button 
+                onClick={handleCreate} 
+                leftIcon={<Plus size={18} />}
+                className="bg-primary-600 hover:bg-primary-700 text-white"
+              >
+                Add Training Session
+              </Button>
+            )}
+            {canExport && (
+              <Button
+                onClick={handleExport}
+                leftIcon={<Download size={18} />}
+                isLoading={exporting}
+                variant="outline"
+              >
+                Export PDF
+              </Button>
+            )}
+          </div>
         }
       />
 

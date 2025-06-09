@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Crown, Plus, Edit, Trash2, User, Calendar } from 'lucide-react';
+import { Crown, Plus, Edit, Trash2, User, Calendar, Download } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { LeadershipService, MemberService } from '../../services/firestore';
 import PageHeader from '../../components/layout/PageHeader';
@@ -16,6 +16,7 @@ import Avatar from '../../components/ui/Avatar';
 import { Leadership as LeadershipType, Member, LeadershipRole } from '../../types';
 import { formatDate } from '../../utils/date-utils';
 import { canUserAccess, Permissions } from '../../utils/permissions';
+import { LeadershipPDFExporter } from '../../utils/pdf-export';
 import { useForm } from 'react-hook-form';
 
 interface LeadershipFormData {
@@ -29,12 +30,14 @@ const Leadership: React.FC = () => {
   const [leadershipRoles, setLeadershipRoles] = useState<LeadershipType[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRole, setEditingRole] = useState<LeadershipType | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [roleToDelete, setRoleToDelete] = useState<LeadershipType | null>(null);
 
   const canManageLeadership = user && canUserAccess(user.role, Permissions.MANAGE_LEADERSHIP);
+  const canExport = user && canUserAccess(user.role, Permissions.EXPORT_REPORTS);
 
   const {
     register,
@@ -186,7 +189,7 @@ const Leadership: React.FC = () => {
         const member = getMemberById(leadership.memberId);
         return member ? (
           <div className="flex items-center">
-            <Avatar size="sm\" className="mr-3" />
+            <Avatar size="sm" className="mr-3" />
             <div>
               <div className="font-medium text-gray-900 dark:text-white">
                 {member.name}
@@ -322,6 +325,21 @@ const Leadership: React.FC = () => {
     }
   };
 
+  const handleExport = async () => {
+    try {
+      setExporting(true);
+      const exporter = new LeadershipPDFExporter();
+      exporter.exportLeadership({
+        leadership: leadershipRoles,
+        members,
+      });
+    } catch (error) {
+      console.error('Error exporting leadership:', error);
+    } finally {
+      setExporting(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-64">
@@ -336,15 +354,27 @@ const Leadership: React.FC = () => {
         title="Leadership Roles"
         description="Manage team leadership positions and responsibilities across all club functions"
         actions={
-          canManageLeadership && (
-            <Button 
-              onClick={handleCreate} 
-              leftIcon={<Plus size={18} />}
-              className="bg-primary-600 hover:bg-primary-700 text-white"
-            >
-              Add Leadership Role
-            </Button>
-          )
+          <div className="flex space-x-2">
+            {canManageLeadership && (
+              <Button 
+                onClick={handleCreate} 
+                leftIcon={<Plus size={18} />}
+                className="bg-primary-600 hover:bg-primary-700 text-white"
+              >
+                Add Leadership Role
+              </Button>
+            )}
+            {canExport && (
+              <Button
+                onClick={handleExport}
+                leftIcon={<Download size={18} />}
+                isLoading={exporting}
+                variant="outline"
+              >
+                Export PDF
+              </Button>
+            )}
+          </div>
         }
       />
 

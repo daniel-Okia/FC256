@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Calendar, Award, CreditCard, TrendingDown } from 'lucide-react';
+import { Users, Calendar, Award, CreditCard, TrendingDown, Download } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { MemberService, EventService, ContributionService, ExpenseService, AttendanceService } from '../../services/firestore';
 import PageHeader from '../../components/layout/PageHeader';
@@ -8,7 +8,10 @@ import AttendanceChart from './AttendanceChart';
 import UpcomingEvents from './UpcomingEvents';
 import RecentTransactions from './RecentTransactions';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
+import Button from '../../components/ui/Button';
 import { formatUGX } from '../../utils/currency-utils';
+import { DashboardPDFExporter } from '../../utils/pdf-export';
+import { canUserAccess, Permissions } from '../../utils/permissions';
 
 interface DashboardStats {
   totalMembers: number;
@@ -32,6 +35,11 @@ const Dashboard: React.FC = () => {
     remainingBalance: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [upcomingEvents, setUpcomingEvents] = useState<any[]>([]);
+  const [recentTransactions, setRecentTransactions] = useState<any[]>([]);
+  const [exporting, setExporting] = useState(false);
+
+  const canExport = user && canUserAccess(user.role, Permissions.EXPORT_REPORTS);
 
   useEffect(() => {
     const loadDashboardData = async () => {
@@ -109,6 +117,30 @@ const Dashboard: React.FC = () => {
           remainingBalance
         });
 
+        // Get upcoming events
+        const upcoming = events
+          .filter(event => new Date(event.date) >= now)
+          .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+          .slice(0, 5);
+        setUpcomingEvents(upcoming);
+
+        // Get recent transactions
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        
+        const recentContributions = contributions
+          .filter(c => new Date(c.date) >= thirtyDaysAgo && c.type === 'monetary' && c.amount)
+          .map(c => ({ ...c, type: 'contribution' }));
+        
+        const recentExpenses = expenses
+          .filter(e => new Date(e.date) >= thirtyDaysAgo && e.amount)
+          .map(e => ({ ...e, type: 'expense' }));
+        
+        const recent = [...recentContributions, ...recentExpenses]
+          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+          .slice(0, 10);
+        setRecentTransactions(recent);
+
         setStats({
           totalMembers: members.length,
           activeMembers,
@@ -144,6 +176,22 @@ const Dashboard: React.FC = () => {
     };
   }, []);
 
+  const handleExportDashboard = async () => {
+    try {
+      setExporting(true);
+      const exporter = new DashboardPDFExporter();
+      exporter.exportDashboard({
+        stats,
+        upcomingEvents,
+        recentTransactions,
+      });
+    } catch (error) {
+      console.error('Error exporting dashboard:', error);
+    } finally {
+      setExporting(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-64">
@@ -157,6 +205,18 @@ const Dashboard: React.FC = () => {
       <PageHeader
         title={`Welcome, ${user?.name}`}
         description="Team management dashboard and overview"
+        actions={
+          canExport && (
+            <Button
+              onClick={handleExportDashboard}
+              leftIcon={<Download size={18} />}
+              isLoading={exporting}
+              variant="outline"
+            >
+              Export Dashboard
+            </Button>
+          )
+        }
       />
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
