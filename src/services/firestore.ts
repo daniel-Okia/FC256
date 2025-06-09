@@ -16,7 +16,7 @@ import {
   DocumentSnapshot,
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
-import { Member, Event, Contribution, Leadership, Attendance } from '../types';
+import { Member, Event, Contribution, Leadership, Attendance, Expense } from '../types';
 
 // Generic CRUD operations
 export class FirestoreService {
@@ -203,6 +203,14 @@ export class FirestoreService {
 
       case 'contributions':
         // Sort contributions by date (latest first)
+        return data.sort((a: any, b: any) => {
+          const dateA = new Date(a.date || 0);
+          const dateB = new Date(b.date || 0);
+          return dateB.getTime() - dateA.getTime();
+        });
+
+      case 'expenses':
+        // Sort expenses by date (latest first)
         return data.sort((a: any, b: any) => {
           const dateA = new Date(a.date || 0);
           const dateB = new Date(b.date || 0);
@@ -430,6 +438,46 @@ export class ContributionService {
 
   static subscribeToContributions(callback: (contributions: Contribution[]) => void): () => void {
     return FirestoreService.subscribeToCollection<Contribution>(this.collection, callback);
+  }
+}
+
+export class ExpenseService {
+  private static collection = 'expenses';
+
+  static async createExpense(expenseData: Omit<Expense, 'id'>): Promise<string> {
+    return FirestoreService.create<Expense>(this.collection, expenseData);
+  }
+
+  static async getAllExpenses(): Promise<Expense[]> {
+    return FirestoreService.getAll<Expense>(this.collection);
+  }
+
+  static async getExpenseById(id: string): Promise<Expense | null> {
+    return FirestoreService.getById<Expense>(this.collection, id);
+  }
+
+  static async updateExpense(id: string, expenseData: Partial<Expense>): Promise<void> {
+    return FirestoreService.update<Expense>(this.collection, id, expenseData);
+  }
+
+  static async deleteExpense(id: string): Promise<void> {
+    return FirestoreService.delete(this.collection, id);
+  }
+
+  static async getExpensesByCategory(category: string): Promise<Expense[]> {
+    const expenses = await FirestoreService.query<Expense>(this.collection, [
+      { field: 'category', operator: '==', value: category }
+    ]);
+    // Sort by date (latest first)
+    return expenses.sort((a, b) => {
+      const dateA = new Date(a.date);
+      const dateB = new Date(b.date);
+      return dateB.getTime() - dateA.getTime();
+    });
+  }
+
+  static subscribeToExpenses(callback: (expenses: Expense[]) => void): () => void {
+    return FirestoreService.subscribeToCollection<Expense>(this.collection, callback);
   }
 }
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { CreditCard, Plus, Edit, Trash2 } from 'lucide-react';
+import { CreditCard, Plus, Edit, Trash2, TrendingDown } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { ContributionService, MemberService } from '../../services/firestore';
+import { ContributionService, ExpenseService, MemberService } from '../../services/firestore';
 import PageHeader from '../../components/layout/PageHeader';
 import Card from '../../components/ui/Card';
 import Table from '../../components/ui/Table';
@@ -12,7 +12,7 @@ import Badge from '../../components/ui/Badge';
 import Button from '../../components/ui/Button';
 import EmptyState from '../../components/common/EmptyState';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
-import { Contribution, Member, ContributionType, PaymentMethod } from '../../types';
+import { Contribution, Expense, Member, ContributionType, PaymentMethod, ExpenseCategory } from '../../types';
 import { formatDate } from '../../utils/date-utils';
 import { formatUGX } from '../../utils/currency-utils';
 import { canUserAccess, Permissions } from '../../utils/permissions';
@@ -27,43 +27,68 @@ interface ContributionFormData {
   date: string;
 }
 
+interface ExpenseFormData {
+  category: ExpenseCategory;
+  amount: number;
+  description: string;
+  paymentMethod?: PaymentMethod;
+  date: string;
+  receipt?: string;
+}
+
+type TransactionType = 'contribution' | 'expense';
+
 const Contributions: React.FC = () => {
   const { user } = useAuth();
   const [members, setMembers] = useState<Member[]>([]);
   const [contributions, setContributions] = useState<Contribution[]>([]);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalType, setModalType] = useState<TransactionType>('contribution');
   const [editingContribution, setEditingContribution] = useState<Contribution | null>(null);
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [contributionToDelete, setContributionToDelete] = useState<Contribution | null>(null);
+  const [itemToDelete, setItemToDelete] = useState<{ type: TransactionType; item: Contribution | Expense } | null>(null);
+  const [activeTab, setActiveTab] = useState<'all' | 'contributions' | 'expenses'>('all');
 
-  const canCreateContribution = user && canUserAccess(user.role, Permissions.CREATE_CONTRIBUTION);
-  const canEditContribution = user && canUserAccess(user.role, Permissions.EDIT_CONTRIBUTION);
-  const canDeleteContribution = user && canUserAccess(user.role, Permissions.DELETE_CONTRIBUTION);
+  const canCreateTransaction = user && canUserAccess(user.role, Permissions.CREATE_CONTRIBUTION);
+  const canEditTransaction = user && canUserAccess(user.role, Permissions.EDIT_CONTRIBUTION);
+  const canDeleteTransaction = user && canUserAccess(user.role, Permissions.DELETE_CONTRIBUTION);
 
   const {
-    register,
-    handleSubmit,
-    reset,
-    setValue,
-    watch,
-    formState: { errors },
+    register: registerContribution,
+    handleSubmit: handleSubmitContribution,
+    reset: resetContribution,
+    setValue: setValueContribution,
+    watch: watchContribution,
+    formState: { errors: errorsContribution },
   } = useForm<ContributionFormData>();
 
-  const watchType = watch('type');
+  const {
+    register: registerExpense,
+    handleSubmit: handleSubmitExpense,
+    reset: resetExpense,
+    setValue: setValueExpense,
+    formState: { errors: errorsExpense },
+  } = useForm<ExpenseFormData>();
+
+  const watchContributionType = watchContribution('type');
 
   // Load data from Firestore
   useEffect(() => {
     const loadData = async () => {
       try {
         setLoading(true);
-        const [membersData, contributionsData] = await Promise.all([
+        const [membersData, contributionsData, expensesData] = await Promise.all([
           MemberService.getAllMembers(),
           ContributionService.getAllContributions(),
+          ExpenseService.getAllExpenses(),
         ]);
         setMembers(membersData);
         setContributions(contributionsData);
+        setExpenses(expensesData);
       } catch (error) {
         console.error('Error loading data:', error);
       } finally {
@@ -79,10 +104,15 @@ const Contributions: React.FC = () => {
       setContributions(contributions);
       setLoading(false);
     });
+    const unsubscribeExpenses = ExpenseService.subscribeToExpenses((expenses) => {
+      setExpenses(expenses);
+      setLoading(false);
+    });
 
     return () => {
       unsubscribeMembers();
       unsubscribeContributions();
+      unsubscribeExpenses();
     };
   }, []);
 
@@ -106,57 +136,99 @@ const Contributions: React.FC = () => {
     { value: 'other', label: 'Other' },
   ];
 
+  const expenseCategoryOptions = [
+    { value: 'equipment', label: 'Equipment' },
+    { value: 'transport', label: 'Transport' },
+    { value: 'medical', label: 'Medical' },
+    { value: 'facilities', label: 'Facilities' },
+    { value: 'referees', label: 'Referees' },
+    { value: 'food', label: 'Food & Refreshments' },
+    { value: 'uniforms', label: 'Uniforms' },
+    { value: 'training', label: 'Training Materials' },
+    { value: 'administration', label: 'Administration' },
+    { value: 'other', label: 'Other' },
+  ];
+
   const getMemberById = (id: string) => members.find(m => m.id === id);
+
+  // Combine contributions and expenses for display
+  const allTransactions = [
+    ...contributions.map(c => ({ ...c, transactionType: 'contribution' as const })),
+    ...expenses.map(e => ({ ...e, transactionType: 'expense' as const }))
+  ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  const filteredTransactions = allTransactions.filter(transaction => {
+    if (activeTab === 'contributions') return transaction.transactionType === 'contribution';
+    if (activeTab === 'expenses') return transaction.transactionType === 'expense';
+    return true;
+  });
 
   const columns = [
     {
+      key: 'type',
+      title: 'Type',
+      render: (transaction: any) => (
+        <Badge
+          variant={transaction.transactionType === 'contribution' ? 'success' : 'danger'}
+          className="capitalize"
+        >
+          {transaction.transactionType}
+        </Badge>
+      ),
+    },
+    {
       key: 'member',
-      title: 'Member',
-      render: (contribution: Contribution) => {
-        const member = getMemberById(contribution.memberId);
-        return member ? `${member.name} (#${member.jerseyNumber})` : 'Unknown Member';
+      title: 'Member/Category',
+      render: (transaction: any) => {
+        if (transaction.transactionType === 'contribution') {
+          const member = getMemberById(transaction.memberId);
+          return member ? `${member.name} (#${member.jerseyNumber})` : 'Unknown Member';
+        } else {
+          return (
+            <span className="capitalize font-medium">
+              {transaction.category.replace('_', ' ')}
+            </span>
+          );
+        }
       },
     },
     {
       key: 'date',
       title: 'Date',
-      render: (contribution: Contribution) => formatDate(contribution.date),
-    },
-    {
-      key: 'type',
-      title: 'Type',
-      render: (contribution: Contribution) => (
-        <Badge
-          variant={contribution.type === 'monetary' ? 'primary' : 'secondary'}
-          className="capitalize"
-        >
-          {contribution.type}
-        </Badge>
-      ),
+      render: (transaction: any) => formatDate(transaction.date),
     },
     {
       key: 'description',
       title: 'Description',
-      render: (contribution: Contribution) => contribution.description,
+      render: (transaction: any) => transaction.description,
     },
     {
       key: 'amount',
       title: 'Amount',
-      render: (contribution: Contribution) =>
-        contribution.amount ? (
-          <div className="flex items-center font-medium text-green-600 dark:text-green-400">
-            {formatUGX(contribution.amount)}
-          </div>
-        ) : (
-          'N/A'
-        ),
+      render: (transaction: any) => {
+        if (transaction.transactionType === 'contribution') {
+          return transaction.amount ? (
+            <div className="flex items-center font-medium text-green-600 dark:text-green-400">
+              +{formatUGX(transaction.amount)}
+            </div>
+          ) : (
+            'N/A'
+          );
+        } else {
+          return (
+            <div className="flex items-center font-medium text-red-600 dark:text-red-400">
+              -{formatUGX(transaction.amount)}
+            </div>
+          );
+        }
+      },
     },
     {
       key: 'paymentMethod',
       title: 'Payment Method',
-      render: (contribution: Contribution) =>
-        contribution.paymentMethod ? (
-          <span className="capitalize">{contribution.paymentMethod}</span>
+      render: (transaction: any) =>
+        transaction.paymentMethod ? (
+          <span className="capitalize">{transaction.paymentMethod}</span>
         ) : (
           'N/A'
         ),
@@ -164,27 +236,27 @@ const Contributions: React.FC = () => {
     {
       key: 'actions',
       title: 'Actions',
-      render: (contribution: Contribution) => (
+      render: (transaction: any) => (
         <div className="flex space-x-2">
-          {canEditContribution && (
+          {canEditTransaction && (
             <Button
               size="sm"
               variant="outline"
               onClick={(e) => {
                 e.stopPropagation();
-                handleEdit(contribution);
+                handleEdit(transaction);
               }}
             >
               <Edit size={16} />
             </Button>
           )}
-          {canDeleteContribution && (
+          {canDeleteTransaction && (
             <Button
               size="sm"
               variant="danger"
               onClick={(e) => {
                 e.stopPropagation();
-                handleDeleteClick(contribution);
+                handleDeleteClick(transaction);
               }}
             >
               <Trash2 size={16} />
@@ -195,9 +267,11 @@ const Contributions: React.FC = () => {
     },
   ];
 
-  const handleCreate = () => {
+  const handleCreateContribution = () => {
+    setModalType('contribution');
     setEditingContribution(null);
-    reset({
+    setEditingExpense(null);
+    resetContribution({
       memberId: '',
       type: 'monetary',
       amount: undefined,
@@ -208,35 +282,71 @@ const Contributions: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  const handleEdit = (contribution: Contribution) => {
-    setEditingContribution(contribution);
-    setValue('memberId', contribution.memberId);
-    setValue('type', contribution.type);
-    setValue('amount', contribution.amount);
-    setValue('description', contribution.description);
-    setValue('paymentMethod', contribution.paymentMethod);
-    setValue('date', contribution.date.split('T')[0]);
+  const handleCreateExpense = () => {
+    setModalType('expense');
+    setEditingContribution(null);
+    setEditingExpense(null);
+    resetExpense({
+      category: 'equipment',
+      amount: 0,
+      description: '',
+      paymentMethod: undefined,
+      date: '',
+      receipt: '',
+    });
     setIsModalOpen(true);
   };
 
-  const handleDeleteClick = (contribution: Contribution) => {
-    setContributionToDelete(contribution);
+  const handleEdit = (transaction: any) => {
+    if (transaction.transactionType === 'contribution') {
+      setModalType('contribution');
+      setEditingContribution(transaction);
+      setEditingExpense(null);
+      setValueContribution('memberId', transaction.memberId);
+      setValueContribution('type', transaction.type);
+      setValueContribution('amount', transaction.amount);
+      setValueContribution('description', transaction.description);
+      setValueContribution('paymentMethod', transaction.paymentMethod);
+      setValueContribution('date', transaction.date.split('T')[0]);
+    } else {
+      setModalType('expense');
+      setEditingExpense(transaction);
+      setEditingContribution(null);
+      setValueExpense('category', transaction.category);
+      setValueExpense('amount', transaction.amount);
+      setValueExpense('description', transaction.description);
+      setValueExpense('paymentMethod', transaction.paymentMethod);
+      setValueExpense('date', transaction.date.split('T')[0]);
+      setValueExpense('receipt', transaction.receipt || '');
+    }
+    setIsModalOpen(true);
+  };
+
+  const handleDeleteClick = (transaction: any) => {
+    setItemToDelete({
+      type: transaction.transactionType,
+      item: transaction
+    });
     setIsDeleteModalOpen(true);
   };
 
   const handleDelete = async () => {
-    if (contributionToDelete) {
+    if (itemToDelete) {
       try {
-        await ContributionService.deleteContribution(contributionToDelete.id);
+        if (itemToDelete.type === 'contribution') {
+          await ContributionService.deleteContribution(itemToDelete.item.id);
+        } else {
+          await ExpenseService.deleteExpense(itemToDelete.item.id);
+        }
         setIsDeleteModalOpen(false);
-        setContributionToDelete(null);
+        setItemToDelete(null);
       } catch (error) {
-        console.error('Error deleting contribution:', error);
+        console.error('Error deleting transaction:', error);
       }
     }
   };
 
-  const onSubmit = async (data: ContributionFormData) => {
+  const onSubmitContribution = async (data: ContributionFormData) => {
     try {
       setSubmitting(true);
       
@@ -261,13 +371,52 @@ const Contributions: React.FC = () => {
       }
 
       setIsModalOpen(false);
-      reset();
+      resetContribution();
     } catch (error) {
       console.error('Error saving contribution:', error);
     } finally {
       setSubmitting(false);
     }
   };
+
+  const onSubmitExpense = async (data: ExpenseFormData) => {
+    try {
+      setSubmitting(true);
+      
+      const expenseData = {
+        category: data.category,
+        amount: data.amount,
+        description: data.description,
+        paymentMethod: data.paymentMethod,
+        date: new Date(data.date).toISOString(),
+        receipt: data.receipt || '',
+        recordedBy: user?.id || '',
+      };
+
+      if (editingExpense) {
+        await ExpenseService.updateExpense(editingExpense.id, expenseData);
+      } else {
+        await ExpenseService.createExpense(expenseData);
+      }
+
+      setIsModalOpen(false);
+      resetExpense();
+    } catch (error) {
+      console.error('Error saving expense:', error);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // Calculate totals
+  const totalContributions = contributions
+    .filter(c => c.type === 'monetary' && c.amount)
+    .reduce((sum, c) => sum + (c.amount || 0), 0);
+  
+  const totalExpenses = expenses
+    .reduce((sum, e) => sum + (e.amount || 0), 0);
+  
+  const remainingBalance = totalContributions - totalExpenses;
 
   if (loading) {
     return (
@@ -280,38 +429,141 @@ const Contributions: React.FC = () => {
   return (
     <div>
       <PageHeader
-        title="Contributions"
-        description={`Track and manage team contributions in UGX (${contributions.length} contributions)`}
+        title="Contributions & Expenses"
+        description={`Track team contributions and expenses in UGX (${filteredTransactions.length} transactions)`}
         actions={
-          canCreateContribution && (
-            <Button 
-              onClick={handleCreate} 
-              leftIcon={<Plus size={18} />}
-              className="bg-primary-600 hover:bg-primary-700 text-white"
-            >
-              Add Contribution
-            </Button>
+          canCreateTransaction && (
+            <div className="flex space-x-2">
+              <Button 
+                onClick={handleCreateContribution} 
+                leftIcon={<Plus size={18} />}
+                className="bg-green-600 hover:bg-green-700 text-white"
+              >
+                Add Contribution
+              </Button>
+              <Button 
+                onClick={handleCreateExpense} 
+                leftIcon={<TrendingDown size={18} />}
+                className="bg-red-600 hover:bg-red-700 text-white"
+              >
+                Add Expense
+              </Button>
+            </div>
           )
         }
       />
 
+      {/* Financial Summary */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4 border border-green-200 dark:border-green-800">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-green-600 dark:text-green-400">
+                Total Contributions
+              </p>
+              <p className="text-2xl font-bold text-green-900 dark:text-green-100">
+                {formatUGX(totalContributions)}
+              </p>
+            </div>
+            <CreditCard className="h-8 w-8 text-green-600 dark:text-green-400" />
+          </div>
+        </div>
+        
+        <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-4 border border-red-200 dark:border-red-800">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-red-600 dark:text-red-400">
+                Total Expenses
+              </p>
+              <p className="text-2xl font-bold text-red-900 dark:text-red-100">
+                {formatUGX(totalExpenses)}
+              </p>
+            </div>
+            <TrendingDown className="h-8 w-8 text-red-600 dark:text-red-400" />
+          </div>
+        </div>
+        
+        <div className={`rounded-lg p-4 border ${
+          remainingBalance >= 0 
+            ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800'
+            : 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800'
+        }`}>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className={`text-sm font-medium ${
+                remainingBalance >= 0 
+                  ? 'text-blue-600 dark:text-blue-400'
+                  : 'text-yellow-600 dark:text-yellow-400'
+              }`}>
+                {remainingBalance >= 0 ? 'Available Balance' : 'Deficit'}
+              </p>
+              <p className={`text-2xl font-bold ${
+                remainingBalance >= 0 
+                  ? 'text-blue-900 dark:text-blue-100'
+                  : 'text-yellow-900 dark:text-yellow-100'
+              }`}>
+                {formatUGX(Math.abs(remainingBalance))}
+              </p>
+            </div>
+          </div>
+        </div>
+        
+        <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-4 border border-purple-200 dark:border-purple-800">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-purple-600 dark:text-purple-400">
+                Total Transactions
+              </p>
+              <p className="text-2xl font-bold text-purple-900 dark:text-purple-100">
+                {allTransactions.length}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="mb-6">
+        <div className="border-b border-gray-200 dark:border-gray-700">
+          <nav className="-mb-px flex space-x-8">
+            {[
+              { key: 'all', label: 'All Transactions', count: allTransactions.length },
+              { key: 'contributions', label: 'Contributions', count: contributions.length },
+              { key: 'expenses', label: 'Expenses', count: expenses.length },
+            ].map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key as any)}
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === tab.key
+                    ? 'border-primary-500 text-primary-600 dark:text-primary-400'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+                }`}
+              >
+                {tab.label} ({tab.count})
+              </button>
+            ))}
+          </nav>
+        </div>
+      </div>
+
       <Card>
-        {contributions.length > 0 ? (
+        {filteredTransactions.length > 0 ? (
           <Table
-            data={contributions}
+            data={filteredTransactions}
             columns={columns}
-            onRowClick={(contribution) => console.log('Clicked contribution:', contribution)}
+            onRowClick={(transaction) => console.log('Clicked transaction:', transaction)}
           />
         ) : (
           <EmptyState
-            title="No contributions yet"
-            description="There are no contributions recorded at the moment."
-            icon={<CreditCard size={24} />}
+            title={`No ${activeTab === 'all' ? 'transactions' : activeTab} yet`}
+            description={`There are no ${activeTab === 'all' ? 'transactions' : activeTab} recorded at the moment.`}
+            icon={activeTab === 'expenses' ? <TrendingDown size={24} /> : <CreditCard size={24} />}
             action={
-              canCreateContribution
+              canCreateTransaction
                 ? {
-                    label: 'Add Contribution',
-                    onClick: handleCreate,
+                    label: activeTab === 'expenses' ? 'Add Expense' : 'Add Contribution',
+                    onClick: activeTab === 'expenses' ? handleCreateExpense : handleCreateContribution,
                   }
                 : undefined
             }
@@ -319,21 +571,21 @@ const Contributions: React.FC = () => {
         )}
       </Card>
 
-      {/* Create/Edit Modal */}
+      {/* Create/Edit Contribution Modal */}
       <Modal
-        isOpen={isModalOpen}
+        isOpen={isModalOpen && modalType === 'contribution'}
         onClose={() => setIsModalOpen(false)}
         title={editingContribution ? 'Edit Contribution' : 'Add Contribution'}
         size="lg"
       >
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        <form onSubmit={handleSubmitContribution(onSubmitContribution)} className="space-y-6">
           <Select
             label="Member"
             options={memberOptions}
             placeholder="Select a team member"
-            error={errors.memberId?.message}
+            error={errorsContribution.memberId?.message}
             required
-            {...register('memberId', { required: 'Member is required' })}
+            {...registerContribution('memberId', { required: 'Member is required' })}
           />
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -341,21 +593,21 @@ const Contributions: React.FC = () => {
               label="Contribution Type"
               options={typeOptions}
               placeholder="Select type"
-              error={errors.type?.message}
+              error={errorsContribution.type?.message}
               required
-              {...register('type', { required: 'Type is required' })}
+              {...registerContribution('type', { required: 'Type is required' })}
             />
 
             <Input
               label="Date"
               type="date"
-              error={errors.date?.message}
+              error={errorsContribution.date?.message}
               required
-              {...register('date', { required: 'Date is required' })}
+              {...registerContribution('date', { required: 'Date is required' })}
             />
           </div>
 
-          {watchType === 'monetary' && (
+          {watchContributionType === 'monetary' && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <Input
@@ -364,10 +616,10 @@ const Contributions: React.FC = () => {
                   step="1"
                   min="0"
                   placeholder="e.g., 50000"
-                  error={errors.amount?.message}
+                  error={errorsContribution.amount?.message}
                   required
-                  {...register('amount', { 
-                    required: watchType === 'monetary' ? 'Amount is required for monetary contributions' : false,
+                  {...registerContribution('amount', { 
+                    required: watchContributionType === 'monetary' ? 'Amount is required for monetary contributions' : false,
                     min: { value: 0, message: 'Amount must be positive' }
                   })}
                 />
@@ -380,10 +632,10 @@ const Contributions: React.FC = () => {
                 label="Payment Method"
                 options={paymentMethodOptions}
                 placeholder="Select payment method"
-                error={errors.paymentMethod?.message}
+                error={errorsContribution.paymentMethod?.message}
                 required
-                {...register('paymentMethod', { 
-                  required: watchType === 'monetary' ? 'Payment method is required for monetary contributions' : false 
+                {...registerContribution('paymentMethod', { 
+                  required: watchContributionType === 'monetary' ? 'Payment method is required for monetary contributions' : false 
                 })}
               />
             </div>
@@ -391,10 +643,10 @@ const Contributions: React.FC = () => {
 
           <Input
             label="Description"
-            placeholder={watchType === 'monetary' ? 'e.g., Monthly dues, tournament fee' : 'e.g., Training equipment, jerseys'}
-            error={errors.description?.message}
+            placeholder={watchContributionType === 'monetary' ? 'e.g., Monthly dues, tournament fee' : 'e.g., Training equipment, jerseys'}
+            error={errorsContribution.description?.message}
             required
-            {...register('description', { required: 'Description is required' })}
+            {...registerContribution('description', { required: 'Description is required' })}
           />
 
           <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200 dark:border-gray-700">
@@ -408,9 +660,99 @@ const Contributions: React.FC = () => {
             <Button 
               type="submit" 
               isLoading={submitting}
-              className="bg-primary-600 hover:bg-primary-700 text-white"
+              className="bg-green-600 hover:bg-green-700 text-white"
             >
               {editingContribution ? 'Update Contribution' : 'Add Contribution'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Create/Edit Expense Modal */}
+      <Modal
+        isOpen={isModalOpen && modalType === 'expense'}
+        onClose={() => setIsModalOpen(false)}
+        title={editingExpense ? 'Edit Expense' : 'Add Expense'}
+        size="lg"
+      >
+        <form onSubmit={handleSubmitExpense(onSubmitExpense)} className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Select
+              label="Category"
+              options={expenseCategoryOptions}
+              placeholder="Select category"
+              error={errorsExpense.category?.message}
+              required
+              {...registerExpense('category', { required: 'Category is required' })}
+            />
+
+            <Input
+              label="Date"
+              type="date"
+              error={errorsExpense.date?.message}
+              required
+              {...registerExpense('date', { required: 'Date is required' })}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <Input
+                label="Amount (UGX)"
+                type="number"
+                step="1"
+                min="0"
+                placeholder="e.g., 25000"
+                error={errorsExpense.amount?.message}
+                required
+                {...registerExpense('amount', { 
+                  required: 'Amount is required',
+                  min: { value: 0, message: 'Amount must be positive' }
+                })}
+              />
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                Enter amount in Ugandan Shillings
+              </p>
+            </div>
+
+            <Select
+              label="Payment Method"
+              options={paymentMethodOptions}
+              placeholder="Select payment method"
+              error={errorsExpense.paymentMethod?.message}
+              {...registerExpense('paymentMethod')}
+            />
+          </div>
+
+          <Input
+            label="Description"
+            placeholder="e.g., Football boots for training, Transport to away match"
+            error={errorsExpense.description?.message}
+            required
+            {...registerExpense('description', { required: 'Description is required' })}
+          />
+
+          <Input
+            label="Receipt Reference (Optional)"
+            placeholder="Receipt number or reference"
+            error={errorsExpense.receipt?.message}
+            {...registerExpense('receipt')}
+          />
+
+          <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200 dark:border-gray-700">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button 
+              type="submit" 
+              isLoading={submitting}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {editingExpense ? 'Update Expense' : 'Add Expense'}
             </Button>
           </div>
         </form>
@@ -420,12 +762,12 @@ const Contributions: React.FC = () => {
       <Modal
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
-        title="Delete Contribution"
+        title={`Delete ${itemToDelete?.type === 'contribution' ? 'Contribution' : 'Expense'}`}
         size="sm"
       >
         <div className="space-y-4">
           <p className="text-gray-600 dark:text-gray-300">
-            Are you sure you want to delete this contribution? This action cannot be undone.
+            Are you sure you want to delete this {itemToDelete?.type}? This action cannot be undone.
           </p>
           <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200 dark:border-gray-700">
             <Button

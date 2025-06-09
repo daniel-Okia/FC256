@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Calendar, Award, CreditCard } from 'lucide-react';
+import { Users, Calendar, Award, CreditCard, TrendingDown } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { MemberService, EventService, ContributionService, AttendanceService } from '../../services/firestore';
+import { MemberService, EventService, ContributionService, ExpenseService, AttendanceService } from '../../services/firestore';
 import PageHeader from '../../components/layout/PageHeader';
 import DashboardCard from './DashboardCard';
 import AttendanceChart from './AttendanceChart';
 import UpcomingEvents from './UpcomingEvents';
-import RecentContributions from './RecentContributions';
+import RecentTransactions from './RecentTransactions';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { formatUGX } from '../../utils/currency-utils';
 
@@ -16,11 +16,8 @@ interface DashboardStats {
   trainingSessionsThisMonth: number;
   friendliesThisMonth: number;
   totalContributions: number;
-  // Previous month data for comparison
-  trainingSessionsLastMonth: number;
-  friendliesLastMonth: number;
-  totalContributionsLastMonth: number;
-  activeMembersLastMonth: number;
+  totalExpenses: number;
+  remainingBalance: number;
 }
 
 const Dashboard: React.FC = () => {
@@ -31,10 +28,8 @@ const Dashboard: React.FC = () => {
     trainingSessionsThisMonth: 0,
     friendliesThisMonth: 0,
     totalContributions: 0,
-    trainingSessionsLastMonth: 0,
-    friendliesLastMonth: 0,
-    totalContributionsLastMonth: 0,
-    activeMembersLastMonth: 0,
+    totalExpenses: 0,
+    remainingBalance: 0,
   });
   const [loading, setLoading] = useState(true);
 
@@ -44,20 +39,17 @@ const Dashboard: React.FC = () => {
         setLoading(true);
         
         // Load all data in parallel
-        const [members, events, contributions] = await Promise.all([
+        const [members, events, contributions, expenses] = await Promise.all([
           MemberService.getAllMembers(),
           EventService.getAllEvents(),
           ContributionService.getAllContributions(),
+          ExpenseService.getAllExpenses(),
         ]);
 
         // Get current date info
         const now = new Date();
         const currentMonth = now.getMonth();
         const currentYear = now.getFullYear();
-        
-        // Get last month info
-        const lastMonth = currentMonth === 0 ? 11 : currentMonth - 1;
-        const lastMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear;
 
         // Calculate current month stats
         const activeMembers = members.filter(m => m.status === 'active').length;
@@ -67,39 +59,20 @@ const Dashboard: React.FC = () => {
           return eventDate.getMonth() === currentMonth && eventDate.getFullYear() === currentYear;
         });
         
-        const eventsLastMonth = events.filter(event => {
-          const eventDate = new Date(event.date);
-          return eventDate.getMonth() === lastMonth && eventDate.getFullYear() === lastMonthYear;
-        });
-        
         const trainingSessionsThisMonth = eventsThisMonth.filter(e => e.type === 'training').length;
         const friendliesThisMonth = eventsThisMonth.filter(e => e.type === 'friendly').length;
         
-        const trainingSessionsLastMonth = eventsLastMonth.filter(e => e.type === 'training').length;
-        const friendliesLastMonth = eventsLastMonth.filter(e => e.type === 'friendly').length;
-        
-        // Calculate contributions for current month
-        const contributionsThisMonth = contributions.filter(contribution => {
-          const contributionDate = new Date(contribution.date);
-          return contributionDate.getMonth() === currentMonth && contributionDate.getFullYear() === currentYear;
-        });
-        
-        const contributionsLastMonth = contributions.filter(contribution => {
-          const contributionDate = new Date(contribution.date);
-          return contributionDate.getMonth() === lastMonth && contributionDate.getFullYear() === lastMonthYear;
-        });
-        
-        const totalContributions = contributionsThisMonth
+        // Calculate total contributions (monetary only)
+        const totalContributions = contributions
           .filter(c => c.type === 'monetary' && c.amount)
           .reduce((sum, c) => sum + (c.amount || 0), 0);
           
-        const totalContributionsLastMonth = contributionsLastMonth
-          .filter(c => c.type === 'monetary' && c.amount)
-          .reduce((sum, c) => sum + (c.amount || 0), 0);
-
-        // For active members comparison, we'll use a simple assumption
-        // In a real app, you'd track historical member status changes
-        const activeMembersLastMonth = Math.max(0, activeMembers - 2); // Simple approximation
+        // Calculate total expenses
+        const totalExpenses = expenses
+          .reduce((sum, e) => sum + (e.amount || 0), 0);
+          
+        // Calculate remaining balance
+        const remainingBalance = totalContributions - totalExpenses;
 
         setStats({
           totalMembers: members.length,
@@ -107,10 +80,8 @@ const Dashboard: React.FC = () => {
           trainingSessionsThisMonth,
           friendliesThisMonth,
           totalContributions,
-          trainingSessionsLastMonth,
-          friendliesLastMonth,
-          totalContributionsLastMonth,
-          activeMembersLastMonth,
+          totalExpenses,
+          remainingBalance,
         });
       } catch (error) {
         console.error('Error loading dashboard data:', error);
@@ -121,24 +92,6 @@ const Dashboard: React.FC = () => {
 
     loadDashboardData();
   }, []);
-
-  // Calculate percentage changes
-  const calculatePercentageChange = (current: number, previous: number): { value: number; isPositive: boolean } => {
-    if (previous === 0) {
-      return { value: current > 0 ? 100 : 0, isPositive: current >= 0 };
-    }
-    
-    const change = ((current - previous) / previous) * 100;
-    return {
-      value: Math.abs(Math.round(change)),
-      isPositive: change >= 0,
-    };
-  };
-
-  const membersTrend = calculatePercentageChange(stats.activeMembers, stats.activeMembersLastMonth);
-  const trainingTrend = calculatePercentageChange(stats.trainingSessionsThisMonth, stats.trainingSessionsLastMonth);
-  const friendliesTrend = calculatePercentageChange(stats.friendliesThisMonth, stats.friendliesLastMonth);
-  const contributionsTrend = calculatePercentageChange(stats.totalContributions, stats.totalContributionsLastMonth);
 
   if (loading) {
     return (
@@ -155,13 +108,12 @@ const Dashboard: React.FC = () => {
         description="Team management dashboard and overview"
       />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
         <DashboardCard
           title="Team Members"
           value={stats.activeMembers.toString()}
           description={`${stats.totalMembers} total members`}
           icon={<Users className="h-6 w-6 text-primary-600 dark:text-primary-400" />}
-          trend={membersTrend}
           link={{ text: 'View all members', to: '/members' }}
         />
         <DashboardCard
@@ -169,7 +121,6 @@ const Dashboard: React.FC = () => {
           value={stats.trainingSessionsThisMonth.toString()}
           description="This month"
           icon={<Calendar className="h-6 w-6 text-primary-600 dark:text-primary-400" />}
-          trend={trainingTrend}
           link={{ text: 'View training', to: '/training' }}
         />
         <DashboardCard
@@ -177,17 +128,50 @@ const Dashboard: React.FC = () => {
           value={stats.friendliesThisMonth.toString()}
           description="This month"
           icon={<Award className="h-6 w-6 text-primary-600 dark:text-primary-400" />}
-          trend={friendliesTrend}
           link={{ text: 'View friendlies', to: '/friendlies' }}
         />
         <DashboardCard
-          title="Contributions"
+          title="Total Contributions"
           value={formatUGX(stats.totalContributions)}
-          description="Total this month"
-          icon={<CreditCard className="h-6 w-6 text-primary-600 dark:text-primary-400" />}
-          trend={contributionsTrend}
+          description="All time monetary"
+          icon={<CreditCard className="h-6 w-6 text-green-600 dark:text-green-400" />}
           link={{ text: 'View contributions', to: '/contributions' }}
         />
+        <DashboardCard
+          title="Total Expenses"
+          value={formatUGX(stats.totalExpenses)}
+          description="All time spending"
+          icon={<TrendingDown className="h-6 w-6 text-red-600 dark:text-red-400" />}
+          link={{ text: 'View expenses', to: '/contributions' }}
+        />
+      </div>
+
+      {/* Balance Summary */}
+      <div className="mb-8">
+        <div className="bg-gradient-to-r from-blue-50 to-green-50 dark:from-blue-900/20 dark:to-green-900/20 rounded-lg p-6 border border-blue-200 dark:border-blue-800">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                Financial Summary
+              </h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Current balance after all contributions and expenses
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-3xl font-bold text-gray-900 dark:text-white">
+                {formatUGX(stats.remainingBalance)}
+              </p>
+              <p className={`text-sm font-medium ${
+                stats.remainingBalance >= 0 
+                  ? 'text-green-600 dark:text-green-400' 
+                  : 'text-red-600 dark:text-red-400'
+              }`}>
+                {stats.remainingBalance >= 0 ? 'Available Balance' : 'Deficit'}
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
@@ -195,9 +179,9 @@ const Dashboard: React.FC = () => {
         <UpcomingEvents />
       </div>
 
-      {/* Recent Contributions Section */}
+      {/* Recent Transactions Section */}
       <div className="mb-8">
-        <RecentContributions />
+        <RecentTransactions />
       </div>
     </div>
   );

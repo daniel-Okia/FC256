@@ -146,6 +146,32 @@ export interface Contribution {
   recordedAt: string;
 }
 
+// Expense Types
+export type ExpenseCategory = 
+  | 'equipment' 
+  | 'transport' 
+  | 'medical' 
+  | 'facilities' 
+  | 'referees' 
+  | 'food' 
+  | 'uniforms' 
+  | 'training' 
+  | 'administration' 
+  | 'other';
+
+export interface Expense {
+  id: string;
+  category: ExpenseCategory;
+  amount: number; // Amount in UGX
+  description: string;
+  paymentMethod?: PaymentMethod;
+  date: string;
+  recordedBy: string;
+  recordedAt: string;
+  eventId?: string; // Optional link to specific event
+  receipt?: string; // Optional receipt URL or reference
+}
+
 // UI Types
 export interface NavItem {
   name: string;
