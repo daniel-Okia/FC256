@@ -611,13 +611,3 @@ export class LeadershipPDFExporter extends BasePDFExporter {
     this.save('fitholics-fc-leadership');
   }
 }
-
-// Export all classes
-export {
-  DashboardPDFExporter,
-  MembersPDFExporter,
-  ContributionsPDFExporter,
-  EventsPDFExporter,
-  AttendancePDFExporter,
-  LeadershipPDFExporter,
-};
