@@ -4,38 +4,31 @@ import { Attendance, Contribution, Event, Member, Expense, Leadership } from '..
 import { formatDate } from './date-utils';
 import { formatUGX } from './currency-utils';
 
-// PDF styling constants with enhanced design
+// PDF styling constants - simplified and formal
 const COLORS = {
-  primary: '#4f4fe6',
-  yellow: '#eab308',
-  secondary: '#f43f4e',
-  green: '#22c55e',
-  red: '#ef4444',
-  blue: '#3b82f6',
-  purple: '#8b5cf6',
-  orange: '#f97316',
+  primary: '#2563eb',
+  secondary: '#64748b',
+  accent: '#0f172a',
+  success: '#059669',
+  danger: '#dc2626',
+  warning: '#d97706',
   gray: '#6b7280',
+  lightGray: '#f8fafc',
   darkGray: '#374151',
-  lightGray: '#f9fafb',
   white: '#ffffff',
   black: '#000000',
 };
 
 const FONTS = {
-  title: 20,
-  subtitle: 16,
-  heading: 14,
-  subheading: 12,
+  title: 18,
+  subtitle: 14,
+  heading: 12,
   body: 10,
   small: 8,
-  tiny: 7,
 };
 
-// Convert the uploaded logo to base64 (this will be the actual logo data)
-const FITHOLICS_LOGO_BASE64 = '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCdABmX/9k=';
-
 /**
- * Base PDF export class with enhanced design and logo integration
+ * Base PDF export class with clean, formal design
  */
 class BasePDFExporter {
   protected doc: jsPDF;
@@ -43,7 +36,6 @@ class BasePDFExporter {
   protected pageHeight: number;
   protected margin: number = 20;
   protected currentY: number = 20;
-  protected logoSize: number = 25;
 
   constructor(orientation: 'portrait' | 'landscape' = 'portrait') {
     this.doc = new jsPDF(orientation, 'mm', 'a4');
@@ -52,161 +44,141 @@ class BasePDFExporter {
   }
 
   /**
-   * Add enhanced header with logo, branding, and beautiful design
+   * Add formal header with team branding
    */
   protected addHeader(title: string, subtitle?: string): void {
-    // Add background gradient effect (simulated with rectangles)
-    this.addHeaderBackground();
-
-    // Add Fitholics FC logo
-    this.addLogo();
-
-    // Add company branding
-    this.addBranding();
-
-    // Add report title with enhanced styling
-    this.addReportTitle(title, subtitle);
-
-    // Add decorative line
-    this.addDecorativeLine();
-
-    this.currentY = this.margin + 65;
-  }
-
-  /**
-   * Add header background with gradient effect
-   */
-  private addHeaderBackground(): void {
-    // Main header background
-    this.doc.setFillColor(COLORS.primary);
-    this.doc.rect(0, 0, this.pageWidth, 50, 'F');
-
-    // Yellow accent stripe
-    this.doc.setFillColor(COLORS.yellow);
-    this.doc.rect(0, 45, this.pageWidth, 5, 'F');
-
-    // Subtle gradient effect with multiple rectangles
-    for (let i = 0; i < 10; i++) {
-      const opacity = 0.1 - (i * 0.01);
-      this.doc.setFillColor(255, 255, 255);
-      this.doc.setGState(this.doc.GState({ opacity }));
-      this.doc.rect(0, 50 + i, this.pageWidth, 1, 'F');
-    }
-    this.doc.setGState(this.doc.GState({ opacity: 1 })); // Reset opacity
-  }
-
-  /**
-   * Add Fitholics FC logo
-   */
-  private addLogo(): void {
-    try {
-      // Add the logo with proper positioning
-      this.doc.addImage(
-        FITHOLICS_LOGO_BASE64, 
-        'PNG', 
-        this.margin, 
-        this.margin - 5, 
-        this.logoSize, 
-        this.logoSize
-      );
-
-      // Add logo border/frame
-      this.doc.setDrawColor(COLORS.white);
-      this.doc.setLineWidth(2);
-      this.doc.circle(this.margin + this.logoSize/2, this.margin + this.logoSize/2 - 5, this.logoSize/2 + 2, 'S');
-    } catch (error) {
-      console.warn('Logo could not be added to PDF:', error);
-      // Fallback: Add a circular placeholder
-      this.doc.setFillColor(COLORS.yellow);
-      this.doc.circle(this.margin + this.logoSize/2, this.margin + this.logoSize/2 - 5, this.logoSize/2, 'F');
-      
-      this.doc.setTextColor(COLORS.white);
-      this.doc.setFontSize(FONTS.heading);
-      this.doc.setFont('helvetica', 'bold');
-      this.doc.text('FC', this.margin + this.logoSize/2, this.margin + this.logoSize/2 - 2, { align: 'center' });
-    }
-  }
-
-  /**
-   * Add company branding text
-   */
-  private addBranding(): void {
-    const brandingX = this.margin + this.logoSize + 15;
-
-    // Main title
+    // Team name and branding
     this.doc.setFontSize(FONTS.title);
-    this.doc.setTextColor(COLORS.white);
+    this.doc.setTextColor(COLORS.primary);
     this.doc.setFont('helvetica', 'bold');
-    this.doc.text('FITHOLICS FC', brandingX, this.margin + 5);
+    this.doc.text('FITHOLICS FC', this.margin, this.margin + 8);
 
-    // Subtitle
-    this.doc.setFontSize(FONTS.body);
-    this.doc.setFont('helvetica', 'normal');
-    this.doc.text('Team Management Portal', brandingX, this.margin + 12);
-
-    // Tagline
+    // Core values
     this.doc.setFontSize(FONTS.small);
+    this.doc.setTextColor(COLORS.secondary);
     this.doc.setFont('helvetica', 'italic');
-    this.doc.text('Excellence • Teamwork • Victory', brandingX, this.margin + 18);
+    this.doc.text('Excellence • Discipline • Teamwork', this.margin, this.margin + 15);
 
-    // Add contact info on the right
-    const rightX = this.pageWidth - this.margin;
-    this.doc.setFontSize(FONTS.tiny);
+    // Manager contact info (right aligned)
+    this.doc.setFontSize(FONTS.small);
     this.doc.setFont('helvetica', 'normal');
-    this.doc.text('www.fitholicsfc.com', rightX, this.margin + 8, { align: 'right' });
-    this.doc.text('info@fitholicsfc.com', rightX, this.margin + 13, { align: 'right' });
-    this.doc.text('+256 700 000 000', rightX, this.margin + 18, { align: 'right' });
-  }
+    this.doc.text('Manager: Pius Paul', this.pageWidth - this.margin, this.margin + 8, { align: 'right' });
+    this.doc.text('Email: piuspaul392@gmail.com', this.pageWidth - this.margin, this.margin + 13, { align: 'right' });
+    this.doc.text('Phone: +256 700 654 321', this.pageWidth - this.margin, this.margin + 18, { align: 'right' });
 
-  /**
-   * Add report title with enhanced styling
-   */
-  private addReportTitle(title: string, subtitle?: string): void {
-    // Report title background
-    this.doc.setFillColor(COLORS.white);
-    this.doc.roundedRect(this.margin, this.margin + 30, this.pageWidth - 2 * this.margin, 20, 3, 3, 'F');
-
-    // Add shadow effect
-    this.doc.setFillColor(200, 200, 200);
-    this.doc.roundedRect(this.margin + 1, this.margin + 31, this.pageWidth - 2 * this.margin, 20, 3, 3, 'F');
-    this.doc.setFillColor(COLORS.white);
-    this.doc.roundedRect(this.margin, this.margin + 30, this.pageWidth - 2 * this.margin, 20, 3, 3, 'F');
+    // Horizontal line separator
+    this.doc.setDrawColor(COLORS.gray);
+    this.doc.setLineWidth(0.5);
+    this.doc.line(this.margin, this.margin + 25, this.pageWidth - this.margin, this.margin + 25);
 
     // Report title
     this.doc.setFontSize(FONTS.subtitle);
-    this.doc.setTextColor(COLORS.darkGray);
+    this.doc.setTextColor(COLORS.accent);
     this.doc.setFont('helvetica', 'bold');
-    this.doc.text(title, this.pageWidth / 2, this.margin + 40, { align: 'center' });
+    this.doc.text(title, this.margin, this.margin + 40);
 
     if (subtitle) {
       this.doc.setFontSize(FONTS.body);
       this.doc.setTextColor(COLORS.gray);
       this.doc.setFont('helvetica', 'normal');
-      this.doc.text(subtitle, this.pageWidth / 2, this.margin + 46, { align: 'center' });
+      this.doc.text(subtitle, this.margin, this.margin + 48);
     }
+
+    this.currentY = this.margin + 60;
   }
 
   /**
-   * Add decorative line
+   * Add simple statistics section
    */
-  private addDecorativeLine(): void {
-    const lineY = this.margin + 55;
-    
-    // Main line
-    this.doc.setDrawColor(COLORS.yellow);
-    this.doc.setLineWidth(2);
-    this.doc.line(this.margin, lineY, this.pageWidth - this.margin, lineY);
+  protected addStatsSection(stats: { label: string; value: string }[]): void {
+    const boxWidth = (this.pageWidth - this.margin * 2 - 10 * (stats.length - 1)) / stats.length;
+    const boxHeight = 25;
 
-    // Decorative dots
-    this.doc.setFillColor(COLORS.primary);
-    for (let i = 0; i < 5; i++) {
-      const x = this.margin + (i * (this.pageWidth - 2 * this.margin) / 4);
-      this.doc.circle(x, lineY, 1, 'F');
-    }
+    stats.forEach((stat, index) => {
+      const x = this.margin + index * (boxWidth + 10);
+      
+      // Simple box with border
+      this.doc.setDrawColor(COLORS.gray);
+      this.doc.setLineWidth(0.5);
+      this.doc.rect(x, this.currentY, boxWidth, boxHeight);
+      
+      // Label
+      this.doc.setFontSize(FONTS.small);
+      this.doc.setTextColor(COLORS.gray);
+      this.doc.setFont('helvetica', 'normal');
+      this.doc.text(stat.label, x + boxWidth / 2, this.currentY + 8, { align: 'center' });
+      
+      // Value
+      this.doc.setFontSize(FONTS.heading);
+      this.doc.setTextColor(COLORS.accent);
+      this.doc.setFont('helvetica', 'bold');
+      this.doc.text(stat.value, x + boxWidth / 2, this.currentY + 18, { align: 'center' });
+    });
+
+    this.currentY += boxHeight + 20;
   }
 
   /**
-   * Add enhanced footer with branding
+   * Add section heading
+   */
+  protected addSectionHeading(title: string): void {
+    this.checkPageBreak(20);
+    
+    this.doc.setFontSize(FONTS.heading);
+    this.doc.setTextColor(COLORS.primary);
+    this.doc.setFont('helvetica', 'bold');
+    this.doc.text(title, this.margin, this.currentY);
+    
+    // Underline
+    this.doc.setDrawColor(COLORS.primary);
+    this.doc.setLineWidth(0.5);
+    this.doc.line(this.margin, this.currentY + 2, this.margin + 60, this.currentY + 2);
+    
+    this.currentY += 15;
+  }
+
+  /**
+   * Add simple table
+   */
+  protected addTable(
+    columns: { header: string; dataKey: string }[],
+    rows: any[],
+    options: { title?: string } = {}
+  ): void {
+    this.checkPageBreak(60);
+
+    if (options.title) {
+      this.addSectionHeading(options.title);
+    }
+
+    (this.doc as any).autoTable({
+      head: [columns.map(col => col.header)],
+      body: rows.map(row => columns.map(col => row[col.dataKey] || '')),
+      startY: this.currentY,
+      styles: { 
+        fontSize: FONTS.body, 
+        cellPadding: 3,
+        textColor: COLORS.accent,
+        lineColor: COLORS.gray,
+        lineWidth: 0.1,
+      },
+      headStyles: { 
+        fillColor: COLORS.lightGray,
+        textColor: COLORS.accent,
+        fontStyle: 'bold',
+      },
+      alternateRowStyles: { 
+        fillColor: '#fafafa'
+      },
+      margin: { left: this.margin, right: this.margin },
+      tableWidth: 'auto',
+    });
+
+    this.currentY = (this.doc as any).lastAutoTable.finalY + 15;
+  }
+
+  /**
+   * Add footer
    */
   protected addFooter(): void {
     const pageCount = this.doc.getNumberOfPages();
@@ -214,21 +186,17 @@ class BasePDFExporter {
     for (let i = 1; i <= pageCount; i++) {
       this.doc.setPage(i);
       
-      const footerY = this.pageHeight - 20;
+      const footerY = this.pageHeight - 15;
       
-      // Footer background
-      this.doc.setFillColor(COLORS.lightGray);
-      this.doc.rect(0, footerY - 5, this.pageWidth, 25, 'F');
+      // Footer line
+      this.doc.setDrawColor(COLORS.gray);
+      this.doc.setLineWidth(0.5);
+      this.doc.line(this.margin, footerY - 5, this.pageWidth - this.margin, footerY - 5);
 
-      // Footer border
-      this.doc.setDrawColor(COLORS.yellow);
-      this.doc.setLineWidth(1);
-      this.doc.line(0, footerY - 5, this.pageWidth, footerY - 5);
-
-      // Page number with styling
+      // Page number
       this.doc.setFontSize(FONTS.small);
-      this.doc.setTextColor(COLORS.darkGray);
-      this.doc.setFont('helvetica', 'bold');
+      this.doc.setTextColor(COLORS.gray);
+      this.doc.setFont('helvetica', 'normal');
       this.doc.text(
         `Page ${i} of ${pageCount}`,
         this.pageWidth - this.margin,
@@ -237,166 +205,35 @@ class BasePDFExporter {
       );
 
       // Generation info
-      this.doc.setFont('helvetica', 'normal');
       this.doc.text(
-        `Generated on ${formatDate(new Date().toISOString(), 'MMM d, yyyy')} at ${new Date().toLocaleTimeString()}`,
+        `Generated: ${formatDate(new Date().toISOString(), 'MMM d, yyyy')} at ${new Date().toLocaleTimeString()}`,
         this.margin,
         footerY
       );
 
-      // Footer branding
-      this.doc.setFontSize(FONTS.tiny);
-      this.doc.setTextColor(COLORS.gray);
+      // Confidentiality notice
+      this.doc.setFontSize(FONTS.small - 1);
       this.doc.text(
-        '© 2024 Fitholics FC - Confidential Team Report',
+        'Confidential - Fitholics FC Internal Report',
         this.pageWidth / 2,
-        footerY + 8,
+        footerY + 5,
         { align: 'center' }
       );
     }
   }
 
   /**
-   * Add enhanced statistics section with beautiful cards
-   */
-  protected addStatsSection(stats: { label: string; value: string; color?: string; icon?: string }[]): void {
-    const cardWidth = (this.pageWidth - this.margin * 2 - 10 * (stats.length - 1)) / stats.length;
-    const cardHeight = 35;
-
-    stats.forEach((stat, index) => {
-      const x = this.margin + index * (cardWidth + 10);
-      
-      // Card shadow
-      this.doc.setFillColor(200, 200, 200);
-      this.doc.roundedRect(x + 1, this.currentY + 1, cardWidth, cardHeight, 3, 3, 'F');
-      
-      // Main card
-      this.doc.setFillColor(stat.color || COLORS.lightGray);
-      this.doc.roundedRect(x, this.currentY, cardWidth, cardHeight, 3, 3, 'F');
-      
-      // Card border
-      this.doc.setDrawColor(COLORS.gray);
-      this.doc.setLineWidth(0.5);
-      this.doc.roundedRect(x, this.currentY, cardWidth, cardHeight, 3, 3, 'S');
-      
-      // Icon area (top section)
-      if (stat.icon) {
-        this.doc.setFillColor(255, 255, 255, 0.3);
-        this.doc.roundedRect(x + 2, this.currentY + 2, cardWidth - 4, 12, 2, 2, 'F');
-        
-        // Icon placeholder (you can replace with actual icons)
-        this.doc.setFontSize(FONTS.body);
-        this.doc.setTextColor(COLORS.darkGray);
-        this.doc.setFont('helvetica', 'bold');
-        this.doc.text(stat.icon, x + cardWidth / 2, this.currentY + 10, { align: 'center' });
-      }
-      
-      // Label
-      this.doc.setFontSize(FONTS.small);
-      this.doc.setTextColor(COLORS.darkGray);
-      this.doc.setFont('helvetica', 'normal');
-      this.doc.text(stat.label, x + cardWidth / 2, this.currentY + (stat.icon ? 20 : 12), { align: 'center' });
-      
-      // Value
-      this.doc.setFontSize(FONTS.heading);
-      this.doc.setFont('helvetica', 'bold');
-      this.doc.text(stat.value, x + cardWidth / 2, this.currentY + (stat.icon ? 30 : 25), { align: 'center' });
-    });
-
-    this.currentY += cardHeight + 20;
-  }
-
-  /**
-   * Add enhanced table with beautiful styling
-   */
-  protected addEnhancedTable(
-    title: string,
-    columns: { header: string; dataKey: string; width?: number }[],
-    rows: any[],
-    options: {
-      headerColor?: string;
-      alternateRowColor?: string;
-      borderColor?: string;
-      textColor?: string;
-    } = {}
-  ): void {
-    this.checkPageBreak(60);
-
-    // Table title
-    this.doc.setFontSize(FONTS.subtitle);
-    this.doc.setTextColor(COLORS.darkGray);
-    this.doc.setFont('helvetica', 'bold');
-    this.doc.text(title, this.margin, this.currentY);
-    this.currentY += 15;
-
-    // Enhanced table styling
-    (this.doc as any).autoTable({
-      head: [columns.map(col => col.header)],
-      body: rows.map(row => columns.map(col => row[col.dataKey] || '')),
-      startY: this.currentY,
-      styles: { 
-        fontSize: FONTS.body, 
-        cellPadding: 4,
-        textColor: options.textColor || COLORS.darkGray,
-        lineColor: options.borderColor || COLORS.gray,
-        lineWidth: 0.5,
-      },
-      headStyles: { 
-        fillColor: options.headerColor || COLORS.primary,
-        textColor: COLORS.white,
-        fontStyle: 'bold',
-        fontSize: FONTS.body + 1,
-      },
-      alternateRowStyles: { 
-        fillColor: options.alternateRowColor || COLORS.lightGray 
-      },
-      columnStyles: columns.reduce((acc, col, index) => {
-        if (col.width) {
-          acc[index] = { cellWidth: col.width };
-        }
-        return acc;
-      }, {} as any),
-      margin: { left: this.margin, right: this.margin },
-      tableWidth: 'auto',
-      theme: 'grid',
-    });
-
-    this.currentY = (this.doc as any).lastAutoTable.finalY + 15;
-  }
-
-  /**
    * Check if we need a new page
    */
   protected checkPageBreak(requiredHeight: number = 30): void {
-    if (this.currentY + requiredHeight > this.pageHeight - 40) {
+    if (this.currentY + requiredHeight > this.pageHeight - 30) {
       this.doc.addPage();
       this.currentY = this.margin + 20;
     }
   }
 
   /**
-   * Add section divider
-   */
-  protected addSectionDivider(title?: string): void {
-    this.checkPageBreak(20);
-    
-    if (title) {
-      this.doc.setFontSize(FONTS.heading);
-      this.doc.setTextColor(COLORS.primary);
-      this.doc.setFont('helvetica', 'bold');
-      this.doc.text(title, this.margin, this.currentY);
-      this.currentY += 8;
-    }
-
-    // Decorative line
-    this.doc.setDrawColor(COLORS.yellow);
-    this.doc.setLineWidth(1);
-    this.doc.line(this.margin, this.currentY, this.pageWidth - this.margin, this.currentY);
-    this.currentY += 10;
-  }
-
-  /**
-   * Save the PDF with enhanced filename
+   * Save the PDF
    */
   protected save(filename: string): void {
     this.addFooter();
@@ -406,7 +243,7 @@ class BasePDFExporter {
 }
 
 /**
- * Enhanced Dashboard PDF Export
+ * Dashboard PDF Export
  */
 export class DashboardPDFExporter extends BasePDFExporter {
   exportDashboard(data: {
@@ -424,63 +261,54 @@ export class DashboardPDFExporter extends BasePDFExporter {
   }): void {
     this.addHeader('Dashboard Overview', `Team Performance Report - ${formatDate(new Date().toISOString())}`);
 
-    // Enhanced statistics with icons
+    // Team statistics
     this.addStatsSection([
-      { label: 'Active Members', value: data.stats.activeMembers.toString(), color: '#dbeafe', icon: '👥' },
-      { label: 'Training Sessions', value: data.stats.trainingSessionsThisMonth.toString(), color: '#dcfce7', icon: '🏃' },
-      { label: 'Friendly Matches', value: data.stats.friendliesThisMonth.toString(), color: '#fef3c7', icon: '⚽' },
-      { label: 'Team Balance', value: formatUGX(data.stats.remainingBalance), color: data.stats.remainingBalance >= 0 ? '#d1fae5' : '#fee2e2', icon: '💰' },
+      { label: 'Active Members', value: data.stats.activeMembers.toString() },
+      { label: 'Training Sessions', value: data.stats.trainingSessionsThisMonth.toString() },
+      { label: 'Friendly Matches', value: data.stats.friendliesThisMonth.toString() },
+      { label: 'Team Balance', value: formatUGX(data.stats.remainingBalance) },
     ]);
 
-    // Financial Summary Section
-    this.addSectionDivider('Financial Summary');
+    // Financial Summary
+    this.addSectionHeading('Financial Summary');
     
     const financialData = [
-      { metric: 'Total Contributions', amount: formatUGX(data.stats.totalContributions), status: 'Income' },
-      { metric: 'Total Expenses', amount: formatUGX(data.stats.totalExpenses), status: 'Expense' },
-      { metric: data.stats.remainingBalance >= 0 ? 'Available Balance' : 'Deficit', amount: formatUGX(Math.abs(data.stats.remainingBalance)), status: data.stats.remainingBalance >= 0 ? 'Positive' : 'Negative' },
+      { metric: 'Total Contributions', amount: formatUGX(data.stats.totalContributions) },
+      { metric: 'Total Expenses', amount: formatUGX(data.stats.totalExpenses) },
+      { metric: data.stats.remainingBalance >= 0 ? 'Available Balance' : 'Deficit', amount: formatUGX(Math.abs(data.stats.remainingBalance)) },
     ];
 
-    this.addEnhancedTable(
-      'Financial Overview',
+    this.addTable(
       [
-        { header: 'Metric', dataKey: 'metric', width: 60 },
-        { header: 'Amount (UGX)', dataKey: 'amount', width: 50 },
-        { header: 'Status', dataKey: 'status', width: 30 },
+        { header: 'Financial Metric', dataKey: 'metric' },
+        { header: 'Amount (UGX)', dataKey: 'amount' },
       ],
-      financialData,
-      { headerColor: COLORS.green }
+      financialData
     );
 
     // Upcoming Events
     if (data.upcomingEvents.length > 0) {
-      this.addSectionDivider('Upcoming Events');
-      
       const eventRows = data.upcomingEvents.slice(0, 5).map(event => ({
         date: formatDate(event.date),
         type: event.type === 'training' ? 'Training Session' : `Friendly vs ${event.opponent}`,
         time: event.time,
         location: event.location,
-        description: event.description || 'No description',
       }));
 
-      this.addEnhancedTable(
-        'Next 5 Events',
+      this.addTable(
         [
-          { header: 'Date', dataKey: 'date', width: 25 },
-          { header: 'Event Type', dataKey: 'type', width: 45 },
-          { header: 'Time', dataKey: 'time', width: 20 },
-          { header: 'Location', dataKey: 'location', width: 35 },
+          { header: 'Date', dataKey: 'date' },
+          { header: 'Event Type', dataKey: 'type' },
+          { header: 'Time', dataKey: 'time' },
+          { header: 'Location', dataKey: 'location' },
         ],
         eventRows,
-        { headerColor: COLORS.blue }
+        { title: 'Upcoming Events' }
       );
     }
 
     // Recent Transactions
     if (data.recentTransactions.length > 0) {
-      this.addSectionDivider('Recent Financial Activity');
-      
       const transactionRows = data.recentTransactions.slice(0, 8).map(transaction => ({
         date: formatDate(transaction.date),
         type: transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1),
@@ -488,16 +316,15 @@ export class DashboardPDFExporter extends BasePDFExporter {
         amount: `${transaction.type === 'contribution' ? '+' : '-'}${formatUGX(transaction.amount)}`,
       }));
 
-      this.addEnhancedTable(
-        'Latest Transactions',
+      this.addTable(
         [
-          { header: 'Date', dataKey: 'date', width: 25 },
-          { header: 'Type', dataKey: 'type', width: 25 },
-          { header: 'Description', dataKey: 'description', width: 60 },
-          { header: 'Amount', dataKey: 'amount', width: 30 },
+          { header: 'Date', dataKey: 'date' },
+          { header: 'Type', dataKey: 'type' },
+          { header: 'Description', dataKey: 'description' },
+          { header: 'Amount', dataKey: 'amount' },
         ],
         transactionRows,
-        { headerColor: COLORS.purple }
+        { title: 'Recent Transactions' }
       );
     }
 
@@ -506,7 +333,7 @@ export class DashboardPDFExporter extends BasePDFExporter {
 }
 
 /**
- * Enhanced Members PDF Export
+ * Members PDF Export
  */
 export class MembersPDFExporter extends BasePDFExporter {
   exportMembers(members: Member[]): void {
@@ -516,18 +343,15 @@ export class MembersPDFExporter extends BasePDFExporter {
     const activeMembers = members.filter(m => m.status === 'active').length;
     const inactiveMembers = members.filter(m => m.status === 'inactive').length;
     const injuredMembers = members.filter(m => m.status === 'injured').length;
-    const suspendedMembers = members.filter(m => m.status === 'suspended').length;
 
     this.addStatsSection([
-      { label: 'Total Members', value: members.length.toString(), color: '#dbeafe', icon: '👥' },
-      { label: 'Active Players', value: activeMembers.toString(), color: '#d1fae5', icon: '✅' },
-      { label: 'Inactive', value: inactiveMembers.toString(), color: '#fef3c7', icon: '⏸️' },
-      { label: 'Injured', value: injuredMembers.toString(), color: '#fee2e2', icon: '🏥' },
+      { label: 'Total Members', value: members.length.toString() },
+      { label: 'Active Players', value: activeMembers.toString() },
+      { label: 'Inactive', value: inactiveMembers.toString() },
+      { label: 'Injured', value: injuredMembers.toString() },
     ]);
 
     // Position breakdown
-    this.addSectionDivider('Squad Composition');
-    
     const positionCounts = members.reduce((acc, member) => {
       acc[member.position] = (acc[member.position] || 0) + 1;
       return acc;
@@ -539,20 +363,17 @@ export class MembersPDFExporter extends BasePDFExporter {
       percentage: `${Math.round((count / members.length) * 100)}%`,
     }));
 
-    this.addEnhancedTable(
-      'Players by Position',
+    this.addTable(
       [
-        { header: 'Position', dataKey: 'position', width: 40 },
-        { header: 'Count', dataKey: 'count', width: 20 },
-        { header: 'Percentage', dataKey: 'percentage', width: 25 },
+        { header: 'Position', dataKey: 'position' },
+        { header: 'Count', dataKey: 'count' },
+        { header: 'Percentage', dataKey: 'percentage' },
       ],
       positionData,
-      { headerColor: COLORS.orange }
+      { title: 'Squad Composition' }
     );
 
     // Complete member roster
-    this.addSectionDivider('Complete Member Roster');
-    
     const memberRows = members
       .sort((a, b) => a.jerseyNumber - b.jerseyNumber)
       .map(member => ({
@@ -565,18 +386,18 @@ export class MembersPDFExporter extends BasePDFExporter {
         joined: formatDate(member.dateJoined),
       }));
 
-    this.addEnhancedTable(
-      'Full Team Roster',
+    this.addTable(
       [
-        { header: 'Jersey', dataKey: 'jersey', width: 15 },
-        { header: 'Name', dataKey: 'name', width: 35 },
-        { header: 'Position', dataKey: 'position', width: 25 },
-        { header: 'Status', dataKey: 'status', width: 20 },
-        { header: 'Email', dataKey: 'email', width: 45 },
-        { header: 'Phone', dataKey: 'phone', width: 25 },
-        { header: 'Joined', dataKey: 'joined', width: 20 },
+        { header: 'Jersey', dataKey: 'jersey' },
+        { header: 'Name', dataKey: 'name' },
+        { header: 'Position', dataKey: 'position' },
+        { header: 'Status', dataKey: 'status' },
+        { header: 'Email', dataKey: 'email' },
+        { header: 'Phone', dataKey: 'phone' },
+        { header: 'Date Joined', dataKey: 'joined' },
       ],
-      memberRows
+      memberRows,
+      { title: 'Complete Team Roster' }
     );
 
     this.save('fitholics-fc-members');
@@ -584,7 +405,7 @@ export class MembersPDFExporter extends BasePDFExporter {
 }
 
 /**
- * Enhanced Contributions & Expenses PDF Export
+ * Contributions & Expenses PDF Export
  */
 export class ContributionsPDFExporter extends BasePDFExporter {
   exportContributions(data: {
@@ -599,16 +420,14 @@ export class ContributionsPDFExporter extends BasePDFExporter {
 
     // Financial overview
     this.addStatsSection([
-      { label: 'Total Income', value: formatUGX(data.totalContributions), color: '#d1fae5', icon: '💰' },
-      { label: 'Total Expenses', value: formatUGX(data.totalExpenses), color: '#fee2e2', icon: '💸' },
-      { label: data.remainingBalance >= 0 ? 'Net Balance' : 'Deficit', value: formatUGX(Math.abs(data.remainingBalance)), color: data.remainingBalance >= 0 ? '#dbeafe' : '#fef3c7', icon: data.remainingBalance >= 0 ? '📈' : '📉' },
-      { label: 'Transactions', value: (data.contributions.length + data.expenses.length).toString(), color: '#e0e7ff', icon: '📊' },
+      { label: 'Total Income', value: formatUGX(data.totalContributions) },
+      { label: 'Total Expenses', value: formatUGX(data.totalExpenses) },
+      { label: data.remainingBalance >= 0 ? 'Net Balance' : 'Deficit', value: formatUGX(Math.abs(data.remainingBalance)) },
+      { label: 'Transactions', value: (data.contributions.length + data.expenses.length).toString() },
     ]);
 
     // Contribution analysis
     if (data.contributions.length > 0) {
-      this.addSectionDivider('Contribution Analysis');
-      
       const contributionsByType = data.contributions.reduce((acc, contrib) => {
         acc[contrib.type] = (acc[contrib.type] || 0) + (contrib.amount || 0);
         return acc;
@@ -620,21 +439,20 @@ export class ContributionsPDFExporter extends BasePDFExporter {
         count: data.contributions.filter(c => c.type === type).length.toString(),
       }));
 
-      this.addEnhancedTable(
-        'Contributions by Type',
+      this.addTable(
         [
-          { header: 'Type', dataKey: 'type', width: 30 },
-          { header: 'Total Amount', dataKey: 'amount', width: 40 },
-          { header: 'Count', dataKey: 'count', width: 20 },
+          { header: 'Type', dataKey: 'type' },
+          { header: 'Total Amount', dataKey: 'amount' },
+          { header: 'Count', dataKey: 'count' },
         ],
         contributionTypeData,
-        { headerColor: COLORS.green }
+        { title: 'Contributions by Type' }
       );
 
       // Recent contributions
       const recentContributions = data.contributions
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-        .slice(0, 10)
+        .slice(0, 15)
         .map(contribution => {
           const member = data.members.find(m => m.id === contribution.memberId);
           return {
@@ -646,24 +464,21 @@ export class ContributionsPDFExporter extends BasePDFExporter {
           };
         });
 
-      this.addEnhancedTable(
-        'Recent Contributions',
+      this.addTable(
         [
-          { header: 'Date', dataKey: 'date', width: 20 },
-          { header: 'Member', dataKey: 'member', width: 30 },
-          { header: 'Type', dataKey: 'type', width: 20 },
-          { header: 'Amount', dataKey: 'amount', width: 25 },
-          { header: 'Description', dataKey: 'description', width: 45 },
+          { header: 'Date', dataKey: 'date' },
+          { header: 'Member', dataKey: 'member' },
+          { header: 'Type', dataKey: 'type' },
+          { header: 'Amount', dataKey: 'amount' },
+          { header: 'Description', dataKey: 'description' },
         ],
         recentContributions,
-        { headerColor: COLORS.green }
+        { title: 'Recent Contributions' }
       );
     }
 
     // Expense analysis
     if (data.expenses.length > 0) {
-      this.addSectionDivider('Expense Analysis');
-      
       const expensesByCategory = data.expenses.reduce((acc, expense) => {
         acc[expense.category] = (acc[expense.category] || 0) + expense.amount;
         return acc;
@@ -676,22 +491,21 @@ export class ContributionsPDFExporter extends BasePDFExporter {
         percentage: `${Math.round((amount / data.totalExpenses) * 100)}%`,
       }));
 
-      this.addEnhancedTable(
-        'Expenses by Category',
+      this.addTable(
         [
-          { header: 'Category', dataKey: 'category', width: 30 },
-          { header: 'Total Amount', dataKey: 'amount', width: 30 },
-          { header: 'Count', dataKey: 'count', width: 15 },
-          { header: 'Percentage', dataKey: 'percentage', width: 20 },
+          { header: 'Category', dataKey: 'category' },
+          { header: 'Total Amount', dataKey: 'amount' },
+          { header: 'Count', dataKey: 'count' },
+          { header: 'Percentage', dataKey: 'percentage' },
         ],
         expenseCategoryData,
-        { headerColor: COLORS.red }
+        { title: 'Expenses by Category' }
       );
 
       // Recent expenses
       const recentExpenses = data.expenses
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-        .slice(0, 10)
+        .slice(0, 15)
         .map(expense => ({
           date: formatDate(expense.date),
           category: expense.category.charAt(0).toUpperCase() + expense.category.slice(1),
@@ -699,16 +513,15 @@ export class ContributionsPDFExporter extends BasePDFExporter {
           description: expense.description,
         }));
 
-      this.addEnhancedTable(
-        'Recent Expenses',
+      this.addTable(
         [
-          { header: 'Date', dataKey: 'date', width: 20 },
-          { header: 'Category', dataKey: 'category', width: 25 },
-          { header: 'Amount', dataKey: 'amount', width: 25 },
-          { header: 'Description', dataKey: 'description', width: 50 },
+          { header: 'Date', dataKey: 'date' },
+          { header: 'Category', dataKey: 'category' },
+          { header: 'Amount', dataKey: 'amount' },
+          { header: 'Description', dataKey: 'description' },
         ],
         recentExpenses,
-        { headerColor: COLORS.red }
+        { title: 'Recent Expenses' }
       );
     }
 
@@ -717,7 +530,7 @@ export class ContributionsPDFExporter extends BasePDFExporter {
 }
 
 /**
- * Enhanced Events PDF Export
+ * Events PDF Export
  */
 export class EventsPDFExporter extends BasePDFExporter {
   exportEvents(events: Event[], type: 'training' | 'friendly' | 'all' = 'all'): void {
@@ -733,23 +546,18 @@ export class EventsPDFExporter extends BasePDFExporter {
     const friendlyCount = filteredEvents.filter(e => e.type === 'friendly').length;
 
     const statsData = [
-      { label: 'Total Events', value: filteredEvents.length.toString(), color: '#dbeafe', icon: '📅' },
-      { label: 'Upcoming', value: upcomingEvents.toString(), color: '#d1fae5', icon: '⏭️' },
-      { label: 'Completed', value: pastEvents.toString(), color: '#fef3c7', icon: '✅' },
+      { label: 'Total Events', value: filteredEvents.length.toString() },
+      { label: 'Upcoming', value: upcomingEvents.toString() },
+      { label: 'Completed', value: pastEvents.toString() },
     ];
 
     if (type === 'all') {
-      statsData.push(
-        { label: 'Training', value: trainingCount.toString(), color: '#e0e7ff', icon: '🏃' },
-        { label: 'Friendlies', value: friendlyCount.toString(), color: '#fce7f3', icon: '⚽' }
-      );
+      statsData.push({ label: 'Training', value: trainingCount.toString() });
     }
 
     this.addStatsSection(statsData);
 
     // Monthly breakdown
-    this.addSectionDivider('Monthly Schedule');
-    
     const monthlyBreakdown = filteredEvents.reduce((acc, event) => {
       const month = new Date(event.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
       acc[month] = (acc[month] || 0) + 1;
@@ -759,25 +567,18 @@ export class EventsPDFExporter extends BasePDFExporter {
     const monthlyData = Object.entries(monthlyBreakdown).map(([month, count]) => ({
       month,
       events: count.toString(),
-      training: filteredEvents.filter(e => e.type === 'training' && new Date(e.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long' }) === month).length.toString(),
-      friendlies: filteredEvents.filter(e => e.type === 'friendly' && new Date(e.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long' }) === month).length.toString(),
     }));
 
-    this.addEnhancedTable(
-      'Events by Month',
+    this.addTable(
       [
-        { header: 'Month', dataKey: 'month', width: 40 },
-        { header: 'Total Events', dataKey: 'events', width: 25 },
-        { header: 'Training', dataKey: 'training', width: 20 },
-        { header: 'Friendlies', dataKey: 'friendlies', width: 20 },
+        { header: 'Month', dataKey: 'month' },
+        { header: 'Total Events', dataKey: 'events' },
       ],
       monthlyData,
-      { headerColor: COLORS.purple }
+      { title: 'Events by Month' }
     );
 
     // Complete events list
-    this.addSectionDivider('Complete Events Schedule');
-    
     const eventRows = filteredEvents
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
       .map(event => ({
@@ -789,17 +590,17 @@ export class EventsPDFExporter extends BasePDFExporter {
         status: new Date(event.date) > new Date() ? 'Upcoming' : 'Completed',
       }));
 
-    this.addEnhancedTable(
-      'Full Schedule',
+    this.addTable(
       [
-        { header: 'Date', dataKey: 'date', width: 20 },
-        { header: 'Time', dataKey: 'time', width: 15 },
-        { header: 'Type', dataKey: 'type', width: 20 },
-        { header: 'Event Details', dataKey: 'description', width: 50 },
-        { header: 'Location', dataKey: 'location', width: 30 },
-        { header: 'Status', dataKey: 'status', width: 20 },
+        { header: 'Date', dataKey: 'date' },
+        { header: 'Time', dataKey: 'time' },
+        { header: 'Type', dataKey: 'type' },
+        { header: 'Event Details', dataKey: 'description' },
+        { header: 'Location', dataKey: 'location' },
+        { header: 'Status', dataKey: 'status' },
       ],
-      eventRows
+      eventRows,
+      { title: 'Complete Schedule' }
     );
 
     this.save(`fitholics-fc-${type === 'all' ? 'events' : type}`);
@@ -807,7 +608,7 @@ export class EventsPDFExporter extends BasePDFExporter {
 }
 
 /**
- * Enhanced Attendance PDF Export
+ * Attendance PDF Export
  */
 export class AttendancePDFExporter extends BasePDFExporter {
   exportAttendance(data: {
@@ -823,15 +624,13 @@ export class AttendancePDFExporter extends BasePDFExporter {
 
     // Attendance statistics
     this.addStatsSection([
-      { label: 'Total Sessions', value: data.stats.totalSessions.toString(), color: '#dbeafe', icon: '📊' },
-      { label: 'Average Attendance', value: data.stats.averageAttendance.toString(), color: '#d1fae5', icon: '👥' },
-      { label: 'Best Attendance', value: data.stats.highestAttendance.toString(), color: '#dcfce7', icon: '🏆' },
-      { label: 'Lowest Attendance', value: data.stats.lowestAttendance.toString(), color: '#fef3c7', icon: '⚠️' },
+      { label: 'Total Sessions', value: data.stats.totalSessions.toString() },
+      { label: 'Average Attendance', value: data.stats.averageAttendance.toString() },
+      { label: 'Best Attendance', value: data.stats.highestAttendance.toString() },
+      { label: 'Lowest Attendance', value: data.stats.lowestAttendance.toString() },
     ]);
 
     // Attendance by status
-    this.addSectionDivider('Attendance Analysis');
-    
     const statusCounts = data.attendanceRecords.reduce((acc, record) => {
       acc[record.attendance.status] = (acc[record.attendance.status] || 0) + 1;
       return acc;
@@ -843,22 +642,20 @@ export class AttendancePDFExporter extends BasePDFExporter {
       percentage: `${Math.round((count / data.attendanceRecords.length) * 100)}%`,
     }));
 
-    this.addEnhancedTable(
-      'Attendance by Status',
+    this.addTable(
       [
-        { header: 'Status', dataKey: 'status', width: 30 },
-        { header: 'Count', dataKey: 'count', width: 20 },
-        { header: 'Percentage', dataKey: 'percentage', width: 25 },
+        { header: 'Status', dataKey: 'status' },
+        { header: 'Count', dataKey: 'count' },
+        { header: 'Percentage', dataKey: 'percentage' },
       ],
       statusData,
-      { headerColor: COLORS.blue }
+      { title: 'Attendance by Status' }
     );
 
     // Detailed attendance records
-    this.addSectionDivider('Detailed Attendance Records');
-    
     const attendanceRows = data.attendanceRecords
       .sort((a, b) => new Date(b.event.date).getTime() - new Date(a.event.date).getTime())
+      .slice(0, 50) // Limit to recent 50 records
       .map(record => ({
         date: formatDate(record.event.date),
         event: record.event.type === 'training' ? 'Training' : `vs ${record.event.opponent}`,
@@ -868,17 +665,17 @@ export class AttendancePDFExporter extends BasePDFExporter {
         notes: record.attendance.notes || 'No notes',
       }));
 
-    this.addEnhancedTable(
-      'Complete Attendance Log',
+    this.addTable(
       [
-        { header: 'Date', dataKey: 'date', width: 20 },
-        { header: 'Event', dataKey: 'event', width: 30 },
-        { header: 'Member', dataKey: 'member', width: 30 },
-        { header: 'Jersey', dataKey: 'jersey', width: 15 },
-        { header: 'Status', dataKey: 'status', width: 20 },
-        { header: 'Notes', dataKey: 'notes', width: 35 },
+        { header: 'Date', dataKey: 'date' },
+        { header: 'Event', dataKey: 'event' },
+        { header: 'Member', dataKey: 'member' },
+        { header: 'Jersey', dataKey: 'jersey' },
+        { header: 'Status', dataKey: 'status' },
+        { header: 'Notes', dataKey: 'notes' },
       ],
-      attendanceRows
+      attendanceRows,
+      { title: 'Recent Attendance Records' }
     );
 
     this.save('fitholics-fc-attendance');
@@ -886,7 +683,7 @@ export class AttendancePDFExporter extends BasePDFExporter {
 }
 
 /**
- * Enhanced Leadership PDF Export
+ * Leadership PDF Export
  */
 export class LeadershipPDFExporter extends BasePDFExporter {
   exportLeadership(data: { leadership: Leadership[]; members: Member[] }): void {
@@ -898,15 +695,13 @@ export class LeadershipPDFExporter extends BasePDFExporter {
     const uniqueLeaders = new Set(data.leadership.map(l => l.memberId)).size;
 
     this.addStatsSection([
-      { label: 'Total Positions', value: data.leadership.length.toString(), color: '#dbeafe', icon: '👑' },
-      { label: 'Active Roles', value: activeRoles.toString(), color: '#d1fae5', icon: '✅' },
-      { label: 'Inactive Roles', value: inactiveRoles.toString(), color: '#fef3c7', icon: '⏸️' },
-      { label: 'Leaders', value: uniqueLeaders.toString(), color: '#e0e7ff', icon: '👥' },
+      { label: 'Total Positions', value: data.leadership.length.toString() },
+      { label: 'Active Roles', value: activeRoles.toString() },
+      { label: 'Inactive Roles', value: inactiveRoles.toString() },
+      { label: 'Leaders', value: uniqueLeaders.toString() },
     ]);
 
     // Leadership by category
-    this.addSectionDivider('Leadership Categories');
-    
     const getRoleCategory = (role: string): string => {
       const technicalStaff = ['Head Coach', 'Assistant Coach', 'Goalkeeping Coach', 'Fitness Trainer', 'Physiotherapist', 'Team Doctor', 'Nutritionist'];
       const teamLeadership = ['Captain', 'Vice Captain', 'Team Leader'];
@@ -930,20 +725,17 @@ export class LeadershipPDFExporter extends BasePDFExporter {
       percentage: `${Math.round((count / data.leadership.length) * 100)}%`,
     }));
 
-    this.addEnhancedTable(
-      'Roles by Category',
+    this.addTable(
       [
-        { header: 'Category', dataKey: 'category', width: 40 },
-        { header: 'Count', dataKey: 'count', width: 20 },
-        { header: 'Percentage', dataKey: 'percentage', width: 25 },
+        { header: 'Category', dataKey: 'category' },
+        { header: 'Count', dataKey: 'count' },
+        { header: 'Percentage', dataKey: 'percentage' },
       ],
       categoryData,
-      { headerColor: COLORS.yellow, textColor: COLORS.black }
+      { title: 'Roles by Category' }
     );
 
     // Complete leadership roster
-    this.addSectionDivider('Complete Leadership Roster');
-    
     const leadershipRows = data.leadership
       .sort((a, b) => a.role.localeCompare(b.role))
       .map(leadership => {
@@ -958,17 +750,17 @@ export class LeadershipPDFExporter extends BasePDFExporter {
         };
       });
 
-    this.addEnhancedTable(
-      'Leadership Directory',
+    this.addTable(
       [
-        { header: 'Member', dataKey: 'member', width: 30 },
-        { header: 'Jersey', dataKey: 'jersey', width: 15 },
-        { header: 'Role', dataKey: 'role', width: 35 },
-        { header: 'Category', dataKey: 'category', width: 25 },
-        { header: 'Start Date', dataKey: 'startDate', width: 20 },
-        { header: 'Status', dataKey: 'status', width: 15 },
+        { header: 'Member', dataKey: 'member' },
+        { header: 'Jersey', dataKey: 'jersey' },
+        { header: 'Role', dataKey: 'role' },
+        { header: 'Category', dataKey: 'category' },
+        { header: 'Start Date', dataKey: 'startDate' },
+        { header: 'Status', dataKey: 'status' },
       ],
-      leadershipRows
+      leadershipRows,
+      { title: 'Leadership Directory' }
     );
 
     this.save('fitholics-fc-leadership');
