@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Plus, CheckCircle, XCircle, Clock, AlertCircle, Edit, Trash2 } from 'lucide-react';
+import { Users, Plus, CheckCircle, XCircle, Clock, AlertCircle, Edit, Trash2, Download } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { AttendanceService, MemberService, EventService } from '../../services/firestore';
 import PageHeader from '../../components/layout/PageHeader';
@@ -15,6 +15,7 @@ import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { Attendance, Member, Event, AttendanceStatus } from '../../types';
 import { formatDate } from '../../utils/date-utils';
 import { canUserAccess, Permissions } from '../../utils/permissions';
+import { AttendancePDFExporter } from '../../utils/pdf-export';
 import { useForm } from 'react-hook-form';
 
 interface AttendanceFormData {
@@ -40,6 +41,7 @@ const AttendancePage: React.FC = () => {
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -52,6 +54,7 @@ const AttendancePage: React.FC = () => {
   const canMarkAttendance = user && canUserAccess(user.role, Permissions.MARK_ATTENDANCE);
   const canEditAttendance = user && canUserAccess(user.role, Permissions.MARK_ATTENDANCE);
   const canDeleteAttendance = user && canUserAccess(user.role, Permissions.MARK_ATTENDANCE);
+  const canExport = user && canUserAccess(user.role, Permissions.EXPORT_REPORTS);
 
   const {
     register,
@@ -158,7 +161,7 @@ const AttendancePage: React.FC = () => {
     }
   }, [members, events]);
 
-  // Initialize attendance data when event is selected - FIXED VERSION
+  // Initialize attendance data when event is selected
   useEffect(() => {
     if (watchEventId && events.length > 0 && members.length > 0) {
       const event = events.find(e => e.id === watchEventId);
@@ -197,6 +200,7 @@ const AttendancePage: React.FC = () => {
     }
   }, [watchEventId, events, members, attendanceRecords]);
 
+  // Sort event options by date (latest first)
   const eventOptions = [
     { value: 'all', label: 'All Events' },
     ...events
@@ -254,10 +258,11 @@ const AttendancePage: React.FC = () => {
     }
   };
 
-  // Filter attendance records based on selected event
-  const filteredRecords = filterEvent === 'all' 
+  // Filter attendance records based on selected event and sort by member name
+  const filteredRecords = (filterEvent === 'all' 
     ? attendanceRecords 
-    : attendanceRecords.filter(record => record.event.id === filterEvent);
+    : attendanceRecords.filter(record => record.event.id === filterEvent))
+    .sort((a, b) =>a.member.name.toLowerCase().localeCompare(b.member.name.toLowerCase()));
 
   const columns = [
     {
@@ -377,7 +382,7 @@ const AttendancePage: React.FC = () => {
     }
   };
 
-  // Update member attendance status - FIXED VERSION
+  // Update member attendance status
   const updateMemberStatus = (memberId: string, status: AttendanceStatus) => {
     setMemberAttendance(prev => {
       const newMap = new Map(prev);
@@ -387,7 +392,7 @@ const AttendancePage: React.FC = () => {
     });
   };
 
-  // Update member attendance notes - FIXED VERSION
+  // Update member attendance notes
   const updateMemberNotes = (memberId: string, notes: string) => {
     setMemberAttendance(prev => {
       const newMap = new Map(prev);
@@ -480,8 +485,52 @@ const AttendancePage: React.FC = () => {
     setFilterEvent(value);
   };
 
-  // Get active members for display
-  const activeMembers = members.filter(m => m.status === 'active');
+  const handleExport = async () => {
+    try {
+      setExporting(true);
+      
+      // Calculate stats
+      const totalSessions = new Set(attendanceRecords.map(r => r.event.id)).size;
+      const sessionAttendance = attendanceRecords.reduce((acc, record) => {
+        const eventId = record.event.id;
+        if (!acc[eventId]) {
+          acc[eventId] = { present: 0, total: 0 };
+        }
+        acc[eventId].total++;
+        if (record.attendance.status === 'present') {
+          acc[eventId].present++;
+        }
+        return acc;
+      }, {} as Record<string, { present: number; total: number }>);
+
+      const attendanceCounts = Object.values(sessionAttendance).map(s => s.present);
+      const averageAttendance = attendanceCounts.length > 0 
+        ? Math.round(attendanceCounts.reduce((sum, count) => sum + count, 0) / attendanceCounts.length)
+        : 0;
+      const highestAttendance = attendanceCounts.length > 0 ? Math.max(...attendanceCounts) : 0;
+      const lowestAttendance = attendanceCounts.length > 0 ? Math.min(...attendanceCounts) : 0;
+
+      const exporter = new AttendancePDFExporter();
+      exporter.exportAttendance({
+        attendanceRecords: filteredRecords,
+        stats: {
+          totalSessions,
+          averageAttendance,
+          highestAttendance,
+          lowestAttendance,
+        },
+      });
+    } catch (error) {
+      console.error('Error exporting attendance:', error);
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  // Get active members sorted alphabetically
+  const activeMembers = members
+    .filter(m => m.status === 'active')
+    .sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
 
   if (loading) {
     return (
@@ -495,17 +544,29 @@ const AttendancePage: React.FC = () => {
     <div>
       <PageHeader
         title="Attendance Management"
-        description="Record and track member attendance for training sessions and friendly matches"
+        description={`Record and track member attendance for training sessions and friendly matches (${filteredRecords.length} records)`}
         actions={
-          canMarkAttendance && (
-            <Button 
-              onClick={handleCreate} 
-              leftIcon={<Plus size={18} />}
-              className="bg-primary-600 hover:bg-primary-700 text-white"
-            >
-              Record Attendance
-            </Button>
-          )
+          <div className="flex space-x-2">
+            {canMarkAttendance && (
+              <Button 
+                onClick={handleCreate} 
+                leftIcon={<Plus size={18} />}
+                className="bg-primary-600 hover:bg-primary-700 text-white"
+              >
+                Record Attendance
+              </Button>
+            )}
+            {canExport && (
+              <Button
+                onClick={handleExport}
+                leftIcon={<Download size={18} />}
+                isLoading={exporting}
+                variant="outline"
+              >
+                Export PDF
+              </Button>
+            )}
+          </div>
         }
       />
 

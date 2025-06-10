@@ -145,6 +145,16 @@ export default {
         'gradient-fitholics': 'linear-gradient(135deg, #4f4fe6 0%, #eab308 50%, #f43f4e 100%)',
         'gradient-yellow-primary': 'linear-gradient(135deg, #eab308 0%, #4f4fe6 100%)',
       },
+      // Add mobile-specific utilities
+      screens: {
+        'xs': '475px',
+      },
+      spacing: {
+        'safe-top': 'env(safe-area-inset-top)',
+        'safe-bottom': 'env(safe-area-inset-bottom)',
+        'safe-left': 'env(safe-area-inset-left)',
+        'safe-right': 'env(safe-area-inset-right)',
+      },
     },
   },
   plugins: [],

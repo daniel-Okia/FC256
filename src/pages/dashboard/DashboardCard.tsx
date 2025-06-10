@@ -9,10 +9,6 @@ interface DashboardCardProps {
   value: string | number;
   description?: string;
   icon: React.ReactNode;
-  trend?: {
-    value: number;
-    isPositive: boolean;
-  };
   link?: {
     text: string;
     to: string;
@@ -25,7 +21,6 @@ const DashboardCard: React.FC<DashboardCardProps> = ({
   value,
   description,
   icon,
-  trend,
   link,
   className,
 }) => {
@@ -43,23 +38,6 @@ const DashboardCard: React.FC<DashboardCardProps> = ({
           <p className="mt-2 text-3xl font-semibold text-gray-900 dark:text-white">{value}</p>
           {description && (
             <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{description}</p>
-          )}
-          {trend && (
-            <div className="mt-2">
-              <span
-                className={`inline-flex items-center text-sm font-medium ${
-                  trend.isPositive
-                    ? 'text-success-600 dark:text-success-400'
-                    : 'text-error-600 dark:text-error-400'
-                }`}
-              >
-                {trend.isPositive ? '+' : ''}
-                {trend.value}%
-              </span>
-              <span className="text-sm text-gray-500 dark:text-gray-400 ml-1">
-                vs last month
-              </span>
-            </div>
           )}
           {link && (
             <Link

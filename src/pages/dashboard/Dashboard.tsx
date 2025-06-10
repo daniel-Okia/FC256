@@ -1,14 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Calendar, Award, CreditCard } from 'lucide-react';
+import { Users, Calendar, Award, CreditCard, TrendingDown, Download, Filter } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { MemberService, EventService, ContributionService, AttendanceService } from '../../services/firestore';
+import { MemberService, EventService, ContributionService, ExpenseService, AttendanceService } from '../../services/firestore';
 import PageHeader from '../../components/layout/PageHeader';
 import DashboardCard from './DashboardCard';
 import AttendanceChart from './AttendanceChart';
+import PositionChart from './PositionChart';
+import FinancialChart from './FinancialChart';
 import UpcomingEvents from './UpcomingEvents';
-import RecentContributions from './RecentContributions';
+import RecentTransactions from './RecentTransactions';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
+import Button from '../../components/ui/Button';
+import Input from '../../components/ui/Input';
+import Modal from '../../components/ui/Modal';
 import { formatUGX } from '../../utils/currency-utils';
+import { DashboardPDFExporter } from '../../utils/pdf-export';
+import { canUserAccess, Permissions } from '../../utils/permissions';
 
 interface DashboardStats {
   totalMembers: number;
@@ -16,11 +23,13 @@ interface DashboardStats {
   trainingSessionsThisMonth: number;
   friendliesThisMonth: number;
   totalContributions: number;
-  // Previous month data for comparison
-  trainingSessionsLastMonth: number;
-  friendliesLastMonth: number;
-  totalContributionsLastMonth: number;
-  activeMembersLastMonth: number;
+  totalExpenses: number;
+  remainingBalance: number;
+}
+
+interface DateRange {
+  startDate: string;
+  endDate: string;
 }
 
 const Dashboard: React.FC = () => {
@@ -31,12 +40,21 @@ const Dashboard: React.FC = () => {
     trainingSessionsThisMonth: 0,
     friendliesThisMonth: 0,
     totalContributions: 0,
-    trainingSessionsLastMonth: 0,
-    friendliesLastMonth: 0,
-    totalContributionsLastMonth: 0,
-    activeMembersLastMonth: 0,
+    totalExpenses: 0,
+    remainingBalance: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [upcomingEvents, setUpcomingEvents] = useState<any[]>([]);
+  const [recentTransactions, setRecentTransactions] = useState<any[]>([]);
+  const [attendanceTrends, setAttendanceTrends] = useState<any[]>([]);
+  const [exporting, setExporting] = useState(false);
+  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
+  const [dateRange, setDateRange] = useState<DateRange>({
+    startDate: '',
+    endDate: '',
+  });
+
+  const canExport = user && canUserAccess(user.role, Permissions.EXPORT_REPORTS);
 
   useEffect(() => {
     const loadDashboardData = async () => {
@@ -44,20 +62,26 @@ const Dashboard: React.FC = () => {
         setLoading(true);
         
         // Load all data in parallel
-        const [members, events, contributions] = await Promise.all([
+        const [members, events, contributions, expenses, attendance] = await Promise.all([
           MemberService.getAllMembers(),
           EventService.getAllEvents(),
           ContributionService.getAllContributions(),
+          ExpenseService.getAllExpenses(),
+          AttendanceService.getAllAttendance(),
         ]);
+
+        console.log('Dashboard data loaded:', {
+          members: members.length,
+          events: events.length,
+          contributions: contributions.length,
+          expenses: expenses.length,
+          attendance: attendance.length
+        });
 
         // Get current date info
         const now = new Date();
         const currentMonth = now.getMonth();
         const currentYear = now.getFullYear();
-        
-        // Get last month info
-        const lastMonth = currentMonth === 0 ? 11 : currentMonth - 1;
-        const lastMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear;
 
         // Calculate current month stats
         const activeMembers = members.filter(m => m.status === 'active').length;
@@ -67,50 +91,104 @@ const Dashboard: React.FC = () => {
           return eventDate.getMonth() === currentMonth && eventDate.getFullYear() === currentYear;
         });
         
-        const eventsLastMonth = events.filter(event => {
-          const eventDate = new Date(event.date);
-          return eventDate.getMonth() === lastMonth && eventDate.getFullYear() === lastMonthYear;
-        });
-        
         const trainingSessionsThisMonth = eventsThisMonth.filter(e => e.type === 'training').length;
         const friendliesThisMonth = eventsThisMonth.filter(e => e.type === 'friendly').length;
         
-        const trainingSessionsLastMonth = eventsLastMonth.filter(e => e.type === 'training').length;
-        const friendliesLastMonth = eventsLastMonth.filter(e => e.type === 'friendly').length;
+        // Calculate total contributions (monetary only) with proper number handling
+        const monetaryContributions = contributions.filter(c => 
+          c.type === 'monetary' && 
+          c.amount !== undefined && 
+          c.amount !== null && 
+          !isNaN(Number(c.amount)) && 
+          Number(c.amount) > 0
+        );
         
-        // Calculate contributions for current month
-        const contributionsThisMonth = contributions.filter(contribution => {
-          const contributionDate = new Date(contribution.date);
-          return contributionDate.getMonth() === currentMonth && contributionDate.getFullYear() === currentYear;
-        });
-        
-        const contributionsLastMonth = contributions.filter(contribution => {
-          const contributionDate = new Date(contribution.date);
-          return contributionDate.getMonth() === lastMonth && contributionDate.getFullYear() === lastMonthYear;
-        });
-        
-        const totalContributions = contributionsThisMonth
-          .filter(c => c.type === 'monetary' && c.amount)
-          .reduce((sum, c) => sum + (c.amount || 0), 0);
+        const totalContributions = monetaryContributions.reduce((sum, c) => {
+          const amount = parseFloat(String(c.amount)) || 0;
+          console.log('Processing contribution:', { id: c.id, amount: c.amount, parsed: amount });
+          return sum + amount;
+        }, 0);
           
-        const totalContributionsLastMonth = contributionsLastMonth
-          .filter(c => c.type === 'monetary' && c.amount)
-          .reduce((sum, c) => sum + (c.amount || 0), 0);
+        // Calculate total expenses with proper number handling
+        const validExpenses = expenses.filter(e => 
+          e.amount !== undefined && 
+          e.amount !== null && 
+          !isNaN(Number(e.amount)) && 
+          Number(e.amount) > 0
+        );
+        
+        const totalExpenses = validExpenses.reduce((sum, e) => {
+          const amount = parseFloat(String(e.amount)) || 0;
+          console.log('Processing expense:', { id: e.id, amount: e.amount, parsed: amount });
+          return sum + amount;
+        }, 0);
+          
+        // Calculate remaining balance
+        const remainingBalance = totalContributions - totalExpenses;
 
-        // For active members comparison, we'll use a simple assumption
-        // In a real app, you'd track historical member status changes
-        const activeMembersLastMonth = Math.max(0, activeMembers - 2); // Simple approximation
+        console.log('Financial calculations:', {
+          monetaryContributions: monetaryContributions.length,
+          totalContributions,
+          validExpenses: validExpenses.length,
+          totalExpenses,
+          remainingBalance
+        });
+
+        // Get upcoming events
+        const upcoming = events
+          .filter(event => new Date(event.date) >= now)
+          .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+          .slice(0, 5);
+        setUpcomingEvents(upcoming);
+
+        // Get recent transactions
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        
+        const recentContributions = contributions
+          .filter(c => new Date(c.date) >= thirtyDaysAgo && c.type === 'monetary' && c.amount)
+          .map(c => ({ ...c, type: 'contribution' }));
+        
+        const recentExpenses = expenses
+          .filter(e => new Date(e.date) >= thirtyDaysAgo && e.amount)
+          .map(e => ({ ...e, type: 'expense' }));
+        
+        const recent = [...recentContributions, ...recentExpenses]
+          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+          .slice(0, 10);
+        setRecentTransactions(recent);
+
+        // Calculate attendance trends for the last 30 days
+        const recentTrainingEvents = events.filter(event => {
+          const eventDate = new Date(event.date);
+          return event.type === 'training' && eventDate >= thirtyDaysAgo && eventDate <= now;
+        });
+
+        const attendanceTrendsData = recentTrainingEvents.map(event => {
+          const eventAttendance = attendance.filter(a => 
+            a.eventId === event.id && a.status === 'present'
+          );
+          
+          return {
+            date: event.date,
+            type: event.type,
+            opponent: event.opponent,
+            presentCount: eventAttendance.length,
+            totalMembers: activeMembers,
+            attendanceRate: activeMembers > 0 ? (eventAttendance.length / activeMembers) * 100 : 0,
+          };
+        });
+
+        setAttendanceTrends(attendanceTrendsData);
 
         setStats({
           totalMembers: members.length,
           activeMembers,
           trainingSessionsThisMonth,
           friendliesThisMonth,
-          totalContributions,
-          trainingSessionsLastMonth,
-          friendliesLastMonth,
-          totalContributionsLastMonth,
-          activeMembersLastMonth,
+          totalContributions: Math.round(totalContributions), // Round to avoid floating point issues
+          totalExpenses: Math.round(totalExpenses),
+          remainingBalance: Math.round(remainingBalance),
         });
       } catch (error) {
         console.error('Error loading dashboard data:', error);
@@ -120,25 +198,63 @@ const Dashboard: React.FC = () => {
     };
 
     loadDashboardData();
+
+    // Set up real-time listeners for automatic updates
+    const unsubscribeContributions = ContributionService.subscribeToContributions(() => {
+      console.log('Contributions updated, reloading dashboard data');
+      loadDashboardData();
+    });
+
+    const unsubscribeExpenses = ExpenseService.subscribeToExpenses(() => {
+      console.log('Expenses updated, reloading dashboard data');
+      loadDashboardData();
+    });
+
+    return () => {
+      unsubscribeContributions();
+      unsubscribeExpenses();
+    };
   }, []);
 
-  // Calculate percentage changes
-  const calculatePercentageChange = (current: number, previous: number): { value: number; isPositive: boolean } => {
-    if (previous === 0) {
-      return { value: current > 0 ? 100 : 0, isPositive: current >= 0 };
+  const handleExportDashboard = async () => {
+    try {
+      setExporting(true);
+      const exporter = new DashboardPDFExporter();
+      
+      // Include date range if specified
+      const exportData = {
+        stats,
+        upcomingEvents,
+        recentTransactions,
+        attendanceTrends,
+        ...(dateRange.startDate && dateRange.endDate && { dateRange }),
+      };
+      
+      exporter.exportDashboard(exportData);
+    } catch (error) {
+      console.error('Error exporting dashboard:', error);
+    } finally {
+      setExporting(false);
     }
-    
-    const change = ((current - previous) / previous) * 100;
-    return {
-      value: Math.abs(Math.round(change)),
-      isPositive: change >= 0,
-    };
   };
 
-  const membersTrend = calculatePercentageChange(stats.activeMembers, stats.activeMembersLastMonth);
-  const trainingTrend = calculatePercentageChange(stats.trainingSessionsThisMonth, stats.trainingSessionsLastMonth);
-  const friendliesTrend = calculatePercentageChange(stats.friendliesThisMonth, stats.friendliesLastMonth);
-  const contributionsTrend = calculatePercentageChange(stats.totalContributions, stats.totalContributionsLastMonth);
+  const handleFilteredExport = () => {
+    setIsFilterModalOpen(true);
+  };
+
+  const handleDateRangeExport = () => {
+    if (!dateRange.startDate || !dateRange.endDate) {
+      alert('Please select both start and end dates');
+      return;
+    }
+    
+    setIsFilterModalOpen(false);
+    handleExportDashboard();
+  };
+
+  const resetDateRange = () => {
+    setDateRange({ startDate: '', endDate: '' });
+  };
 
   if (loading) {
     return (
@@ -149,19 +265,41 @@ const Dashboard: React.FC = () => {
   }
 
   return (
-    <div>
+    <div className="w-full max-w-full overflow-hidden">
       <PageHeader
         title={`Welcome, ${user?.name}`}
         description="Team management dashboard and overview"
+        actions={
+          canExport && (
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Button
+                onClick={handleExportDashboard}
+                leftIcon={<Download size={18} />}
+                isLoading={exporting}
+                variant="outline"
+                className="w-full sm:w-auto"
+              >
+                Export Dashboard
+              </Button>
+              <Button
+                onClick={handleFilteredExport}
+                leftIcon={<Filter size={18} />}
+                variant="primary"
+                className="w-full sm:w-auto bg-gradient-to-r from-primary-600 to-yellow-500 hover:from-primary-700 hover:to-yellow-600 text-white"
+              >
+                Export with Date Filter
+              </Button>
+            </div>
+          )
+        }
       />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
         <DashboardCard
           title="Team Members"
           value={stats.activeMembers.toString()}
           description={`${stats.totalMembers} total members`}
           icon={<Users className="h-6 w-6 text-primary-600 dark:text-primary-400" />}
-          trend={membersTrend}
           link={{ text: 'View all members', to: '/members' }}
         />
         <DashboardCard
@@ -169,7 +307,6 @@ const Dashboard: React.FC = () => {
           value={stats.trainingSessionsThisMonth.toString()}
           description="This month"
           icon={<Calendar className="h-6 w-6 text-primary-600 dark:text-primary-400" />}
-          trend={trainingTrend}
           link={{ text: 'View training', to: '/training' }}
         />
         <DashboardCard
@@ -177,17 +314,68 @@ const Dashboard: React.FC = () => {
           value={stats.friendliesThisMonth.toString()}
           description="This month"
           icon={<Award className="h-6 w-6 text-primary-600 dark:text-primary-400" />}
-          trend={friendliesTrend}
           link={{ text: 'View friendlies', to: '/friendlies' }}
         />
         <DashboardCard
-          title="Contributions"
+          title="Total Contributions"
           value={formatUGX(stats.totalContributions)}
-          description="Total this month"
-          icon={<CreditCard className="h-6 w-6 text-primary-600 dark:text-primary-400" />}
-          trend={contributionsTrend}
+          description="All time monetary"
+          icon={<CreditCard className="h-6 w-6 text-green-600 dark:text-green-400" />}
           link={{ text: 'View contributions', to: '/contributions' }}
         />
+        <DashboardCard
+          title="Total Expenses"
+          value={formatUGX(stats.totalExpenses)}
+          description="All time spending"
+          icon={<TrendingDown className="h-6 w-6 text-red-600 dark:text-red-400" />}
+          link={{ text: 'View expenses', to: '/contributions' }}
+        />
+      </div>
+
+      {/* Balance Summary */}
+      <div className="mb-8">
+        <div className={`rounded-lg p-6 border ${
+          stats.remainingBalance >= 0 
+            ? 'bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-900/20 dark:to-blue-900/20 border-green-200 dark:border-green-800'
+            : 'bg-gradient-to-r from-red-50 to-orange-50 dark:from-red-900/20 dark:to-orange-900/20 border-red-200 dark:border-red-800'
+        }`}>
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                Financial Summary
+              </h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Current balance after all contributions and expenses
+              </p>
+              <div className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                <span className="font-medium">In:</span> {formatUGX(stats.totalContributions)} • 
+                <span className="font-medium ml-2">Out:</span> {formatUGX(stats.totalExpenses)}
+              </div>
+            </div>
+            <div className="text-right">
+              <p className={`text-3xl font-bold ${
+                stats.remainingBalance >= 0 
+                  ? 'text-green-600 dark:text-green-400' 
+                  : 'text-red-600 dark:text-red-400'
+              }`}>
+                {formatUGX(Math.abs(stats.remainingBalance))}
+              </p>
+              <p className={`text-sm font-medium ${
+                stats.remainingBalance >= 0 
+                  ? 'text-green-600 dark:text-green-400' 
+                  : 'text-red-600 dark:text-red-400'
+              }`}>
+                {stats.remainingBalance >= 0 ? 'Available Balance' : 'Deficit'}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Charts Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <PositionChart />
+        <FinancialChart />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
@@ -195,10 +383,89 @@ const Dashboard: React.FC = () => {
         <UpcomingEvents />
       </div>
 
-      {/* Recent Contributions Section */}
+      {/* Recent Transactions Section */}
       <div className="mb-8">
-        <RecentContributions />
+        <RecentTransactions />
       </div>
+
+      {/* Date Filter Modal */}
+      <Modal
+        isOpen={isFilterModalOpen}
+        onClose={() => setIsFilterModalOpen(false)}
+        title="Export Dashboard with Date Filter"
+        size="lg"
+      >
+        <div className="space-y-6">
+          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+            <div className="flex items-center">
+              <Filter size={20} className="text-blue-600 dark:text-blue-400 mr-2" />
+              <div>
+                <h4 className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                  Date Range Export
+                </h4>
+                <p className="text-sm text-blue-700 dark:text-blue-300">
+                  Select a date range to filter the dashboard data for export. This will include transactions, events, and statistics within the specified period.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Input
+              label="Start Date"
+              type="date"
+              value={dateRange.startDate}
+              onChange={(e) => setDateRange(prev => ({ ...prev, startDate: e.target.value }))}
+              required
+            />
+            <Input
+              label="End Date"
+              type="date"
+              value={dateRange.endDate}
+              onChange={(e) => setDateRange(prev => ({ ...prev, endDate: e.target.value }))}
+              required
+            />
+          </div>
+
+          {dateRange.startDate && dateRange.endDate && (
+            <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+              <h4 className="text-sm font-medium text-green-900 dark:text-green-100 mb-2">
+                Selected Date Range
+              </h4>
+              <p className="text-sm text-green-700 dark:text-green-300">
+                <strong>From:</strong> {new Date(dateRange.startDate).toLocaleDateString()} <br />
+                <strong>To:</strong> {new Date(dateRange.endDate).toLocaleDateString()} <br />
+                <strong>Duration:</strong> {Math.ceil((new Date(dateRange.endDate).getTime() - new Date(dateRange.startDate).getTime()) / (1000 * 60 * 60 * 24))} days
+              </p>
+            </div>
+          )}
+
+          <div className="flex flex-col sm:flex-row justify-end space-y-3 sm:space-y-0 sm:space-x-3 pt-6 border-t border-gray-200 dark:border-gray-700">
+            <Button
+              variant="outline"
+              onClick={resetDateRange}
+              className="w-full sm:w-auto"
+            >
+              Clear Dates
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setIsFilterModalOpen(false)}
+              className="w-full sm:w-auto"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleDateRangeExport}
+              isLoading={exporting}
+              className="bg-gradient-to-r from-primary-600 to-yellow-500 hover:from-primary-700 hover:to-yellow-600 text-white w-full sm:w-auto"
+              leftIcon={<Download size={18} />}
+            >
+              Export Filtered Dashboard
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };

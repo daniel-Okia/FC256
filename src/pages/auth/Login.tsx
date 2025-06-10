@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
-import { Mail, Lock } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
@@ -17,13 +17,13 @@ const Login: React.FC = () => {
   const { login, isAuthenticated, error, isLoading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const [showPassword, setShowPassword] = useState(false);
 
   const from = location.state?.from?.pathname || '/';
 
   const {
     register,
     handleSubmit,
-    setValue,
     formState: { errors },
   } = useForm<LoginFormData>({
     defaultValues: {
@@ -45,6 +45,10 @@ const Login: React.FC = () => {
     } catch (error) {
       console.error('Login error:', error);
     }
+  };
+
+  const togglePasswordVisibility = () => {
+    setShowPassword(!showPassword);
   };
 
   return (
@@ -92,20 +96,43 @@ const Login: React.FC = () => {
               })}
             />
 
-            <Input
-              label="Password"
-              type="password"
-              leftIcon={<Lock size={18} />}
-              error={errors.password?.message}
-              fullWidth
-              {...register('password', {
-                required: 'Password is required',
-                minLength: {
-                  value: 6,
-                  message: 'Password must be at least 6 characters',
-                },
-              })}
-            />
+            <div className="relative">
+              <Input
+                label="Password"
+                type={showPassword ? 'text' : 'password'}
+                leftIcon={<Lock size={18} />}
+                rightIcon={
+                  <button
+                    type="button"
+                    onClick={togglePasswordVisibility}
+                    className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 focus:outline-none"
+                    tabIndex={-1}
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                }
+                error={errors.password?.message}
+                fullWidth
+                {...register('password', {
+                  required: 'Password is required',
+                  minLength: {
+                    value: 6,
+                    message: 'Password must be at least 6 characters',
+                  },
+                })}
+              />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="text-sm">
+                <Link
+                  to="/forgot-password"
+                  className="font-medium text-primary-600 dark:text-primary-400 hover:text-yellow-600 dark:hover:text-yellow-400 transition-colors"
+                >
+                  Forgot your password?
+                </Link>
+              </div>
+            </div>
 
             {error && <p className="text-error-600 text-sm">{error}</p>}
 
@@ -121,8 +148,17 @@ const Login: React.FC = () => {
           
           <div className="mt-8">
             <div className="text-center">
-              <p className="text-xs text-gray-500 dark:text-gray-500">
-                Contact your administrator if you need access.
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Don't have an account?{' '}
+                <Link
+                  to="/register"
+                  className="font-medium text-primary-600 dark:text-primary-400 hover:text-yellow-600 dark:hover:text-yellow-400 transition-colors"
+                >
+                  Sign up here
+                </Link>
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">
+                Only registered team members can create accounts.
               </p>
             </div>
           </div>

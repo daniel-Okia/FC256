@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { UserPlus, Download, Search, Edit, Trash2 } from 'lucide-react';
+import { UserPlus, Download, Search, Edit, Trash2, Eye } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { Member, Position, MemberStatus } from '../../types';
 import { MemberService } from '../../services/firestore';
@@ -13,7 +13,7 @@ import Badge from '../../components/ui/Badge';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import EmptyState from '../../components/common/EmptyState';
 import { canUserAccess, Permissions } from '../../utils/permissions';
-import { exportToCSV } from '../../utils/export-utils';
+import { MembersPDFExporter } from '../../utils/pdf-export';
 import { useForm } from 'react-hook-form';
 
 interface MemberFormData {
@@ -34,10 +34,14 @@ const Members: React.FC = () => {
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [viewingMember, setViewingMember] = useState<Member | null>(null);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
 
   const canCreateMember = user && canUserAccess(user.role, Permissions.CREATE_MEMBER);
   const canEditMember = user && canUserAccess(user.role, Permissions.EDIT_MEMBER);
   const canDeleteMember = user && canUserAccess(user.role, Permissions.DELETE_MEMBER);
+  const canExport = user && canUserAccess(user.role, Permissions.EXPORT_REPORTS);
 
   const {
     register,
@@ -47,11 +51,23 @@ const Members: React.FC = () => {
     formState: { errors },
   } = useForm<MemberFormData>();
 
+  // Enhanced position options with more football positions
   const positionOptions = [
     { value: 'Goalkeeper', label: 'Goalkeeper' },
-    { value: 'Defender', label: 'Defender' },
-    { value: 'Midfielder', label: 'Midfielder' },
-    { value: 'Forward', label: 'Forward' },
+    { value: 'Centre-back', label: 'Centre-back' },
+    { value: 'Left-back', label: 'Left-back' },
+    { value: 'Right-back', label: 'Right-back' },
+    { value: 'Sweeper', label: 'Sweeper' },
+    { value: 'Defensive Midfielder', label: 'Defensive Midfielder' },
+    { value: 'Central Midfielder', label: 'Central Midfielder' },
+    { value: 'Attacking Midfielder', label: 'Attacking Midfielder' },
+    { value: 'Left Midfielder', label: 'Left Midfielder' },
+    { value: 'Right Midfielder', label: 'Right Midfielder' },
+    { value: 'Left Winger', label: 'Left Winger' },
+    { value: 'Right Winger', label: 'Right Winger' },
+    { value: 'Centre Forward', label: 'Centre Forward' },
+    { value: 'Striker', label: 'Striker' },
+    { value: 'Second Striker', label: 'Second Striker' },
     { value: 'Coach', label: 'Coach' },
     { value: 'Manager', label: 'Manager' },
   ];
@@ -88,11 +104,14 @@ const Members: React.FC = () => {
     return () => unsubscribe();
   }, []);
 
-  const filteredMembers = members.filter((member) =>
-    member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    member.position.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    member.email.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Filter and sort members
+  const filteredMembers = members
+    .filter((member) =>
+      member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      member.position.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      member.email.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+    .sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
 
   const getStatusBadgeVariant = (status: string) => {
     switch (status) {
@@ -109,7 +128,21 @@ const Members: React.FC = () => {
     }
   };
 
+  const handleView = (member: Member) => {
+    setViewingMember(member);
+    setIsViewModalOpen(true);
+  };
+
   const columns = [
+    {
+      key: 'jerseyNumber',
+      title: 'Jersey #',
+      render: (member: Member) => (
+        <div className="font-bold text-primary-600 dark:text-primary-400">
+          #{member.jerseyNumber}
+        </div>
+      ),
+    },
     {
       key: 'name',
       title: 'Name',
@@ -122,14 +155,11 @@ const Members: React.FC = () => {
     {
       key: 'position',
       title: 'Position',
-    },
-    {
-      key: 'email',
-      title: 'Email',
-    },
-    {
-      key: 'phone',
-      title: 'Phone',
+      render: (member: Member) => (
+        <span className="text-gray-700 dark:text-gray-300">
+          {member.position}
+        </span>
+      ),
     },
     {
       key: 'status',
@@ -144,10 +174,39 @@ const Members: React.FC = () => {
       ),
     },
     {
+      key: 'email',
+      title: 'Email',
+      render: (member: Member) => (
+        <span className="text-sm text-gray-600 dark:text-gray-400 break-all">
+          {member.email}
+        </span>
+      ),
+    },
+    {
+      key: 'phone',
+      title: 'Phone',
+      render: (member: Member) => (
+        <span className="text-sm text-gray-600 dark:text-gray-400">
+          {member.phone}
+        </span>
+      ),
+    },
+    {
       key: 'actions',
       title: 'Actions',
       render: (member: Member) => (
-        <div className="flex space-x-2">
+        <div className="flex space-x-1">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleView(member);
+            }}
+            className="p-1"
+          >
+            <Eye size={14} />
+          </Button>
           {canEditMember && (
             <Button
               size="sm"
@@ -156,8 +215,9 @@ const Members: React.FC = () => {
                 e.stopPropagation();
                 handleEdit(member);
               }}
+              className="p-1"
             >
-              <Edit size={16} />
+              <Edit size={14} />
             </Button>
           )}
           {canDeleteMember && (
@@ -168,8 +228,9 @@ const Members: React.FC = () => {
                 e.stopPropagation();
                 handleDeleteClick(member);
               }}
+              className="p-1"
             >
-              <Trash2 size={16} />
+              <Trash2 size={14} />
             </Button>
           )}
         </div>
@@ -181,7 +242,7 @@ const Members: React.FC = () => {
     setEditingMember(null);
     reset({
       name: '',
-      position: 'Forward',
+      position: 'Centre Forward',
       email: '',
       phone: '',
       status: 'active',
@@ -247,18 +308,16 @@ const Members: React.FC = () => {
     }
   };
 
-  const handleExport = () => {
-    const headers = [
-      { key: 'jerseyNumber', label: 'Jersey Number' },
-      { key: 'name', label: 'Name' },
-      { key: 'position', label: 'Position' },
-      { key: 'email', label: 'Email' },
-      { key: 'phone', label: 'Phone' },
-      { key: 'status', label: 'Status' },
-      { key: 'dateJoined', label: 'Date Joined' },
-    ];
-
-    exportToCSV(members, 'members-list', headers);
+  const handleExport = async () => {
+    try {
+      setExporting(true);
+      const exporter = new MembersPDFExporter();
+      exporter.exportMembers(members);
+    } catch (error) {
+      console.error('Error exporting members:', error);
+    } finally {
+      setExporting(false);
+    }
   };
 
   if (loading) {
@@ -270,29 +329,31 @@ const Members: React.FC = () => {
   }
 
   return (
-    <div>
+    <div className="w-full max-w-full overflow-hidden">
       <PageHeader
         title="Team Members"
-        description="Manage your team roster and player information"
+        description={`Manage your team roster and player information (${filteredMembers.length} members)`}
         actions={
-          <div className="flex space-x-2">
+          <div className="flex flex-col sm:flex-row gap-2">
             {canCreateMember && (
               <Button
                 variant="primary"
                 leftIcon={<UserPlus size={18} />}
                 onClick={handleCreate}
-                className="bg-primary-600 hover:bg-primary-700 text-white"
+                className="bg-primary-600 hover:bg-primary-700 text-white w-full sm:w-auto"
               >
                 Add Member
               </Button>
             )}
-            {canUserAccess(user?.role, Permissions.EXPORT_REPORTS) && (
+            {canExport && (
               <Button
                 variant="outline"
                 leftIcon={<Download size={18} />}
                 onClick={handleExport}
+                isLoading={exporting}
+                className="w-full sm:w-auto"
               >
-                Export
+                Export PDF
               </Button>
             )}
           </div>
@@ -301,7 +362,7 @@ const Members: React.FC = () => {
 
       <div className="mb-6">
         <Input
-          placeholder="Search members..."
+          placeholder="Search members by name, position, or email..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           leftIcon={<Search size={18} />}
@@ -310,19 +371,25 @@ const Members: React.FC = () => {
       </div>
 
       {filteredMembers.length > 0 ? (
-        <Table
-          data={filteredMembers}
-          columns={columns}
-          onRowClick={(member) => console.log('Member clicked:', member)}
-          className="bg-white dark:bg-neutral-800 rounded-lg shadow"
-        />
+        <div className="w-full overflow-hidden">
+          <Table
+            data={filteredMembers}
+            columns={columns}
+            onRowClick={(member) => handleView(member)}
+            className="w-full"
+          />
+        </div>
       ) : (
         <EmptyState
-          title="No members found"
-          description="There are no team members at the moment."
+          title={searchTerm ? "No members found" : "No members yet"}
+          description={
+            searchTerm 
+              ? `No members match "${searchTerm}". Try adjusting your search.`
+              : "There are no team members at the moment."
+          }
           icon={<UserPlus size={24} />}
           action={
-            canCreateMember
+            canCreateMember && !searchTerm
               ? {
                   label: 'Add Member',
                   onClick: handleCreate,
@@ -331,6 +398,101 @@ const Members: React.FC = () => {
           }
         />
       )}
+
+      {/* View Member Modal */}
+      <Modal
+        isOpen={isViewModalOpen}
+        onClose={() => setIsViewModalOpen(false)}
+        title="Member Details"
+        size="lg"
+      >
+        {viewingMember && (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Full Name
+                </label>
+                <p className="text-gray-900 dark:text-white font-medium">
+                  {viewingMember.name}
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Jersey Number
+                </label>
+                <p className="text-gray-900 dark:text-white font-bold text-primary-600 dark:text-primary-400">
+                  #{viewingMember.jerseyNumber}
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Position
+                </label>
+                <p className="text-gray-900 dark:text-white">
+                  {viewingMember.position}
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Status
+                </label>
+                <Badge
+                  variant={getStatusBadgeVariant(viewingMember.status)}
+                  className="capitalize"
+                >
+                  {viewingMember.status}
+                </Badge>
+              </div>
+              <div className="sm:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Email Address
+                </label>
+                <p className="text-gray-900 dark:text-white break-all">
+                  {viewingMember.email}
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Phone Number
+                </label>
+                <p className="text-gray-900 dark:text-white">
+                  {viewingMember.phone}
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Date Joined
+                </label>
+                <p className="text-gray-900 dark:text-white">
+                  {new Date(viewingMember.dateJoined).toLocaleDateString()}
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+              {canEditMember && (
+                <Button
+                  onClick={() => {
+                    setIsViewModalOpen(false);
+                    handleEdit(viewingMember);
+                  }}
+                  leftIcon={<Edit size={16} />}
+                  className="bg-primary-600 hover:bg-primary-700 text-white"
+                >
+                  Edit Member
+                </Button>
+              )}
+              <Button
+                variant="outline"
+                onClick={() => setIsViewModalOpen(false)}
+              >
+                Close
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
 
       {/* Create/Edit Modal */}
       <Modal
@@ -400,18 +562,19 @@ const Members: React.FC = () => {
             </div>
           )}
 
-          <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200 dark:border-gray-700">
+          <div className="flex flex-col sm:flex-row justify-end space-y-3 sm:space-y-0 sm:space-x-3 pt-6 border-t border-gray-200 dark:border-gray-700">
             <Button
               type="button"
               variant="outline"
               onClick={() => setIsModalOpen(false)}
+              className="w-full sm:w-auto"
             >
               Cancel
             </Button>
             <Button 
               type="submit" 
               isLoading={submitting}
-              className="bg-primary-600 hover:bg-primary-700 text-white"
+              className="bg-primary-600 hover:bg-primary-700 text-white w-full sm:w-auto"
             >
               {editingMember ? 'Update Member' : 'Add Member'}
             </Button>
@@ -430,14 +593,19 @@ const Members: React.FC = () => {
           <p className="text-gray-600 dark:text-gray-300">
             Are you sure you want to delete <strong>{memberToDelete?.name}</strong>? This action cannot be undone.
           </p>
-          <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <div className="flex flex-col sm:flex-row justify-end space-y-3 sm:space-y-0 sm:space-x-3 pt-4 border-t border-gray-200 dark:border-gray-700">
             <Button
               variant="outline"
               onClick={() => setIsDeleteModalOpen(false)}
+              className="w-full sm:w-auto"
             >
               Cancel
             </Button>
-            <Button variant="danger" onClick={handleDelete}>
+            <Button 
+              variant="danger" 
+              onClick={handleDelete}
+              className="w-full sm:w-auto"
+            >
               Delete Member
             </Button>
           </div>

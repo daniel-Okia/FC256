@@ -19,12 +19,23 @@ export interface AuthState {
   error: string | null;
 }
 
-// Member Types
+// Member Types - Enhanced with more positions
 export type Position = 
   | 'Goalkeeper' 
-  | 'Defender' 
-  | 'Midfielder' 
-  | 'Forward' 
+  | 'Centre-back'
+  | 'Left-back'
+  | 'Right-back'
+  | 'Sweeper'
+  | 'Defensive Midfielder'
+  | 'Central Midfielder'
+  | 'Attacking Midfielder'
+  | 'Left Midfielder'
+  | 'Right Midfielder'
+  | 'Left Winger'
+  | 'Right Winger'
+  | 'Centre Forward'
+  | 'Striker'
+  | 'Second Striker'
   | 'Coach' 
   | 'Manager';
 
@@ -71,14 +82,54 @@ export interface Attendance {
   recordedAt: string;
 }
 
-// Leadership Types
+// Leadership Types - Expanded with comprehensive football club roles
 export type LeadershipRole = 
+  // Technical Staff
   | 'Head Coach' 
   | 'Assistant Coach' 
-  | 'Team Manager' 
+  | 'Goalkeeping Coach'
+  | 'Fitness Trainer'
+  | 'Physiotherapist'
+  | 'Team Doctor'
+  | 'Nutritionist'
+  
+  // Team Leadership
   | 'Captain' 
-  | 'Vice Captain' 
-  | 'Fitness Trainer';
+  | 'Vice Captain'
+  | 'Team Leader'
+  
+  // Administrative Roles
+  | 'Chairman'
+  | 'Vice Chairman'
+  | 'Team Manager' 
+  | 'Secretary'
+  | 'Treasurer'
+  | 'Public Relations Officer'
+  | 'Media Officer'
+  
+  // Equipment & Logistics
+  | 'Equipment Manager'
+  | 'Kit Manager'
+  | 'Transport Coordinator'
+  | 'Groundskeeper'
+  
+  // Disciplinary & Welfare
+  | 'Disciplinary Officer'
+  | 'Welfare Officer'
+  | 'Player Liaison'
+  | 'Youth Coordinator'
+  
+  // Match Officials & Support
+  | 'Match Coordinator'
+  | 'Scout'
+  | 'Analyst'
+  | 'Referee Liaison'
+  
+  // Social & Events
+  | 'Social Secretary'
+  | 'Events Coordinator'
+  | 'Fundraising Officer'
+  | 'Community Outreach Officer';
 
 export interface Leadership {
   id: string;
@@ -106,6 +157,32 @@ export interface Contribution {
   recordedAt: string;
 }
 
+// Expense Types
+export type ExpenseCategory = 
+  | 'equipment' 
+  | 'transport' 
+  | 'medical' 
+  | 'facilities' 
+  | 'referees' 
+  | 'food' 
+  | 'uniforms' 
+  | 'training' 
+  | 'administration' 
+  | 'other';
+
+export interface Expense {
+  id: string;
+  category: ExpenseCategory;
+  amount: number; // Amount in UGX
+  description: string;
+  paymentMethod?: PaymentMethod;
+  date: string;
+  recordedBy: string;
+  recordedAt: string;
+  eventId?: string; // Optional link to specific event
+  receipt?: string; // Optional receipt URL or reference
+}
+
 // UI Types
 export interface NavItem {
   name: string;
@@ -123,4 +200,29 @@ export interface TableColumn<T> {
   key: keyof T | string;
   title: string;
   render?: (item: T) => React.ReactNode;
+}
+
+// Chart Data Types
+export interface ChartData {
+  labels: string[];
+  datasets: {
+    label: string;
+    data: number[];
+    backgroundColor?: string | string[];
+    borderColor?: string | string[];
+    borderWidth?: number;
+  }[];
+}
+
+export interface PositionDistribution {
+  position: string;
+  count: number;
+  percentage: number;
+}
+
+export interface FinancialTrend {
+  month: string;
+  contributions: number;
+  expenses: number;
+  net: number;
 }

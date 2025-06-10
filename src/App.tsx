@@ -3,6 +3,10 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider } from './context/AuthContext';
 import Layout from './components/layout/Layout';
 import Login from './pages/auth/Login';
+import Register from './pages/auth/Register';
+import ForgotPassword from './pages/auth/ForgotPassword';
+import CreateAdmin from './pages/setup/CreateAdmin';
+import InitializeAccounts from './pages/setup/InitializeAccounts';
 import Dashboard from './pages/dashboard/Dashboard';
 import Members from './pages/members/Members';
 import MemberDetail from './pages/members/MemberDetail';
@@ -18,13 +22,28 @@ import ProtectedRoute from './components/auth/ProtectedRoute';
 function App() {
   return (
     <AuthProvider>
-      <Router>
+      <Router basename="/">
         <Routes>
+          {/* Public routes */}
           <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/setup/admin" element={<CreateAdmin />} />
+          <Route path="/setup/accounts" element={<InitializeAccounts />} />
           
+          {/* Protected routes with layout */}
           <Route element={<Layout />}>
             <Route 
               path="/" 
+              element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              } 
+            />
+            
+            <Route 
+              path="/dashboard" 
               element={
                 <ProtectedRoute>
                   <Dashboard />
@@ -105,6 +124,7 @@ function App() {
             />
           </Route>
           
+          {/* Fallback routes */}
           <Route path="/404" element={<NotFound />} />
           <Route path="*" element={<Navigate to="/404\" replace />} />
         </Routes>

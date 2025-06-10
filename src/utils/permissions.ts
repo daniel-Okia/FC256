@@ -35,7 +35,7 @@ export const Permissions = {
   VIEW_LEADERSHIP: ['admin', 'manager', 'member'] as UserRole[],
   MANAGE_LEADERSHIP: ['admin', 'manager'] as UserRole[],
   
-  // Contribution permissions
+  // Contribution and Expense permissions
   VIEW_CONTRIBUTIONS: ['admin', 'manager'] as UserRole[], // Members can no longer view contributions
   CREATE_CONTRIBUTION: ['admin', 'manager'] as UserRole[],
   EDIT_CONTRIBUTION: ['admin', 'manager'] as UserRole[],

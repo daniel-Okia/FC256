@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Plus, Edit, Trash2, MapPin, Clock } from 'lucide-react';
+import { Calendar, Plus, Edit, Trash2, MapPin, Clock, Download } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { EventService } from '../../services/firestore';
 import PageHeader from '../../components/layout/PageHeader';
@@ -13,6 +13,7 @@ import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { Event } from '../../types';
 import { formatDate } from '../../utils/date-utils';
 import { canUserAccess, Permissions } from '../../utils/permissions';
+import { EventsPDFExporter } from '../../utils/pdf-export';
 import { useForm } from 'react-hook-form';
 
 interface FriendlyFormData {
@@ -28,6 +29,7 @@ const Friendlies: React.FC = () => {
   const [friendlies, setFriendlies] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingFriendly, setEditingFriendly] = useState<Event | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -36,6 +38,7 @@ const Friendlies: React.FC = () => {
   const canCreateFriendly = user && canUserAccess(user.role, Permissions.CREATE_EVENT);
   const canEditFriendly = user && canUserAccess(user.role, Permissions.EDIT_EVENT);
   const canDeleteFriendly = user && canUserAccess(user.role, Permissions.DELETE_EVENT);
+  const canExport = user && canUserAccess(user.role, Permissions.EXPORT_REPORTS);
 
   const {
     register,
@@ -63,7 +66,13 @@ const Friendlies: React.FC = () => {
 
     // Set up real-time listener for friendly events
     const unsubscribe = EventService.subscribeToEvents((events) => {
-      const friendlyEvents = events.filter(event => event.type === 'friendly');
+      const friendlyEvents = events
+        .filter(event => event.type === 'friendly')
+        .sort((a, b) => {
+          const dateA = new Date(a.date);
+          const dateB = new Date(b.date);
+          return dateA.getTime() - dateB.getTime(); // Past to present (earliest first)
+        });
       setFriendlies(friendlyEvents);
       setLoading(false);
     });
@@ -75,7 +84,16 @@ const Friendlies: React.FC = () => {
     {
       key: 'date',
       title: 'Date',
-      render: (friendly: Event) => formatDate(friendly.date),
+      render: (friendly: Event) => (
+        <div>
+          <div className="font-medium text-gray-900 dark:text-white">
+            {formatDate(friendly.date)}
+          </div>
+          <div className="text-sm text-gray-500 dark:text-gray-400">
+            {new Date(friendly.date) > new Date() ? 'Upcoming' : 'Past'}
+          </div>
+        </div>
+      ),
     },
     {
       key: 'time',
@@ -211,6 +229,18 @@ const Friendlies: React.FC = () => {
     }
   };
 
+  const handleExport = async () => {
+    try {
+      setExporting(true);
+      const exporter = new EventsPDFExporter();
+      exporter.exportEvents(friendlies, 'friendly');
+    } catch (error) {
+      console.error('Error exporting friendlies:', error);
+    } finally {
+      setExporting(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-64">
@@ -223,17 +253,29 @@ const Friendlies: React.FC = () => {
     <div>
       <PageHeader
         title="Friendly Matches"
-        description="Schedule and manage friendly matches"
+        description={`Schedule and manage friendly matches (${friendlies.length} matches)`}
         actions={
-          canCreateFriendly && (
-            <Button 
-              onClick={handleCreate} 
-              leftIcon={<Plus size={18} />}
-              className="bg-primary-600 hover:bg-primary-700 text-white"
-            >
-              Add Friendly Match
-            </Button>
-          )
+          <div className="flex space-x-2">
+            {canCreateFriendly && (
+              <Button 
+                onClick={handleCreate} 
+                leftIcon={<Plus size={18} />}
+                className="bg-primary-600 hover:bg-primary-700 text-white"
+              >
+                Add Friendly Match
+              </Button>
+            )}
+            {canExport && (
+              <Button
+                onClick={handleExport}
+                leftIcon={<Download size={18} />}
+                isLoading={exporting}
+                variant="outline"
+              >
+                Export PDF
+              </Button>
+            )}
+          </div>
         }
       />
 
@@ -247,7 +289,7 @@ const Friendlies: React.FC = () => {
         ) : (
           <EmptyState
             title="No friendly matches scheduled"
-            description="There are no upcoming friendly matches scheduled at the moment."
+            description="There are no friendly matches scheduled at the moment."
             icon={<Calendar size={24} />}
             action={
               canCreateFriendly
