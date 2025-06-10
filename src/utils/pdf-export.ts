@@ -4,33 +4,34 @@ import { Attendance, Contribution, Event, Member, Expense, Leadership } from '..
 import { formatDate } from './date-utils';
 import { formatUGX } from './currency-utils';
 
-// Formal PDF styling with beautiful gradients (no emojis)
+// Professional PDF styling with clear, bright colors
 const COLORS = {
-  primary: '#4f4fe6',
-  yellow: '#eab308',
-  secondary: '#f43f4e',
-  success: '#22c55e',
-  danger: '#ef4444',
-  warning: '#f59e0b',
-  info: '#3b82f6',
-  gray: '#6b7280',
-  lightGray: '#f8fafc',
-  darkGray: '#374151',
+  primary: '#1e40af',      // Deep blue
+  yellow: '#d97706',       // Bright orange-yellow
+  secondary: '#dc2626',    // Clear red
+  success: '#059669',      // Clear green
+  danger: '#dc2626',       // Clear red
+  warning: '#d97706',      // Orange
+  info: '#0284c7',         // Clear blue
+  gray: '#374151',         // Dark gray
+  lightGray: '#f8fafc',    // Very light gray
+  darkGray: '#111827',     // Very dark gray
   white: '#ffffff',
   black: '#000000',
+  brightWhite: '#ffffff',  // Ensure bright white for text
 };
 
 const FONTS = {
-  title: 18,
-  subtitle: 14,
-  heading: 12,
-  body: 10,
-  small: 8,
-  tiny: 7,
+  title: 20,
+  subtitle: 16,
+  heading: 14,
+  body: 11,
+  small: 9,
+  tiny: 8,
 };
 
 /**
- * Formal PDF export class with professional styling and gradients
+ * Professional PDF export class with clear formatting and bright text
  */
 class BasePDFExporter {
   protected doc: jsPDF;
@@ -46,66 +47,81 @@ class BasePDFExporter {
   }
 
   /**
-   * Add formal header with Fitholics FC branding
+   * Add professional header with clear manager details
    */
   protected addHeader(title: string, subtitle?: string): void {
-    // Header background with gradient effect
-    this.addGradientBackground(0, 0, this.pageWidth, 50, COLORS.primary, COLORS.yellow);
+    // Clean header background with subtle gradient
+    this.addGradientBackground(0, 0, this.pageWidth, 60, COLORS.primary, COLORS.info);
     
-    // Team name with professional typography
+    // Team name with clear, bright white text
     this.doc.setFontSize(FONTS.title);
-    this.doc.setTextColor(255, 255, 255);
+    this.doc.setTextColor(255, 255, 255); // Bright white
     this.doc.setFont('helvetica', 'bold');
-    this.doc.text('FITHOLICS FC', this.margin, this.margin + 12);
+    this.doc.text('FITHOLICS FC', this.margin, this.margin + 15);
     
-    // Core values
+    // Core values in bright white
     this.doc.setFontSize(FONTS.small);
     this.doc.setFont('helvetica', 'italic');
-    this.doc.text('Excellence • Discipline • Teamwork', this.margin, this.margin + 20);
+    this.doc.setTextColor(255, 255, 255); // Bright white
+    this.doc.text('Excellence • Discipline • Teamwork', this.margin, this.margin + 25);
     
-    // Manager contact (right side)
-    const contactX = this.pageWidth - 70;
+    // Manager contact section - well-positioned and clearly visible
+    const contactX = this.pageWidth - 85;
+    const contactY = this.margin + 8;
     
-    // Contact background
-    this.doc.setFillColor(255, 255, 255, 0.95);
-    this.doc.roundedRect(contactX, this.margin + 5, 65, 25, 2, 2, 'F');
+    // White background box for manager details
+    this.doc.setFillColor(255, 255, 255); // Pure white background
+    this.doc.roundedRect(contactX, contactY, 80, 35, 3, 3, 'F');
     
-    // Contact details
-    this.doc.setFontSize(FONTS.tiny);
-    this.doc.setTextColor(COLORS.darkGray);
+    // Border for the contact box
+    this.doc.setDrawColor(COLORS.yellow);
+    this.doc.setLineWidth(1.5);
+    this.doc.roundedRect(contactX, contactY, 80, 35, 3, 3, 'S');
+    
+    // Manager details with clear, dark text
+    this.doc.setFontSize(FONTS.small);
+    this.doc.setTextColor(COLORS.darkGray); // Very dark for contrast
     this.doc.setFont('helvetica', 'bold');
-    this.doc.text('Team Manager', contactX + 3, this.margin + 10);
+    this.doc.text('TEAM MANAGER', contactX + 4, contactY + 8);
+    
+    this.doc.setFontSize(FONTS.body);
+    this.doc.setFont('helvetica', 'bold');
+    this.doc.setTextColor(COLORS.primary); // Primary blue for name
+    this.doc.text('Pius Paul', contactX + 4, contactY + 15);
+    
+    this.doc.setFontSize(FONTS.small);
     this.doc.setFont('helvetica', 'normal');
-    this.doc.text('Pius Paul', contactX + 3, this.margin + 14);
-    this.doc.text('piuspaul392@gmail.com', contactX + 3, this.margin + 18);
-    this.doc.text('+256 700 654 321', contactX + 3, this.margin + 22);
+    this.doc.setTextColor(COLORS.darkGray); // Dark gray for contact info
+    this.doc.text('Email: piuspaul392@gmail.com', contactX + 4, contactY + 22);
+    this.doc.text('Phone: +256 700 654 321', contactX + 4, contactY + 29);
+    this.doc.text('Position: Team Manager', contactX + 4, contactY + 36);
     
     // Professional separator line
     this.doc.setDrawColor(COLORS.yellow);
     this.doc.setLineWidth(2);
-    this.doc.line(this.margin, 55, this.pageWidth - this.margin, 55);
+    this.doc.line(this.margin, 65, this.pageWidth - this.margin, 65);
     
-    // Report title
+    // Report title with clear, dark text
     this.doc.setFontSize(FONTS.subtitle);
-    this.doc.setTextColor(COLORS.darkGray);
+    this.doc.setTextColor(COLORS.darkGray); // Very dark for readability
     this.doc.setFont('helvetica', 'bold');
-    this.doc.text(title, this.margin, 70);
+    this.doc.text(title, this.margin, 80);
     
     if (subtitle) {
       this.doc.setFontSize(FONTS.body);
-      this.doc.setTextColor(COLORS.gray);
+      this.doc.setTextColor(COLORS.gray); // Medium gray for subtitle
       this.doc.setFont('helvetica', 'normal');
-      this.doc.text(subtitle, this.margin, 78);
+      this.doc.text(subtitle, this.margin, 88);
     }
     
-    this.currentY = 90;
+    this.currentY = 100;
   }
 
   /**
-   * Add gradient background
+   * Add subtle gradient background
    */
   protected addGradientBackground(x: number, y: number, width: number, height: number, startColor: string, endColor: string): void {
-    const steps = 15;
+    const steps = 20;
     const stepHeight = height / steps;
     
     for (let i = 0; i < steps; i++) {
@@ -139,82 +155,78 @@ class BasePDFExporter {
   }
 
   /**
-   * Add professional statistics cards
+   * Add professional statistics cards with clear text
    */
   protected addStatsSection(stats: { label: string; value: string; color?: string }[]): void {
-    const cardWidth = (this.pageWidth - this.margin * 2 - 10 * (stats.length - 1)) / stats.length;
-    const cardHeight = 30;
+    const cardWidth = (this.pageWidth - this.margin * 2 - 8 * (stats.length - 1)) / stats.length;
+    const cardHeight = 35;
 
     stats.forEach((stat, index) => {
-      const x = this.margin + index * (cardWidth + 10);
+      const x = this.margin + index * (cardWidth + 8);
       
-      // Card shadow
+      // Card shadow for depth
       this.doc.setFillColor(0, 0, 0, 0.1);
-      this.doc.roundedRect(x + 1, this.currentY + 1, cardWidth, cardHeight, 3, 3, 'F');
+      this.doc.roundedRect(x + 2, this.currentY + 2, cardWidth, cardHeight, 4, 4, 'F');
       
-      // Card background
+      // Card background - clean white
+      this.doc.setFillColor(255, 255, 255);
+      this.doc.roundedRect(x, this.currentY, cardWidth, cardHeight, 4, 4, 'F');
+      
+      // Card border with color
       const cardColor = stat.color || COLORS.primary;
-      this.addGradientBackground(x, this.currentY, cardWidth, cardHeight, cardColor, this.lightenColor(cardColor, 0.2));
-      
-      // Card border
       this.doc.setDrawColor(cardColor);
-      this.doc.setLineWidth(1);
-      this.doc.roundedRect(x, this.currentY, cardWidth, cardHeight, 3, 3, 'S');
+      this.doc.setLineWidth(2);
+      this.doc.roundedRect(x, this.currentY, cardWidth, cardHeight, 4, 4, 'S');
       
-      // Label
+      // Colored top bar
+      this.doc.setFillColor(cardColor);
+      this.doc.roundedRect(x, this.currentY, cardWidth, 8, 4, 4, 'F');
+      this.doc.rect(x, this.currentY + 4, cardWidth, 4, 'F');
+      
+      // Label with clear, dark text
       this.doc.setFontSize(FONTS.small);
-      this.doc.setTextColor(255, 255, 255);
+      this.doc.setTextColor(COLORS.darkGray); // Very dark for readability
       this.doc.setFont('helvetica', 'normal');
-      this.doc.text(stat.label, x + cardWidth / 2, this.currentY + 10, { align: 'center' });
+      this.doc.text(stat.label, x + cardWidth / 2, this.currentY + 18, { align: 'center' });
       
-      // Value
+      // Value with bold, dark text
       this.doc.setFontSize(FONTS.heading);
       this.doc.setFont('helvetica', 'bold');
-      this.doc.text(stat.value, x + cardWidth / 2, this.currentY + 22, { align: 'center' });
+      this.doc.setTextColor(COLORS.darkGray); // Very dark for readability
+      this.doc.text(stat.value, x + cardWidth / 2, this.currentY + 28, { align: 'center' });
     });
 
-    this.currentY += cardHeight + 20;
+    this.currentY += cardHeight + 25;
   }
 
   /**
-   * Lighten a color
-   */
-  protected lightenColor(color: string, amount: number): string {
-    const hex = color.replace('#', '');
-    const r = Math.min(255, parseInt(hex.substr(0, 2), 16) + Math.round(255 * amount));
-    const g = Math.min(255, parseInt(hex.substr(2, 2), 16) + Math.round(255 * amount));
-    const b = Math.min(255, parseInt(hex.substr(4, 2), 16) + Math.round(255 * amount));
-    
-    return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
-  }
-
-  /**
-   * Add professional section heading
+   * Add professional section heading with clear text
    */
   protected addSectionHeading(title: string, color: string = COLORS.primary): void {
-    this.checkPageBreak(20);
+    this.checkPageBreak(25);
     
-    // Background bar with gradient
-    this.addGradientBackground(this.margin - 5, this.currentY - 2, this.pageWidth - this.margin * 2 + 10, 16, color, this.lightenColor(color, 0.3));
+    // Clean background bar
+    this.doc.setFillColor(color);
+    this.doc.rect(this.margin - 5, this.currentY - 3, this.pageWidth - this.margin * 2 + 10, 18, 'F');
     
-    // Title text
+    // Title text in bright white
     this.doc.setFontSize(FONTS.heading);
-    this.doc.setTextColor(255, 255, 255);
+    this.doc.setTextColor(255, 255, 255); // Bright white
     this.doc.setFont('helvetica', 'bold');
     this.doc.text(title, this.margin, this.currentY + 8);
     
-    this.currentY += 25;
+    this.currentY += 30;
   }
 
   /**
-   * Add professional table
+   * Add professional table with clear formatting
    */
   protected addTable(
     columns: { header: string; dataKey: string; width?: number }[],
     rows: any[],
     options: { title?: string; headerColor?: string } = {}
   ): void {
-    this.checkPageBreak(50);
+    this.checkPageBreak(60);
 
     if (options.title) {
       this.addSectionHeading(options.title, options.headerColor);
@@ -228,20 +240,21 @@ class BasePDFExporter {
       startY: this.currentY,
       styles: { 
         fontSize: FONTS.body, 
-        cellPadding: 3,
-        textColor: COLORS.darkGray,
-        lineColor: COLORS.lightGray,
-        lineWidth: 0.3,
+        cellPadding: 4,
+        textColor: COLORS.darkGray, // Very dark text for readability
+        lineColor: '#e5e7eb',
+        lineWidth: 0.5,
+        fillColor: false,
       },
       headStyles: { 
         fillColor: headerColor,
-        textColor: '#ffffff',
+        textColor: '#ffffff', // Bright white for headers
         fontStyle: 'bold',
         fontSize: FONTS.body,
-        cellPadding: 5,
+        cellPadding: 6,
       },
       alternateRowStyles: { 
-        fillColor: '#fafafa'
+        fillColor: '#f9fafb' // Very light gray for alternating rows
       },
       columnStyles: columns.reduce((acc, col, index) => {
         if (col.width) {
@@ -253,11 +266,11 @@ class BasePDFExporter {
       theme: 'grid',
     });
 
-    this.currentY = (this.doc as any).lastAutoTable.finalY + 15;
+    this.currentY = (this.doc as any).lastAutoTable.finalY + 20;
   }
 
   /**
-   * Add professional footer
+   * Add professional footer with clear text
    */
   protected addFooter(): void {
     const pageCount = this.doc.getNumberOfPages();
@@ -265,39 +278,40 @@ class BasePDFExporter {
     for (let i = 1; i <= pageCount; i++) {
       this.doc.setPage(i);
       
-      const footerY = this.pageHeight - 20;
+      const footerY = this.pageHeight - 25;
       
       // Footer line
       this.doc.setDrawColor(COLORS.yellow);
       this.doc.setLineWidth(1);
-      this.doc.line(this.margin, footerY - 5, this.pageWidth - this.margin, footerY - 5);
+      this.doc.line(this.margin, footerY - 8, this.pageWidth - this.margin, footerY - 8);
 
-      // Page number
+      // Page number - clear, dark text
       this.doc.setFontSize(FONTS.small);
-      this.doc.setTextColor(COLORS.darkGray);
+      this.doc.setTextColor(COLORS.darkGray); // Very dark for readability
       this.doc.setFont('helvetica', 'bold');
       this.doc.text(
         `Page ${i} of ${pageCount}`,
         this.pageWidth - this.margin,
-        footerY,
+        footerY - 2,
         { align: 'right' }
       );
 
-      // Generation info
+      // Generation info - clear, dark text
       this.doc.setFont('helvetica', 'normal');
+      this.doc.setTextColor(COLORS.darkGray); // Very dark for readability
       this.doc.text(
         `Generated: ${formatDate(new Date().toISOString(), 'MMM d, yyyy')} at ${new Date().toLocaleTimeString()}`,
         this.margin,
-        footerY
+        footerY - 2
       );
 
-      // Confidentiality notice
+      // Confidentiality notice - medium gray
       this.doc.setFontSize(FONTS.tiny);
-      this.doc.setTextColor(COLORS.gray);
+      this.doc.setTextColor(COLORS.gray); // Medium gray
       this.doc.text(
         'Confidential - Fitholics FC Internal Report',
         this.pageWidth / 2,
-        footerY + 6,
+        footerY + 5,
         { align: 'center' }
       );
     }
@@ -306,15 +320,15 @@ class BasePDFExporter {
   /**
    * Check if we need a new page
    */
-  protected checkPageBreak(requiredHeight: number = 30): void {
-    if (this.currentY + requiredHeight > this.pageHeight - 35) {
+  protected checkPageBreak(requiredHeight: number = 35): void {
+    if (this.currentY + requiredHeight > this.pageHeight - 40) {
       this.doc.addPage();
-      this.currentY = this.margin + 15;
+      this.currentY = this.margin + 20;
     }
   }
 
   /**
-   * Save the PDF
+   * Save the PDF with timestamp
    */
   protected save(filename: string): void {
     this.addFooter();
@@ -352,7 +366,7 @@ export class DashboardPDFExporter extends BasePDFExporter {
       `Team Performance Report - ${dateRangeText}`
     );
 
-    // Team statistics
+    // Team statistics with clear colors
     this.addStatsSection([
       { 
         label: 'Active Members', 
@@ -383,25 +397,29 @@ export class DashboardPDFExporter extends BasePDFExporter {
       { 
         metric: 'Total Contributions', 
         amount: formatUGX(data.stats.totalContributions),
-        status: 'Income'
+        status: 'Income',
+        category: 'Positive'
       },
       { 
         metric: 'Total Expenses', 
         amount: formatUGX(data.stats.totalExpenses),
-        status: 'Outgoing'
+        status: 'Outgoing',
+        category: 'Negative'
       },
       { 
         metric: data.stats.remainingBalance >= 0 ? 'Available Balance' : 'Deficit', 
         amount: formatUGX(Math.abs(data.stats.remainingBalance)),
-        status: data.stats.remainingBalance >= 0 ? 'Positive' : 'Negative'
+        status: data.stats.remainingBalance >= 0 ? 'Positive' : 'Negative',
+        category: data.stats.remainingBalance >= 0 ? 'Surplus' : 'Deficit'
       },
     ];
 
     this.addTable(
       [
-        { header: 'Financial Metric', dataKey: 'metric', width: 60 },
-        { header: 'Amount (UGX)', dataKey: 'amount', width: 40 },
-        { header: 'Status', dataKey: 'status', width: 30 },
+        { header: 'Financial Metric', dataKey: 'metric', width: 50 },
+        { header: 'Amount (UGX)', dataKey: 'amount', width: 35 },
+        { header: 'Status', dataKey: 'status', width: 25 },
+        { header: 'Category', dataKey: 'category', width: 25 },
       ],
       financialData,
       { headerColor: COLORS.success }
@@ -409,21 +427,22 @@ export class DashboardPDFExporter extends BasePDFExporter {
 
     // Upcoming Events
     if (data.upcomingEvents.length > 0) {
-      const eventRows = data.upcomingEvents.slice(0, 6).map(event => ({
-        date: formatDate(event.date, 'MMM d'),
-        type: event.type === 'training' ? 'Training' : `vs ${event.opponent}`,
+      const eventRows = data.upcomingEvents.slice(0, 8).map(event => ({
+        date: formatDate(event.date, 'MMM d, yyyy'),
+        type: event.type === 'training' ? 'Training Session' : `Friendly vs ${event.opponent}`,
         time: event.time,
         location: event.location,
-        status: 'Upcoming',
+        status: 'Scheduled',
+        description: event.description || 'No description'
       }));
 
       this.addTable(
         [
           { header: 'Date', dataKey: 'date', width: 25 },
-          { header: 'Event', dataKey: 'type', width: 50 },
+          { header: 'Event Type', dataKey: 'type', width: 40 },
           { header: 'Time', dataKey: 'time', width: 20 },
-          { header: 'Location', dataKey: 'location', width: 40 },
-          { header: 'Status', dataKey: 'status', width: 25 },
+          { header: 'Location', dataKey: 'location', width: 30 },
+          { header: 'Status', dataKey: 'status', width: 20 },
         ],
         eventRows,
         { title: 'UPCOMING EVENTS', headerColor: COLORS.info }
@@ -432,21 +451,22 @@ export class DashboardPDFExporter extends BasePDFExporter {
 
     // Recent Transactions
     if (data.recentTransactions.length > 0) {
-      const transactionRows = data.recentTransactions.slice(0, 10).map(transaction => ({
-        date: formatDate(transaction.date, 'MMM d'),
+      const transactionRows = data.recentTransactions.slice(0, 12).map(transaction => ({
+        date: formatDate(transaction.date, 'MMM d, yyyy'),
         type: transaction.type === 'contribution' ? 'Income' : 'Expense',
         description: transaction.description,
         amount: `${transaction.type === 'contribution' ? '+' : '-'}${formatUGX(transaction.amount)}`,
         status: transaction.type === 'contribution' ? 'Credit' : 'Debit',
+        category: transaction.category || 'General'
       }));
 
       this.addTable(
         [
-          { header: 'Date', dataKey: 'date', width: 20 },
-          { header: 'Type', dataKey: 'type', width: 25 },
-          { header: 'Description', dataKey: 'description', width: 60 },
-          { header: 'Amount', dataKey: 'amount', width: 30 },
-          { header: 'Status', dataKey: 'status', width: 25 },
+          { header: 'Date', dataKey: 'date', width: 22 },
+          { header: 'Type', dataKey: 'type', width: 20 },
+          { header: 'Description', dataKey: 'description', width: 45 },
+          { header: 'Amount', dataKey: 'amount', width: 25 },
+          { header: 'Status', dataKey: 'status', width: 18 },
         ],
         transactionRows,
         { title: 'RECENT TRANSACTIONS', headerColor: COLORS.warning }
@@ -455,21 +475,23 @@ export class DashboardPDFExporter extends BasePDFExporter {
 
     // Attendance Trends if available
     if (data.attendanceTrends && data.attendanceTrends.length > 0) {
-      const attendanceRows = data.attendanceTrends.slice(0, 8).map(trend => ({
-        date: formatDate(trend.date, 'MMM d'),
-        session: trend.type === 'training' ? 'Training' : `vs ${trend.opponent}`,
+      const attendanceRows = data.attendanceTrends.slice(0, 10).map(trend => ({
+        date: formatDate(trend.date, 'MMM d, yyyy'),
+        session: trend.type === 'training' ? 'Training Session' : `Friendly vs ${trend.opponent}`,
         present: trend.presentCount.toString(),
         total: trend.totalMembers.toString(),
         rate: `${Math.round(trend.attendanceRate)}%`,
+        status: trend.attendanceRate >= 80 ? 'Excellent' : trend.attendanceRate >= 60 ? 'Good' : 'Poor'
       }));
 
       this.addTable(
         [
-          { header: 'Date', dataKey: 'date', width: 20 },
-          { header: 'Session', dataKey: 'session', width: 40 },
-          { header: 'Present', dataKey: 'present', width: 20 },
-          { header: 'Total', dataKey: 'total', width: 20 },
-          { header: 'Rate', dataKey: 'rate', width: 20 },
+          { header: 'Date', dataKey: 'date', width: 25 },
+          { header: 'Session Type', dataKey: 'session', width: 35 },
+          { header: 'Present', dataKey: 'present', width: 18 },
+          { header: 'Total', dataKey: 'total', width: 18 },
+          { header: 'Rate', dataKey: 'rate', width: 18 },
+          { header: 'Status', dataKey: 'status', width: 20 },
         ],
         attendanceRows,
         { title: 'ATTENDANCE TRENDS', headerColor: COLORS.primary }
@@ -494,6 +516,7 @@ export class MembersPDFExporter extends BasePDFExporter {
     const activeMembers = members.filter(m => m.status === 'active').length;
     const inactiveMembers = members.filter(m => m.status === 'inactive').length;
     const injuredMembers = members.filter(m => m.status === 'injured').length;
+    const suspendedMembers = members.filter(m => m.status === 'suspended').length;
 
     this.addStatsSection([
       { 
@@ -512,8 +535,8 @@ export class MembersPDFExporter extends BasePDFExporter {
         color: COLORS.warning,
       },
       { 
-        label: 'Injured', 
-        value: injuredMembers.toString(),
+        label: 'Injured/Suspended', 
+        value: (injuredMembers + suspendedMembers).toString(),
         color: COLORS.danger,
       },
     ]);
@@ -524,20 +547,24 @@ export class MembersPDFExporter extends BasePDFExporter {
       return acc;
     }, {} as Record<string, number>);
 
-    const positionData = Object.entries(positionCounts).map(([position, count]) => ({
-      position: position,
-      count: count.toString(),
-      percentage: `${Math.round((count / members.length) * 100)}%`,
-    }));
+    const positionData = Object.entries(positionCounts)
+      .sort(([,a], [,b]) => b - a)
+      .map(([position, count]) => ({
+        position: position,
+        count: count.toString(),
+        percentage: `${Math.round((count / members.length) * 100)}%`,
+        status: count >= 3 ? 'Well Covered' : count >= 2 ? 'Adequate' : 'Needs Attention'
+      }));
 
     this.addTable(
       [
-        { header: 'Position', dataKey: 'position', width: 50 },
+        { header: 'Position', dataKey: 'position', width: 40 },
         { header: 'Count', dataKey: 'count', width: 20 },
         { header: 'Percentage', dataKey: 'percentage', width: 25 },
+        { header: 'Coverage Status', dataKey: 'status', width: 30 },
       ],
       positionData,
-      { title: 'SQUAD COMPOSITION', headerColor: COLORS.info }
+      { title: 'SQUAD COMPOSITION BY POSITION', headerColor: COLORS.info }
     );
 
     // Complete member roster
@@ -550,18 +577,18 @@ export class MembersPDFExporter extends BasePDFExporter {
         status: member.status.charAt(0).toUpperCase() + member.status.slice(1),
         email: member.email,
         phone: member.phone,
-        joined: formatDate(member.dateJoined, 'MMM yyyy'),
+        joined: formatDate(member.dateJoined, 'MMM d, yyyy'),
       }));
 
     this.addTable(
       [
         { header: 'Jersey', dataKey: 'jersey', width: 15 },
-        { header: 'Name', dataKey: 'name', width: 40 },
+        { header: 'Full Name', dataKey: 'name', width: 35 },
         { header: 'Position', dataKey: 'position', width: 30 },
-        { header: 'Status', dataKey: 'status', width: 25 },
-        { header: 'Email', dataKey: 'email', width: 50 },
-        { header: 'Phone', dataKey: 'phone', width: 30 },
-        { header: 'Joined', dataKey: 'joined', width: 20 },
+        { header: 'Status', dataKey: 'status', width: 20 },
+        { header: 'Email Address', dataKey: 'email', width: 45 },
+        { header: 'Phone Number', dataKey: 'phone', width: 25 },
+        { header: 'Date Joined', dataKey: 'joined', width: 25 },
       ],
       memberRows,
       { title: 'COMPLETE TEAM ROSTER', headerColor: COLORS.primary }
@@ -606,7 +633,7 @@ export class ContributionsPDFExporter extends BasePDFExporter {
         color: data.remainingBalance >= 0 ? COLORS.success : COLORS.warning,
       },
       { 
-        label: 'Transactions', 
+        label: 'Total Transactions', 
         value: (data.contributions.length + data.expenses.length).toString(),
         color: COLORS.info,
       },
@@ -620,48 +647,52 @@ export class ContributionsPDFExporter extends BasePDFExporter {
       }, {} as Record<string, number>);
 
       const contributionTypeData = Object.entries(contributionsByType).map(([type, amount]) => ({
-        type: type === 'monetary' ? 'Monetary' : 'In-Kind',
+        type: type === 'monetary' ? 'Monetary Contributions' : 'In-Kind Contributions',
         amount: formatUGX(amount),
         count: data.contributions.filter(c => c.type === type).length.toString(),
         percentage: `${Math.round((amount / data.totalContributions) * 100)}%`,
+        average: formatUGX(amount / data.contributions.filter(c => c.type === type).length)
       }));
 
       this.addTable(
         [
-          { header: 'Type', dataKey: 'type', width: 30 },
-          { header: 'Total Amount', dataKey: 'amount', width: 35 },
+          { header: 'Contribution Type', dataKey: 'type', width: 40 },
+          { header: 'Total Amount', dataKey: 'amount', width: 30 },
           { header: 'Count', dataKey: 'count', width: 20 },
           { header: 'Percentage', dataKey: 'percentage', width: 25 },
+          { header: 'Average', dataKey: 'average', width: 25 },
         ],
         contributionTypeData,
-        { title: 'CONTRIBUTIONS BY TYPE', headerColor: COLORS.success }
+        { title: 'CONTRIBUTIONS ANALYSIS BY TYPE', headerColor: COLORS.success }
       );
 
       // Recent contributions
       const recentContributions = data.contributions
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-        .slice(0, 15)
+        .slice(0, 20)
         .map(contribution => {
           const member = data.members.find(m => m.id === contribution.memberId);
           return {
-            date: formatDate(contribution.date, 'MMM d'),
-            member: member ? member.name : 'Unknown',
-            type: contribution.type === 'monetary' ? 'Money' : 'In-Kind',
+            date: formatDate(contribution.date, 'MMM d, yyyy'),
+            member: member ? member.name : 'Unknown Member',
+            type: contribution.type === 'monetary' ? 'Monetary' : 'In-Kind',
             amount: contribution.amount ? formatUGX(contribution.amount) : 'N/A',
             description: contribution.description,
+            method: contribution.paymentMethod || 'N/A'
           };
         });
 
       this.addTable(
         [
-          { header: 'Date', dataKey: 'date', width: 20 },
-          { header: 'Member', dataKey: 'member', width: 40 },
-          { header: 'Type', dataKey: 'type', width: 25 },
-          { header: 'Amount', dataKey: 'amount', width: 30 },
-          { header: 'Description', dataKey: 'description', width: 50 },
+          { header: 'Date', dataKey: 'date', width: 22 },
+          { header: 'Member Name', dataKey: 'member', width: 35 },
+          { header: 'Type', dataKey: 'type', width: 20 },
+          { header: 'Amount', dataKey: 'amount', width: 25 },
+          { header: 'Description', dataKey: 'description', width: 40 },
+          { header: 'Payment Method', dataKey: 'method', width: 25 },
         ],
         recentContributions,
-        { title: 'RECENT CONTRIBUTIONS', headerColor: COLORS.success }
+        { title: 'RECENT CONTRIBUTIONS RECORD', headerColor: COLORS.success }
       );
     }
 
@@ -672,44 +703,52 @@ export class ContributionsPDFExporter extends BasePDFExporter {
         return acc;
       }, {} as Record<string, number>);
 
-      const expenseCategoryData = Object.entries(expensesByCategory).map(([category, amount]) => ({
-        category: category.charAt(0).toUpperCase() + category.slice(1),
-        amount: formatUGX(amount),
-        count: data.expenses.filter(e => e.category === category).length.toString(),
-        percentage: `${Math.round((amount / data.totalExpenses) * 100)}%`,
-      }));
+      const expenseCategoryData = Object.entries(expensesByCategory)
+        .sort(([,a], [,b]) => b - a)
+        .map(([category, amount]) => ({
+          category: category.charAt(0).toUpperCase() + category.slice(1).replace(/[_-]/g, ' '),
+          amount: formatUGX(amount),
+          count: data.expenses.filter(e => e.category === category).length.toString(),
+          percentage: `${Math.round((amount / data.totalExpenses) * 100)}%`,
+          average: formatUGX(amount / data.expenses.filter(e => e.category === category).length)
+        }));
 
       this.addTable(
         [
-          { header: 'Category', dataKey: 'category', width: 40 },
-          { header: 'Total Amount', dataKey: 'amount', width: 35 },
+          { header: 'Expense Category', dataKey: 'category', width: 40 },
+          { header: 'Total Amount', dataKey: 'amount', width: 30 },
           { header: 'Count', dataKey: 'count', width: 20 },
           { header: 'Percentage', dataKey: 'percentage', width: 25 },
+          { header: 'Average', dataKey: 'average', width: 25 },
         ],
         expenseCategoryData,
-        { title: 'EXPENSES BY CATEGORY', headerColor: COLORS.danger }
+        { title: 'EXPENSES ANALYSIS BY CATEGORY', headerColor: COLORS.danger }
       );
 
       // Recent expenses
       const recentExpenses = data.expenses
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-        .slice(0, 15)
+        .slice(0, 20)
         .map(expense => ({
-          date: formatDate(expense.date, 'MMM d'),
-          category: expense.category.charAt(0).toUpperCase() + expense.category.slice(1),
+          date: formatDate(expense.date, 'MMM d, yyyy'),
+          category: expense.category.charAt(0).toUpperCase() + expense.category.slice(1).replace(/[_-]/g, ' '),
           amount: formatUGX(expense.amount),
           description: expense.description,
+          method: expense.paymentMethod || 'N/A',
+          receipt: expense.receipt || 'No receipt'
         }));
 
       this.addTable(
         [
-          { header: 'Date', dataKey: 'date', width: 20 },
-          { header: 'Category', dataKey: 'category', width: 35 },
-          { header: 'Amount', dataKey: 'amount', width: 30 },
-          { header: 'Description', dataKey: 'description', width: 60 },
+          { header: 'Date', dataKey: 'date', width: 22 },
+          { header: 'Category', dataKey: 'category', width: 30 },
+          { header: 'Amount', dataKey: 'amount', width: 25 },
+          { header: 'Description', dataKey: 'description', width: 45 },
+          { header: 'Payment Method', dataKey: 'method', width: 25 },
+          { header: 'Receipt', dataKey: 'receipt', width: 25 },
         ],
         recentExpenses,
-        { title: 'RECENT EXPENSES', headerColor: COLORS.danger }
+        { title: 'RECENT EXPENSES RECORD', headerColor: COLORS.danger }
       );
     }
 
@@ -753,7 +792,7 @@ export class EventsPDFExporter extends BasePDFExporter {
 
     if (type === 'all') {
       statsData.push({ 
-        label: 'Training', 
+        label: 'Training Sessions', 
         value: trainingCount.toString(),
         color: COLORS.warning,
       });
@@ -768,47 +807,52 @@ export class EventsPDFExporter extends BasePDFExporter {
       return acc;
     }, {} as Record<string, number>);
 
-    const monthlyData = Object.entries(monthlyBreakdown).map(([month, count]) => ({
-      month: month,
-      events: count.toString(),
-      training: filteredEvents.filter(e => e.type === 'training' && new Date(e.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long' }) === month).length.toString(),
-      friendlies: filteredEvents.filter(e => e.type === 'friendly' && new Date(e.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long' }) === month).length.toString(),
-    }));
+    const monthlyData = Object.entries(monthlyBreakdown)
+      .sort(([a], [b]) => new Date(a).getTime() - new Date(b).getTime())
+      .map(([month, count]) => ({
+        month: month,
+        events: count.toString(),
+        training: filteredEvents.filter(e => e.type === 'training' && new Date(e.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long' }) === month).length.toString(),
+        friendlies: filteredEvents.filter(e => e.type === 'friendly' && new Date(e.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long' }) === month).length.toString(),
+        status: count >= 4 ? 'Active' : count >= 2 ? 'Moderate' : 'Light'
+      }));
 
     this.addTable(
       [
-        { header: 'Month', dataKey: 'month', width: 40 },
+        { header: 'Month', dataKey: 'month', width: 35 },
         { header: 'Total Events', dataKey: 'events', width: 25 },
         { header: 'Training', dataKey: 'training', width: 25 },
         { header: 'Friendlies', dataKey: 'friendlies', width: 25 },
+        { header: 'Activity Level', dataKey: 'status', width: 25 },
       ],
       monthlyData,
-      { title: 'EVENTS BY MONTH', headerColor: COLORS.info }
+      { title: 'MONTHLY EVENTS BREAKDOWN', headerColor: COLORS.info }
     );
 
     // Complete events list
     const eventRows = filteredEvents
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
       .map(event => ({
-        date: formatDate(event.date, 'MMM d'),
+        date: formatDate(event.date, 'MMM d, yyyy'),
         time: event.time,
-        type: event.type === 'training' ? 'Training' : 'Friendly',
+        type: event.type === 'training' ? 'Training Session' : 'Friendly Match',
         description: event.type === 'training' ? (event.description || 'Training Session') : `vs ${event.opponent}`,
         location: event.location,
         status: new Date(event.date) > new Date() ? 'Upcoming' : 'Completed',
+        notes: event.description || 'No additional notes'
       }));
 
     this.addTable(
       [
-        { header: 'Date', dataKey: 'date', width: 20 },
-        { header: 'Time', dataKey: 'time', width: 25 },
-        { header: 'Type', dataKey: 'type', width: 25 },
-        { header: 'Event Details', dataKey: 'description', width: 50 },
-        { header: 'Location', dataKey: 'location', width: 40 },
+        { header: 'Date', dataKey: 'date', width: 25 },
+        { header: 'Time', dataKey: 'time', width: 20 },
+        { header: 'Event Type', dataKey: 'type', width: 30 },
+        { header: 'Details', dataKey: 'description', width: 40 },
+        { header: 'Location', dataKey: 'location', width: 30 },
         { header: 'Status', dataKey: 'status', width: 25 },
       ],
       eventRows,
-      { title: 'COMPLETE SCHEDULE', headerColor: COLORS.primary }
+      { title: 'COMPLETE EVENTS SCHEDULE', headerColor: COLORS.primary }
     );
 
     this.save(`fitholics-fc-${type === 'all' ? 'events' : type}`);
@@ -846,12 +890,12 @@ export class AttendancePDFExporter extends BasePDFExporter {
         color: COLORS.success,
       },
       { 
-        label: 'Best Attendance', 
+        label: 'Best Session', 
         value: data.stats.highestAttendance.toString(),
         color: COLORS.warning,
       },
       { 
-        label: 'Lowest Attendance', 
+        label: 'Lowest Session', 
         value: data.stats.lowestAttendance.toString(),
         color: COLORS.info,
       },
@@ -863,17 +907,21 @@ export class AttendancePDFExporter extends BasePDFExporter {
       return acc;
     }, {} as Record<string, number>);
 
-    const statusData = Object.entries(statusCounts).map(([status, count]) => ({
-      status: status.charAt(0).toUpperCase() + status.slice(1),
-      count: count.toString(),
-      percentage: `${Math.round((count / data.attendanceRecords.length) * 100)}%`,
-    }));
+    const statusData = Object.entries(statusCounts)
+      .sort(([,a], [,b]) => b - a)
+      .map(([status, count]) => ({
+        status: status.charAt(0).toUpperCase() + status.slice(1),
+        count: count.toString(),
+        percentage: `${Math.round((count / data.attendanceRecords.length) * 100)}%`,
+        description: this.getStatusDescription(status)
+      }));
 
     this.addTable(
       [
-        { header: 'Status', dataKey: 'status', width: 30 },
+        { header: 'Attendance Status', dataKey: 'status', width: 30 },
         { header: 'Count', dataKey: 'count', width: 20 },
         { header: 'Percentage', dataKey: 'percentage', width: 25 },
+        { header: 'Description', dataKey: 'description', width: 40 },
       ],
       statusData,
       { title: 'ATTENDANCE BY STATUS', headerColor: COLORS.success }
@@ -884,28 +932,40 @@ export class AttendancePDFExporter extends BasePDFExporter {
       .sort((a, b) => new Date(b.event.date).getTime() - new Date(a.event.date).getTime())
       .slice(0, 50)
       .map(record => ({
-        date: formatDate(record.event.date, 'MMM d'),
-        event: record.event.type === 'training' ? 'Training' : `vs ${record.event.opponent}`,
+        date: formatDate(record.event.date, 'MMM d, yyyy'),
+        event: record.event.type === 'training' ? 'Training Session' : `Friendly vs ${record.event.opponent}`,
         member: record.member.name,
         jersey: `#${record.member.jerseyNumber}`,
+        position: record.member.position,
         status: record.attendance.status.charAt(0).toUpperCase() + record.attendance.status.slice(1),
         notes: record.attendance.notes || 'No notes',
       }));
 
     this.addTable(
       [
-        { header: 'Date', dataKey: 'date', width: 20 },
-        { header: 'Event', dataKey: 'event', width: 35 },
-        { header: 'Member', dataKey: 'member', width: 40 },
+        { header: 'Date', dataKey: 'date', width: 22 },
+        { header: 'Event', dataKey: 'event', width: 30 },
+        { header: 'Member', dataKey: 'member', width: 30 },
         { header: 'Jersey', dataKey: 'jersey', width: 15 },
-        { header: 'Status', dataKey: 'status', width: 25 },
-        { header: 'Notes', dataKey: 'notes', width: 40 },
+        { header: 'Position', dataKey: 'position', width: 25 },
+        { header: 'Status', dataKey: 'status', width: 20 },
+        { header: 'Notes', dataKey: 'notes', width: 35 },
       ],
       attendanceRows,
-      { title: 'RECENT ATTENDANCE RECORDS', headerColor: COLORS.primary }
+      { title: 'DETAILED ATTENDANCE RECORDS', headerColor: COLORS.primary }
     );
 
     this.save('fitholics-fc-attendance');
+  }
+
+  private getStatusDescription(status: string): string {
+    switch (status) {
+      case 'present': return 'Member attended the session';
+      case 'absent': return 'Member did not attend';
+      case 'late': return 'Member arrived late';
+      case 'excused': return 'Absence was excused';
+      default: return 'Status not specified';
+    }
   }
 }
 
@@ -941,7 +1001,7 @@ export class LeadershipPDFExporter extends BasePDFExporter {
         color: COLORS.warning,
       },
       { 
-        label: 'Leaders', 
+        label: 'Unique Leaders', 
         value: uniqueLeaders.toString(),
         color: COLORS.info,
       },
@@ -952,11 +1012,13 @@ export class LeadershipPDFExporter extends BasePDFExporter {
       const technicalStaff = ['Head Coach', 'Assistant Coach', 'Goalkeeping Coach', 'Fitness Trainer', 'Physiotherapist', 'Team Doctor', 'Nutritionist'];
       const teamLeadership = ['Captain', 'Vice Captain', 'Team Leader'];
       const administrative = ['Chairman', 'Vice Chairman', 'Team Manager', 'Secretary', 'Treasurer', 'Public Relations Officer', 'Media Officer'];
+      const equipment = ['Equipment Manager', 'Kit Manager', 'Transport Coordinator', 'Groundskeeper'];
       
       if (technicalStaff.includes(role)) return 'Technical Staff';
       if (teamLeadership.includes(role)) return 'Team Leadership';
       if (administrative.includes(role)) return 'Administrative';
-      return 'Other';
+      if (equipment.includes(role)) return 'Equipment & Logistics';
+      return 'Other Roles';
     };
 
     const categoryBreakdown = data.leadership.reduce((acc, leadership) => {
@@ -965,20 +1027,24 @@ export class LeadershipPDFExporter extends BasePDFExporter {
       return acc;
     }, {} as Record<string, number>);
 
-    const categoryData = Object.entries(categoryBreakdown).map(([category, count]) => ({
-      category: category,
-      count: count.toString(),
-      percentage: `${Math.round((count / data.leadership.length) * 100)}%`,
-    }));
+    const categoryData = Object.entries(categoryBreakdown)
+      .sort(([,a], [,b]) => b - a)
+      .map(([category, count]) => ({
+        category: category,
+        count: count.toString(),
+        percentage: `${Math.round((count / data.leadership.length) * 100)}%`,
+        status: count >= 3 ? 'Well Staffed' : count >= 2 ? 'Adequate' : 'Needs Attention'
+      }));
 
     this.addTable(
       [
-        { header: 'Category', dataKey: 'category', width: 40 },
+        { header: 'Leadership Category', dataKey: 'category', width: 40 },
         { header: 'Count', dataKey: 'count', width: 20 },
         { header: 'Percentage', dataKey: 'percentage', width: 25 },
+        { header: 'Staffing Status', dataKey: 'status', width: 30 },
       ],
       categoryData,
-      { title: 'ROLES BY CATEGORY', headerColor: COLORS.warning }
+      { title: 'LEADERSHIP ROLES BY CATEGORY', headerColor: COLORS.warning }
     );
 
     // Complete leadership roster
@@ -991,24 +1057,44 @@ export class LeadershipPDFExporter extends BasePDFExporter {
           jersey: member ? `#${member.jerseyNumber}` : 'N/A',
           role: leadership.role,
           category: getRoleCategory(leadership.role),
-          startDate: formatDate(leadership.startDate, 'MMM yyyy'),
+          startDate: formatDate(leadership.startDate, 'MMM d, yyyy'),
           status: leadership.isActive ? 'Active' : 'Inactive',
+          duration: this.calculateDuration(leadership.startDate)
         };
       });
 
     this.addTable(
       [
-        { header: 'Member', dataKey: 'member', width: 40 },
+        { header: 'Member Name', dataKey: 'member', width: 35 },
         { header: 'Jersey', dataKey: 'jersey', width: 15 },
-        { header: 'Role', dataKey: 'role', width: 45 },
-        { header: 'Category', dataKey: 'category', width: 35 },
+        { header: 'Leadership Role', dataKey: 'role', width: 40 },
+        { header: 'Category', dataKey: 'category', width: 30 },
         { header: 'Start Date', dataKey: 'startDate', width: 25 },
-        { header: 'Status', dataKey: 'status', width: 25 },
+        { header: 'Status', dataKey: 'status', width: 20 },
+        { header: 'Duration', dataKey: 'duration', width: 25 },
       ],
       leadershipRows,
-      { title: 'LEADERSHIP DIRECTORY', headerColor: COLORS.primary }
+      { title: 'COMPLETE LEADERSHIP DIRECTORY', headerColor: COLORS.primary }
     );
 
     this.save('fitholics-fc-leadership');
+  }
+
+  private calculateDuration(startDate: string): string {
+    const start = new Date(startDate);
+    const now = new Date();
+    const diffTime = Math.abs(now.getTime() - start.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays < 30) {
+      return `${diffDays} days`;
+    } else if (diffDays < 365) {
+      const months = Math.floor(diffDays / 30);
+      return `${months} month${months > 1 ? 's' : ''}`;
+    } else {
+      const years = Math.floor(diffDays / 365);
+      const remainingMonths = Math.floor((diffDays % 365) / 30);
+      return `${years} year${years > 1 ? 's' : ''}${remainingMonths > 0 ? `, ${remainingMonths} month${remainingMonths > 1 ? 's' : ''}` : ''}`;
+    }
   }
 }
