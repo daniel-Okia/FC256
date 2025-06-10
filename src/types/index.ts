@@ -19,12 +19,23 @@ export interface AuthState {
   error: string | null;
 }
 
-// Member Types
+// Member Types - Enhanced with more positions
 export type Position = 
   | 'Goalkeeper' 
-  | 'Defender' 
-  | 'Midfielder' 
-  | 'Forward' 
+  | 'Centre-back'
+  | 'Left-back'
+  | 'Right-back'
+  | 'Sweeper'
+  | 'Defensive Midfielder'
+  | 'Central Midfielder'
+  | 'Attacking Midfielder'
+  | 'Left Midfielder'
+  | 'Right Midfielder'
+  | 'Left Winger'
+  | 'Right Winger'
+  | 'Centre Forward'
+  | 'Striker'
+  | 'Second Striker'
   | 'Coach' 
   | 'Manager';
 
@@ -189,4 +200,29 @@ export interface TableColumn<T> {
   key: keyof T | string;
   title: string;
   render?: (item: T) => React.ReactNode;
+}
+
+// Chart Data Types
+export interface ChartData {
+  labels: string[];
+  datasets: {
+    label: string;
+    data: number[];
+    backgroundColor?: string | string[];
+    borderColor?: string | string[];
+    borderWidth?: number;
+  }[];
+}
+
+export interface PositionDistribution {
+  position: string;
+  count: number;
+  percentage: number;
+}
+
+export interface FinancialTrend {
+  month: string;
+  contributions: number;
+  expenses: number;
+  net: number;
 }

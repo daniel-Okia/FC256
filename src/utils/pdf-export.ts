@@ -4,7 +4,7 @@ import { Attendance, Contribution, Event, Member, Expense, Leadership } from '..
 import { formatDate } from './date-utils';
 import { formatUGX } from './currency-utils';
 
-// Enhanced PDF styling with beautiful graphics
+// Enhanced PDF styling with beautiful graphics (no emojis)
 const COLORS = {
   primary: '#4f4fe6',
   yellow: '#eab308',
@@ -177,7 +177,7 @@ class BasePDFExporter {
   /**
    * Add beautiful statistics cards
    */
-  protected addStatsSection(stats: { label: string; value: string; color?: string; icon?: string }[]): void {
+  protected addStatsSection(stats: { label: string; value: string; color?: string }[]): void {
     const cardWidth = (this.pageWidth - this.margin * 2 - 15 * (stats.length - 1)) / stats.length;
     const cardHeight = 35;
 
@@ -197,22 +197,16 @@ class BasePDFExporter {
       this.doc.setLineWidth(1);
       this.doc.roundedRect(x, this.currentY, cardWidth, cardHeight, 5, 5, 'S');
       
-      // Icon background circle
-      if (stat.icon) {
-        this.doc.setFillColor(255, 255, 255, 0.8);
-        this.doc.circle(x + 12, this.currentY + 12, 8, 'F');
-      }
-      
       // Label
       this.doc.setFontSize(FONTS.small);
       this.doc.setTextColor(255, 255, 255);
       this.doc.setFont('helvetica', 'normal');
-      this.doc.text(stat.label, x + cardWidth / 2, this.currentY + 8, { align: 'center' });
+      this.doc.text(stat.label, x + cardWidth / 2, this.currentY + 12, { align: 'center' });
       
       // Value with emphasis
       this.doc.setFontSize(FONTS.heading);
       this.doc.setFont('helvetica', 'bold');
-      this.doc.text(stat.value, x + cardWidth / 2, this.currentY + 22, { align: 'center' });
+      this.doc.text(stat.value, x + cardWidth / 2, this.currentY + 25, { align: 'center' });
       
       // Decorative bottom line
       this.doc.setDrawColor(255, 255, 255, 0.5);
@@ -402,6 +396,8 @@ export class DashboardPDFExporter extends BasePDFExporter {
     };
     upcomingEvents: Event[];
     recentTransactions: any[];
+    attendanceTrends?: any[];
+    contributionTrends?: any[];
     dateRange?: { startDate: string; endDate: string };
   }): void {
     const dateRangeText = data.dateRange 
@@ -413,50 +409,46 @@ export class DashboardPDFExporter extends BasePDFExporter {
       `Team Performance Report • ${dateRangeText}`
     );
 
-    // Enhanced team statistics with icons
+    // Enhanced team statistics
     this.addStatsSection([
       { 
         label: 'Active Members', 
         value: data.stats.activeMembers.toString(),
         color: COLORS.success,
-        icon: '👥'
       },
       { 
         label: 'Training Sessions', 
         value: data.stats.trainingSessionsThisMonth.toString(),
         color: COLORS.info,
-        icon: '🏃'
       },
       { 
         label: 'Friendly Matches', 
         value: data.stats.friendliesThisMonth.toString(),
         color: COLORS.warning,
-        icon: '⚽'
       },
       { 
         label: 'Team Balance', 
         value: formatUGX(data.stats.remainingBalance),
         color: data.stats.remainingBalance >= 0 ? COLORS.success : COLORS.danger,
-        icon: '💰'
       },
     ]);
 
     // Financial Summary with beautiful presentation
-    this.addSectionHeading('💰 FINANCIAL SUMMARY', COLORS.success);
+    this.addSectionHeading('FINANCIAL SUMMARY', COLORS.success);
     
     const financialData = [
       { 
-        metric: '💵 Total Contributions', 
+        metric: 'Total Contributions', 
         amount: formatUGX(data.stats.totalContributions),
         status: 'Income'
       },
       { 
-        metric: '💸 Total Expenses', 
+        metric: 'Total Expenses', 
         amount: formatUGX(data.stats.totalExpenses),
         status: 'Outgoing'
       },
       { 
-        metric: data.stats.remainingBalance >= 0 ? '💎 Available Balance' : '⚠️ Deficit', 
+        metric: data.stats.remainingBalance >= 0 ? 'Available Balance' : 'Deficit', 
         amount: formatUGX(Math.abs(data.stats.remainingBalance)),
         status: data.stats.remainingBalance >= 0 ? 'Positive' : 'Negative'
       },
@@ -476,10 +468,10 @@ export class DashboardPDFExporter extends BasePDFExporter {
     if (data.upcomingEvents.length > 0) {
       const eventRows = data.upcomingEvents.slice(0, 6).map(event => ({
         date: formatDate(event.date, 'MMM d'),
-        type: event.type === 'training' ? '🏃 Training' : `⚽ vs ${event.opponent}`,
+        type: event.type === 'training' ? 'Training' : `vs ${event.opponent}`,
         time: event.time,
         location: event.location,
-        status: '📅 Upcoming',
+        status: 'Upcoming',
       }));
 
       this.addTable(
@@ -491,7 +483,7 @@ export class DashboardPDFExporter extends BasePDFExporter {
           { header: 'Status', dataKey: 'status', width: 25 },
         ],
         eventRows,
-        { title: '📅 UPCOMING EVENTS', headerColor: COLORS.info }
+        { title: 'UPCOMING EVENTS', headerColor: COLORS.info }
       );
     }
 
@@ -499,10 +491,10 @@ export class DashboardPDFExporter extends BasePDFExporter {
     if (data.recentTransactions.length > 0) {
       const transactionRows = data.recentTransactions.slice(0, 10).map(transaction => ({
         date: formatDate(transaction.date, 'MMM d'),
-        type: transaction.type === 'contribution' ? '💰 Income' : '💸 Expense',
+        type: transaction.type === 'contribution' ? 'Income' : 'Expense',
         description: transaction.description,
         amount: `${transaction.type === 'contribution' ? '+' : '-'}${formatUGX(transaction.amount)}`,
-        status: transaction.type === 'contribution' ? '✅ Credit' : '❌ Debit',
+        status: transaction.type === 'contribution' ? 'Credit' : 'Debit',
       }));
 
       this.addTable(
@@ -514,7 +506,30 @@ export class DashboardPDFExporter extends BasePDFExporter {
           { header: 'Status', dataKey: 'status', width: 25 },
         ],
         transactionRows,
-        { title: '💳 RECENT TRANSACTIONS', headerColor: COLORS.warning }
+        { title: 'RECENT TRANSACTIONS', headerColor: COLORS.warning }
+      );
+    }
+
+    // Attendance Trends if available
+    if (data.attendanceTrends && data.attendanceTrends.length > 0) {
+      const attendanceRows = data.attendanceTrends.slice(0, 8).map(trend => ({
+        date: formatDate(trend.date, 'MMM d'),
+        session: trend.type === 'training' ? 'Training' : `vs ${trend.opponent}`,
+        present: trend.presentCount.toString(),
+        total: trend.totalMembers.toString(),
+        rate: `${Math.round(trend.attendanceRate)}%`,
+      }));
+
+      this.addTable(
+        [
+          { header: 'Date', dataKey: 'date', width: 20 },
+          { header: 'Session', dataKey: 'session', width: 40 },
+          { header: 'Present', dataKey: 'present', width: 20 },
+          { header: 'Total', dataKey: 'total', width: 20 },
+          { header: 'Rate', dataKey: 'rate', width: 20 },
+        ],
+        attendanceRows,
+        { title: 'ATTENDANCE TRENDS', headerColor: COLORS.primary }
       );
     }
 
@@ -542,45 +557,32 @@ export class MembersPDFExporter extends BasePDFExporter {
         label: 'Total Members', 
         value: members.length.toString(),
         color: COLORS.primary,
-        icon: '👥'
       },
       { 
         label: 'Active Players', 
         value: activeMembers.toString(),
         color: COLORS.success,
-        icon: '✅'
       },
       { 
         label: 'Inactive', 
         value: inactiveMembers.toString(),
         color: COLORS.warning,
-        icon: '⏸️'
       },
       { 
         label: 'Injured', 
         value: injuredMembers.toString(),
         color: COLORS.danger,
-        icon: '🏥'
       },
     ]);
 
-    // Position breakdown with visual elements
+    // Position breakdown
     const positionCounts = members.reduce((acc, member) => {
       acc[member.position] = (acc[member.position] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
 
-    const positionIcons: Record<string, string> = {
-      'Goalkeeper': '🥅',
-      'Defender': '🛡️',
-      'Midfielder': '⚡',
-      'Forward': '🎯',
-      'Coach': '👨‍🏫',
-      'Manager': '👔'
-    };
-
     const positionData = Object.entries(positionCounts).map(([position, count]) => ({
-      position: `${positionIcons[position] || '⚽'} ${position}`,
+      position: position,
       count: count.toString(),
       percentage: `${Math.round((count / members.length) * 100)}%`,
     }));
@@ -592,30 +594,21 @@ export class MembersPDFExporter extends BasePDFExporter {
         { header: 'Percentage', dataKey: 'percentage', width: 25 },
       ],
       positionData,
-      { title: '⚽ SQUAD COMPOSITION', headerColor: COLORS.info }
+      { title: 'SQUAD COMPOSITION', headerColor: COLORS.info }
     );
 
-    // Complete member roster with enhanced formatting
+    // Complete member roster
     const memberRows = members
       .sort((a, b) => a.jerseyNumber - b.jerseyNumber)
-      .map(member => {
-        const statusIcons: Record<string, string> = {
-          'active': '✅',
-          'inactive': '⏸️',
-          'injured': '🏥',
-          'suspended': '🚫'
-        };
-        
-        return {
-          jersey: `#${member.jerseyNumber}`,
-          name: member.name,
-          position: `${positionIcons[member.position] || '⚽'} ${member.position}`,
-          status: `${statusIcons[member.status] || '❓'} ${member.status.charAt(0).toUpperCase() + member.status.slice(1)}`,
-          email: member.email,
-          phone: member.phone,
-          joined: formatDate(member.dateJoined, 'MMM yyyy'),
-        };
-      });
+      .map(member => ({
+        jersey: `#${member.jerseyNumber}`,
+        name: member.name,
+        position: member.position,
+        status: member.status.charAt(0).toUpperCase() + member.status.slice(1),
+        email: member.email,
+        phone: member.phone,
+        joined: formatDate(member.dateJoined, 'MMM yyyy'),
+      }));
 
     this.addTable(
       [
@@ -628,7 +621,7 @@ export class MembersPDFExporter extends BasePDFExporter {
         { header: 'Joined', dataKey: 'joined', width: 20 },
       ],
       memberRows,
-      { title: '👥 COMPLETE TEAM ROSTER', headerColor: COLORS.primary }
+      { title: 'COMPLETE TEAM ROSTER', headerColor: COLORS.primary }
     );
 
     this.save('fitholics-fc-members');
@@ -658,25 +651,21 @@ export class ContributionsPDFExporter extends BasePDFExporter {
         label: 'Total Income', 
         value: formatUGX(data.totalContributions),
         color: COLORS.success,
-        icon: '💰'
       },
       { 
         label: 'Total Expenses', 
         value: formatUGX(data.totalExpenses),
         color: COLORS.danger,
-        icon: '💸'
       },
       { 
         label: data.remainingBalance >= 0 ? 'Net Balance' : 'Deficit', 
         value: formatUGX(Math.abs(data.remainingBalance)),
         color: data.remainingBalance >= 0 ? COLORS.success : COLORS.warning,
-        icon: data.remainingBalance >= 0 ? '💎' : '⚠️'
       },
       { 
         label: 'Transactions', 
         value: (data.contributions.length + data.expenses.length).toString(),
         color: COLORS.info,
-        icon: '📊'
       },
     ]);
 
@@ -688,7 +677,7 @@ export class ContributionsPDFExporter extends BasePDFExporter {
       }, {} as Record<string, number>);
 
       const contributionTypeData = Object.entries(contributionsByType).map(([type, amount]) => ({
-        type: type === 'monetary' ? '💰 Monetary' : '🎁 In-Kind',
+        type: type === 'monetary' ? 'Monetary' : 'In-Kind',
         amount: formatUGX(amount),
         count: data.contributions.filter(c => c.type === type).length.toString(),
         percentage: `${Math.round((amount / data.totalContributions) * 100)}%`,
@@ -702,7 +691,7 @@ export class ContributionsPDFExporter extends BasePDFExporter {
           { header: 'Percentage', dataKey: 'percentage', width: 25 },
         ],
         contributionTypeData,
-        { title: '💰 CONTRIBUTIONS BY TYPE', headerColor: COLORS.success }
+        { title: 'CONTRIBUTIONS BY TYPE', headerColor: COLORS.success }
       );
 
       // Recent contributions with member details
@@ -713,8 +702,8 @@ export class ContributionsPDFExporter extends BasePDFExporter {
           const member = data.members.find(m => m.id === contribution.memberId);
           return {
             date: formatDate(contribution.date, 'MMM d'),
-            member: member ? `👤 ${member.name}` : '❓ Unknown',
-            type: contribution.type === 'monetary' ? '💰 Money' : '🎁 In-Kind',
+            member: member ? member.name : 'Unknown',
+            type: contribution.type === 'monetary' ? 'Money' : 'In-Kind',
             amount: contribution.amount ? formatUGX(contribution.amount) : 'N/A',
             description: contribution.description,
           };
@@ -729,7 +718,7 @@ export class ContributionsPDFExporter extends BasePDFExporter {
           { header: 'Description', dataKey: 'description', width: 50 },
         ],
         recentContributions,
-        { title: '📝 RECENT CONTRIBUTIONS', headerColor: COLORS.success }
+        { title: 'RECENT CONTRIBUTIONS', headerColor: COLORS.success }
       );
     }
 
@@ -740,21 +729,8 @@ export class ContributionsPDFExporter extends BasePDFExporter {
         return acc;
       }, {} as Record<string, number>);
 
-      const categoryIcons: Record<string, string> = {
-        'equipment': '⚽',
-        'transport': '🚌',
-        'medical': '🏥',
-        'facilities': '🏟️',
-        'referees': '👨‍⚖️',
-        'food': '🍽️',
-        'uniforms': '👕',
-        'training': '🏃',
-        'administration': '📋',
-        'other': '📦'
-      };
-
       const expenseCategoryData = Object.entries(expensesByCategory).map(([category, amount]) => ({
-        category: `${categoryIcons[category] || '📦'} ${category.charAt(0).toUpperCase() + category.slice(1)}`,
+        category: category.charAt(0).toUpperCase() + category.slice(1),
         amount: formatUGX(amount),
         count: data.expenses.filter(e => e.category === category).length.toString(),
         percentage: `${Math.round((amount / data.totalExpenses) * 100)}%`,
@@ -768,16 +744,16 @@ export class ContributionsPDFExporter extends BasePDFExporter {
           { header: 'Percentage', dataKey: 'percentage', width: 25 },
         ],
         expenseCategoryData,
-        { title: '💸 EXPENSES BY CATEGORY', headerColor: COLORS.danger }
+        { title: 'EXPENSES BY CATEGORY', headerColor: COLORS.danger }
       );
 
-      // Recent expenses with enhanced formatting
+      // Recent expenses
       const recentExpenses = data.expenses
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
         .slice(0, 15)
         .map(expense => ({
           date: formatDate(expense.date, 'MMM d'),
-          category: `${categoryIcons[expense.category] || '📦'} ${expense.category.charAt(0).toUpperCase() + expense.category.slice(1)}`,
+          category: expense.category.charAt(0).toUpperCase() + expense.category.slice(1),
           amount: formatUGX(expense.amount),
           description: expense.description,
         }));
@@ -790,7 +766,7 @@ export class ContributionsPDFExporter extends BasePDFExporter {
           { header: 'Description', dataKey: 'description', width: 60 },
         ],
         recentExpenses,
-        { title: '📋 RECENT EXPENSES', headerColor: COLORS.danger }
+        { title: 'RECENT EXPENSES', headerColor: COLORS.danger }
       );
     }
 
@@ -819,19 +795,16 @@ export class EventsPDFExporter extends BasePDFExporter {
         label: 'Total Events', 
         value: filteredEvents.length.toString(),
         color: COLORS.primary,
-        icon: '📅'
       },
       { 
         label: 'Upcoming', 
         value: upcomingEvents.toString(),
         color: COLORS.success,
-        icon: '⏰'
       },
       { 
         label: 'Completed', 
         value: pastEvents.toString(),
         color: COLORS.info,
-        icon: '✅'
       },
     ];
 
@@ -840,13 +813,12 @@ export class EventsPDFExporter extends BasePDFExporter {
         label: 'Training', 
         value: trainingCount.toString(),
         color: COLORS.warning,
-        icon: '🏃'
       });
     }
 
     this.addStatsSection(statsData);
 
-    // Monthly breakdown with visual elements
+    // Monthly breakdown
     const monthlyBreakdown = filteredEvents.reduce((acc, event) => {
       const month = new Date(event.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
       acc[month] = (acc[month] || 0) + 1;
@@ -854,7 +826,7 @@ export class EventsPDFExporter extends BasePDFExporter {
     }, {} as Record<string, number>);
 
     const monthlyData = Object.entries(monthlyBreakdown).map(([month, count]) => ({
-      month: `📅 ${month}`,
+      month: month,
       events: count.toString(),
       training: filteredEvents.filter(e => e.type === 'training' && new Date(e.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long' }) === month).length.toString(),
       friendlies: filteredEvents.filter(e => e.type === 'friendly' && new Date(e.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long' }) === month).length.toString(),
@@ -868,19 +840,19 @@ export class EventsPDFExporter extends BasePDFExporter {
         { header: 'Friendlies', dataKey: 'friendlies', width: 25 },
       ],
       monthlyData,
-      { title: '📊 EVENTS BY MONTH', headerColor: COLORS.info }
+      { title: 'EVENTS BY MONTH', headerColor: COLORS.info }
     );
 
-    // Complete events list with enhanced formatting
+    // Complete events list
     const eventRows = filteredEvents
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
       .map(event => ({
         date: formatDate(event.date, 'MMM d'),
-        time: `⏰ ${event.time}`,
-        type: event.type === 'training' ? '🏃 Training' : '⚽ Friendly',
+        time: event.time,
+        type: event.type === 'training' ? 'Training' : 'Friendly',
         description: event.type === 'training' ? (event.description || 'Training Session') : `vs ${event.opponent}`,
-        location: `📍 ${event.location}`,
-        status: new Date(event.date) > new Date() ? '📅 Upcoming' : '✅ Completed',
+        location: event.location,
+        status: new Date(event.date) > new Date() ? 'Upcoming' : 'Completed',
       }));
 
     this.addTable(
@@ -893,7 +865,7 @@ export class EventsPDFExporter extends BasePDFExporter {
         { header: 'Status', dataKey: 'status', width: 25 },
       ],
       eventRows,
-      { title: '📋 COMPLETE SCHEDULE', headerColor: COLORS.primary }
+      { title: 'COMPLETE SCHEDULE', headerColor: COLORS.primary }
     );
 
     this.save(`fitholics-fc-${type === 'all' ? 'events' : type}`);
@@ -924,43 +896,32 @@ export class AttendancePDFExporter extends BasePDFExporter {
         label: 'Total Sessions', 
         value: data.stats.totalSessions.toString(),
         color: COLORS.primary,
-        icon: '📅'
       },
       { 
         label: 'Average Attendance', 
         value: data.stats.averageAttendance.toString(),
         color: COLORS.success,
-        icon: '📊'
       },
       { 
         label: 'Best Attendance', 
         value: data.stats.highestAttendance.toString(),
         color: COLORS.warning,
-        icon: '🏆'
       },
       { 
         label: 'Lowest Attendance', 
         value: data.stats.lowestAttendance.toString(),
         color: COLORS.info,
-        icon: '📉'
       },
     ]);
 
-    // Attendance by status with visual indicators
+    // Attendance by status
     const statusCounts = data.attendanceRecords.reduce((acc, record) => {
       acc[record.attendance.status] = (acc[record.attendance.status] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
 
-    const statusIcons: Record<string, string> = {
-      'present': '✅',
-      'absent': '❌',
-      'late': '⏰',
-      'excused': '📝'
-    };
-
     const statusData = Object.entries(statusCounts).map(([status, count]) => ({
-      status: `${statusIcons[status] || '❓'} ${status.charAt(0).toUpperCase() + status.slice(1)}`,
+      status: status.charAt(0).toUpperCase() + status.slice(1),
       count: count.toString(),
       percentage: `${Math.round((count / data.attendanceRecords.length) * 100)}%`,
     }));
@@ -972,19 +933,19 @@ export class AttendancePDFExporter extends BasePDFExporter {
         { header: 'Percentage', dataKey: 'percentage', width: 25 },
       ],
       statusData,
-      { title: '📊 ATTENDANCE BY STATUS', headerColor: COLORS.success }
+      { title: 'ATTENDANCE BY STATUS', headerColor: COLORS.success }
     );
 
-    // Detailed attendance records with enhanced formatting
+    // Detailed attendance records
     const attendanceRows = data.attendanceRecords
       .sort((a, b) => new Date(b.event.date).getTime() - new Date(a.event.date).getTime())
       .slice(0, 50)
       .map(record => ({
         date: formatDate(record.event.date, 'MMM d'),
-        event: record.event.type === 'training' ? '🏃 Training' : `⚽ vs ${record.event.opponent}`,
-        member: `👤 ${record.member.name}`,
+        event: record.event.type === 'training' ? 'Training' : `vs ${record.event.opponent}`,
+        member: record.member.name,
         jersey: `#${record.member.jerseyNumber}`,
-        status: `${statusIcons[record.attendance.status] || '❓'} ${record.attendance.status.charAt(0).toUpperCase() + record.attendance.status.slice(1)}`,
+        status: record.attendance.status.charAt(0).toUpperCase() + record.attendance.status.slice(1),
         notes: record.attendance.notes || 'No notes',
       }));
 
@@ -998,7 +959,7 @@ export class AttendancePDFExporter extends BasePDFExporter {
         { header: 'Notes', dataKey: 'notes', width: 40 },
       ],
       attendanceRows,
-      { title: '📋 RECENT ATTENDANCE RECORDS', headerColor: COLORS.primary }
+      { title: 'RECENT ATTENDANCE RECORDS', headerColor: COLORS.primary }
     );
 
     this.save('fitholics-fc-attendance');
@@ -1025,29 +986,25 @@ export class LeadershipPDFExporter extends BasePDFExporter {
         label: 'Total Positions', 
         value: data.leadership.length.toString(),
         color: COLORS.primary,
-        icon: '👔'
       },
       { 
         label: 'Active Roles', 
         value: activeRoles.toString(),
         color: COLORS.success,
-        icon: '✅'
       },
       { 
         label: 'Inactive Roles', 
         value: inactiveRoles.toString(),
         color: COLORS.warning,
-        icon: '⏸️'
       },
       { 
         label: 'Leaders', 
         value: uniqueLeaders.toString(),
         color: COLORS.info,
-        icon: '👥'
       },
     ]);
 
-    // Leadership by category with visual elements
+    // Leadership by category
     const getRoleCategory = (role: string): string => {
       const technicalStaff = ['Head Coach', 'Assistant Coach', 'Goalkeeping Coach', 'Fitness Trainer', 'Physiotherapist', 'Team Doctor', 'Nutritionist'];
       const teamLeadership = ['Captain', 'Vice Captain', 'Team Leader'];
@@ -1065,15 +1022,8 @@ export class LeadershipPDFExporter extends BasePDFExporter {
       return acc;
     }, {} as Record<string, number>);
 
-    const categoryIcons: Record<string, string> = {
-      'Technical Staff': '🏃‍♂️',
-      'Team Leadership': '👑',
-      'Administrative': '📋',
-      'Other': '⚽'
-    };
-
     const categoryData = Object.entries(categoryBreakdown).map(([category, count]) => ({
-      category: `${categoryIcons[category] || '⚽'} ${category}`,
+      category: category,
       count: count.toString(),
       percentage: `${Math.round((count / data.leadership.length) * 100)}%`,
     }));
@@ -1085,33 +1035,21 @@ export class LeadershipPDFExporter extends BasePDFExporter {
         { header: 'Percentage', dataKey: 'percentage', width: 25 },
       ],
       categoryData,
-      { title: '📊 ROLES BY CATEGORY', headerColor: COLORS.warning }
+      { title: 'ROLES BY CATEGORY', headerColor: COLORS.warning }
     );
 
-    // Complete leadership roster with enhanced formatting
-    const roleIcons: Record<string, string> = {
-      'Head Coach': '🏆',
-      'Assistant Coach': '🥅',
-      'Captain': '👑',
-      'Vice Captain': '🔰',
-      'Team Manager': '📋',
-      'Secretary': '📝',
-      'Treasurer': '💰',
-      'Chairman': '🏛️',
-      'Vice Chairman': '🏛️'
-    };
-
+    // Complete leadership roster
     const leadershipRows = data.leadership
       .sort((a, b) => a.role.localeCompare(b.role))
       .map(leadership => {
         const member = data.members.find(m => m.id === leadership.memberId);
         return {
-          member: member ? `👤 ${member.name}` : '❓ Unknown Member',
+          member: member ? member.name : 'Unknown Member',
           jersey: member ? `#${member.jerseyNumber}` : 'N/A',
-          role: `${roleIcons[leadership.role] || '⚽'} ${leadership.role}`,
-          category: `${categoryIcons[getRoleCategory(leadership.role)] || '⚽'} ${getRoleCategory(leadership.role)}`,
+          role: leadership.role,
+          category: getRoleCategory(leadership.role),
           startDate: formatDate(leadership.startDate, 'MMM yyyy'),
-          status: leadership.isActive ? '✅ Active' : '⏸️ Inactive',
+          status: leadership.isActive ? 'Active' : 'Inactive',
         };
       });
 
@@ -1125,7 +1063,7 @@ export class LeadershipPDFExporter extends BasePDFExporter {
         { header: 'Status', dataKey: 'status', width: 25 },
       ],
       leadershipRows,
-      { title: '👔 LEADERSHIP DIRECTORY', headerColor: COLORS.primary }
+      { title: 'LEADERSHIP DIRECTORY', headerColor: COLORS.primary }
     );
 
     this.save('fitholics-fc-leadership');

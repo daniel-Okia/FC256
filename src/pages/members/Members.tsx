@@ -51,11 +51,23 @@ const Members: React.FC = () => {
     formState: { errors },
   } = useForm<MemberFormData>();
 
+  // Enhanced position options with more football positions
   const positionOptions = [
     { value: 'Goalkeeper', label: 'Goalkeeper' },
-    { value: 'Defender', label: 'Defender' },
-    { value: 'Midfielder', label: 'Midfielder' },
-    { value: 'Forward', label: 'Forward' },
+    { value: 'Centre-back', label: 'Centre-back' },
+    { value: 'Left-back', label: 'Left-back' },
+    { value: 'Right-back', label: 'Right-back' },
+    { value: 'Sweeper', label: 'Sweeper' },
+    { value: 'Defensive Midfielder', label: 'Defensive Midfielder' },
+    { value: 'Central Midfielder', label: 'Central Midfielder' },
+    { value: 'Attacking Midfielder', label: 'Attacking Midfielder' },
+    { value: 'Left Midfielder', label: 'Left Midfielder' },
+    { value: 'Right Midfielder', label: 'Right Midfielder' },
+    { value: 'Left Winger', label: 'Left Winger' },
+    { value: 'Right Winger', label: 'Right Winger' },
+    { value: 'Centre Forward', label: 'Centre Forward' },
+    { value: 'Striker', label: 'Striker' },
+    { value: 'Second Striker', label: 'Second Striker' },
     { value: 'Coach', label: 'Coach' },
     { value: 'Manager', label: 'Manager' },
   ];
@@ -230,7 +242,7 @@ const Members: React.FC = () => {
     setEditingMember(null);
     reset({
       name: '',
-      position: 'Forward',
+      position: 'Centre Forward',
       email: '',
       phone: '',
       status: 'active',

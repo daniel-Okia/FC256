@@ -5,6 +5,8 @@ import { MemberService, EventService, ContributionService, ExpenseService, Atten
 import PageHeader from '../../components/layout/PageHeader';
 import DashboardCard from './DashboardCard';
 import AttendanceChart from './AttendanceChart';
+import PositionChart from './PositionChart';
+import FinancialChart from './FinancialChart';
 import UpcomingEvents from './UpcomingEvents';
 import RecentTransactions from './RecentTransactions';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
@@ -44,6 +46,7 @@ const Dashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [upcomingEvents, setUpcomingEvents] = useState<any[]>([]);
   const [recentTransactions, setRecentTransactions] = useState<any[]>([]);
+  const [attendanceTrends, setAttendanceTrends] = useState<any[]>([]);
   const [exporting, setExporting] = useState(false);
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
   const [dateRange, setDateRange] = useState<DateRange>({
@@ -59,18 +62,20 @@ const Dashboard: React.FC = () => {
         setLoading(true);
         
         // Load all data in parallel
-        const [members, events, contributions, expenses] = await Promise.all([
+        const [members, events, contributions, expenses, attendance] = await Promise.all([
           MemberService.getAllMembers(),
           EventService.getAllEvents(),
           ContributionService.getAllContributions(),
           ExpenseService.getAllExpenses(),
+          AttendanceService.getAllAttendance(),
         ]);
 
         console.log('Dashboard data loaded:', {
           members: members.length,
           events: events.length,
           contributions: contributions.length,
-          expenses: expenses.length
+          expenses: expenses.length,
+          attendance: attendance.length
         });
 
         // Get current date info
@@ -153,6 +158,29 @@ const Dashboard: React.FC = () => {
           .slice(0, 10);
         setRecentTransactions(recent);
 
+        // Calculate attendance trends for the last 30 days
+        const recentTrainingEvents = events.filter(event => {
+          const eventDate = new Date(event.date);
+          return event.type === 'training' && eventDate >= thirtyDaysAgo && eventDate <= now;
+        });
+
+        const attendanceTrendsData = recentTrainingEvents.map(event => {
+          const eventAttendance = attendance.filter(a => 
+            a.eventId === event.id && a.status === 'present'
+          );
+          
+          return {
+            date: event.date,
+            type: event.type,
+            opponent: event.opponent,
+            presentCount: eventAttendance.length,
+            totalMembers: activeMembers,
+            attendanceRate: activeMembers > 0 ? (eventAttendance.length / activeMembers) * 100 : 0,
+          };
+        });
+
+        setAttendanceTrends(attendanceTrendsData);
+
         setStats({
           totalMembers: members.length,
           activeMembers,
@@ -198,6 +226,7 @@ const Dashboard: React.FC = () => {
         stats,
         upcomingEvents,
         recentTransactions,
+        attendanceTrends,
         ...(dateRange.startDate && dateRange.endDate && { dateRange }),
       };
       
@@ -236,7 +265,7 @@ const Dashboard: React.FC = () => {
   }
 
   return (
-    <div>
+    <div className="w-full max-w-full overflow-hidden">
       <PageHeader
         title={`Welcome, ${user?.name}`}
         description="Team management dashboard and overview"
@@ -341,6 +370,12 @@ const Dashboard: React.FC = () => {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Charts Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <PositionChart />
+        <FinancialChart />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
