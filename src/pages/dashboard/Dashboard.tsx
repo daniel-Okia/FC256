@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Calendar, Award, CreditCard, TrendingDown, Download } from 'lucide-react';
+import { Users, Calendar, Award, CreditCard, TrendingDown, Download, Filter } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { MemberService, EventService, ContributionService, ExpenseService, AttendanceService } from '../../services/firestore';
 import PageHeader from '../../components/layout/PageHeader';
@@ -9,6 +9,8 @@ import UpcomingEvents from './UpcomingEvents';
 import RecentTransactions from './RecentTransactions';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import Button from '../../components/ui/Button';
+import Input from '../../components/ui/Input';
+import Modal from '../../components/ui/Modal';
 import { formatUGX } from '../../utils/currency-utils';
 import { DashboardPDFExporter } from '../../utils/pdf-export';
 import { canUserAccess, Permissions } from '../../utils/permissions';
@@ -21,6 +23,11 @@ interface DashboardStats {
   totalContributions: number;
   totalExpenses: number;
   remainingBalance: number;
+}
+
+interface DateRange {
+  startDate: string;
+  endDate: string;
 }
 
 const Dashboard: React.FC = () => {
@@ -38,6 +45,11 @@ const Dashboard: React.FC = () => {
   const [upcomingEvents, setUpcomingEvents] = useState<any[]>([]);
   const [recentTransactions, setRecentTransactions] = useState<any[]>([]);
   const [exporting, setExporting] = useState(false);
+  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
+  const [dateRange, setDateRange] = useState<DateRange>({
+    startDate: '',
+    endDate: '',
+  });
 
   const canExport = user && canUserAccess(user.role, Permissions.EXPORT_REPORTS);
 
@@ -180,16 +192,39 @@ const Dashboard: React.FC = () => {
     try {
       setExporting(true);
       const exporter = new DashboardPDFExporter();
-      exporter.exportDashboard({
+      
+      // Include date range if specified
+      const exportData = {
         stats,
         upcomingEvents,
         recentTransactions,
-      });
+        ...(dateRange.startDate && dateRange.endDate && { dateRange }),
+      };
+      
+      exporter.exportDashboard(exportData);
     } catch (error) {
       console.error('Error exporting dashboard:', error);
     } finally {
       setExporting(false);
     }
+  };
+
+  const handleFilteredExport = () => {
+    setIsFilterModalOpen(true);
+  };
+
+  const handleDateRangeExport = () => {
+    if (!dateRange.startDate || !dateRange.endDate) {
+      alert('Please select both start and end dates');
+      return;
+    }
+    
+    setIsFilterModalOpen(false);
+    handleExportDashboard();
+  };
+
+  const resetDateRange = () => {
+    setDateRange({ startDate: '', endDate: '' });
   };
 
   if (loading) {
@@ -207,14 +242,25 @@ const Dashboard: React.FC = () => {
         description="Team management dashboard and overview"
         actions={
           canExport && (
-            <Button
-              onClick={handleExportDashboard}
-              leftIcon={<Download size={18} />}
-              isLoading={exporting}
-              variant="outline"
-            >
-              Export Dashboard
-            </Button>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Button
+                onClick={handleExportDashboard}
+                leftIcon={<Download size={18} />}
+                isLoading={exporting}
+                variant="outline"
+                className="w-full sm:w-auto"
+              >
+                Export Dashboard
+              </Button>
+              <Button
+                onClick={handleFilteredExport}
+                leftIcon={<Filter size={18} />}
+                variant="primary"
+                className="w-full sm:w-auto bg-gradient-to-r from-primary-600 to-yellow-500 hover:from-primary-700 hover:to-yellow-600 text-white"
+              >
+                Export with Date Filter
+              </Button>
+            </div>
           )
         }
       />
@@ -306,6 +352,85 @@ const Dashboard: React.FC = () => {
       <div className="mb-8">
         <RecentTransactions />
       </div>
+
+      {/* Date Filter Modal */}
+      <Modal
+        isOpen={isFilterModalOpen}
+        onClose={() => setIsFilterModalOpen(false)}
+        title="Export Dashboard with Date Filter"
+        size="lg"
+      >
+        <div className="space-y-6">
+          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+            <div className="flex items-center">
+              <Filter size={20} className="text-blue-600 dark:text-blue-400 mr-2" />
+              <div>
+                <h4 className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                  Date Range Export
+                </h4>
+                <p className="text-sm text-blue-700 dark:text-blue-300">
+                  Select a date range to filter the dashboard data for export. This will include transactions, events, and statistics within the specified period.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Input
+              label="Start Date"
+              type="date"
+              value={dateRange.startDate}
+              onChange={(e) => setDateRange(prev => ({ ...prev, startDate: e.target.value }))}
+              required
+            />
+            <Input
+              label="End Date"
+              type="date"
+              value={dateRange.endDate}
+              onChange={(e) => setDateRange(prev => ({ ...prev, endDate: e.target.value }))}
+              required
+            />
+          </div>
+
+          {dateRange.startDate && dateRange.endDate && (
+            <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+              <h4 className="text-sm font-medium text-green-900 dark:text-green-100 mb-2">
+                Selected Date Range
+              </h4>
+              <p className="text-sm text-green-700 dark:text-green-300">
+                <strong>From:</strong> {new Date(dateRange.startDate).toLocaleDateString()} <br />
+                <strong>To:</strong> {new Date(dateRange.endDate).toLocaleDateString()} <br />
+                <strong>Duration:</strong> {Math.ceil((new Date(dateRange.endDate).getTime() - new Date(dateRange.startDate).getTime()) / (1000 * 60 * 60 * 24))} days
+              </p>
+            </div>
+          )}
+
+          <div className="flex flex-col sm:flex-row justify-end space-y-3 sm:space-y-0 sm:space-x-3 pt-6 border-t border-gray-200 dark:border-gray-700">
+            <Button
+              variant="outline"
+              onClick={resetDateRange}
+              className="w-full sm:w-auto"
+            >
+              Clear Dates
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setIsFilterModalOpen(false)}
+              className="w-full sm:w-auto"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleDateRangeExport}
+              isLoading={exporting}
+              className="bg-gradient-to-r from-primary-600 to-yellow-500 hover:from-primary-700 hover:to-yellow-600 text-white w-full sm:w-auto"
+              leftIcon={<Download size={18} />}
+            >
+              Export Filtered Dashboard
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };
