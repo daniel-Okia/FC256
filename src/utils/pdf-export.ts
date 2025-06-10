@@ -4,7 +4,7 @@ import { Attendance, Contribution, Event, Member, Expense, Leadership } from '..
 import { formatDate } from './date-utils';
 import { formatUGX } from './currency-utils';
 
-// Enhanced PDF styling with beautiful graphics (no emojis)
+// Formal PDF styling with beautiful gradients (no emojis)
 const COLORS = {
   primary: '#4f4fe6',
   yellow: '#eab308',
@@ -18,24 +18,19 @@ const COLORS = {
   darkGray: '#374151',
   white: '#ffffff',
   black: '#000000',
-  gradient: {
-    start: '#4f4fe6',
-    middle: '#eab308',
-    end: '#f43f4e'
-  }
 };
 
 const FONTS = {
-  title: 20,
-  subtitle: 16,
-  heading: 14,
-  body: 11,
-  small: 9,
-  tiny: 8,
+  title: 18,
+  subtitle: 14,
+  heading: 12,
+  body: 10,
+  small: 8,
+  tiny: 7,
 };
 
 /**
- * Enhanced PDF export class with beautiful graphics and branding
+ * Formal PDF export class with professional styling and gradients
  */
 class BasePDFExporter {
   protected doc: jsPDF;
@@ -51,72 +46,66 @@ class BasePDFExporter {
   }
 
   /**
-   * Add beautiful header with Fitholics FC branding and graphics
+   * Add formal header with Fitholics FC branding
    */
   protected addHeader(title: string, subtitle?: string): void {
-    // Background gradient header
-    this.addGradientBackground(0, 0, this.pageWidth, 60, COLORS.primary, COLORS.yellow);
+    // Header background with gradient effect
+    this.addGradientBackground(0, 0, this.pageWidth, 50, COLORS.primary, COLORS.yellow);
     
-    // Team logo placeholder (circular background)
-    this.doc.setFillColor(255, 255, 255);
-    this.doc.circle(this.margin + 15, this.margin + 15, 12, 'F');
-    
-    // Logo border
-    this.doc.setDrawColor(COLORS.yellow);
-    this.doc.setLineWidth(2);
-    this.doc.circle(this.margin + 15, this.margin + 15, 12, 'S');
-    
-    // Team name with beautiful typography
+    // Team name with professional typography
     this.doc.setFontSize(FONTS.title);
     this.doc.setTextColor(255, 255, 255);
     this.doc.setFont('helvetica', 'bold');
-    this.doc.text('FITHOLICS FC', this.margin + 35, this.margin + 12);
+    this.doc.text('FITHOLICS FC', this.margin, this.margin + 12);
     
-    // Core values with elegant styling
+    // Core values
     this.doc.setFontSize(FONTS.small);
     this.doc.setFont('helvetica', 'italic');
-    this.doc.text('Excellence • Discipline • Teamwork', this.margin + 35, this.margin + 20);
+    this.doc.text('Excellence • Discipline • Teamwork', this.margin, this.margin + 20);
     
-    // Manager contact in elegant box (right side)
-    const contactBoxX = this.pageWidth - 70;
-    const contactBoxY = this.margin + 5;
+    // Manager contact (right side)
+    const contactX = this.pageWidth - 70;
     
     // Contact background
-    this.doc.setFillColor(255, 255, 255, 0.9);
-    this.doc.roundedRect(contactBoxX, contactBoxY, 65, 25, 3, 3, 'F');
+    this.doc.setFillColor(255, 255, 255, 0.95);
+    this.doc.roundedRect(contactX, this.margin + 5, 65, 25, 2, 2, 'F');
     
     // Contact details
     this.doc.setFontSize(FONTS.tiny);
     this.doc.setTextColor(COLORS.darkGray);
     this.doc.setFont('helvetica', 'bold');
-    this.doc.text('Team Manager', contactBoxX + 3, contactBoxY + 5);
+    this.doc.text('Team Manager', contactX + 3, this.margin + 10);
     this.doc.setFont('helvetica', 'normal');
-    this.doc.text('Pius Paul', contactBoxX + 3, contactBoxY + 9);
-    this.doc.text('piuspaul392@gmail.com', contactBoxX + 3, contactBoxY + 13);
-    this.doc.text('+256 700 654 321', contactBoxX + 3, contactBoxY + 17);
+    this.doc.text('Pius Paul', contactX + 3, this.margin + 14);
+    this.doc.text('piuspaul392@gmail.com', contactX + 3, this.margin + 18);
+    this.doc.text('+256 700 654 321', contactX + 3, this.margin + 22);
     
-    // Decorative line with gradient effect
-    this.addGradientLine(this.margin, 65, this.pageWidth - this.margin, 65);
+    // Professional separator line
+    this.doc.setDrawColor(COLORS.yellow);
+    this.doc.setLineWidth(2);
+    this.doc.line(this.margin, 55, this.pageWidth - this.margin, 55);
     
-    // Report title with shadow effect
-    this.addTextWithShadow(title, this.margin, 80, FONTS.subtitle, COLORS.darkGray, true);
+    // Report title
+    this.doc.setFontSize(FONTS.subtitle);
+    this.doc.setTextColor(COLORS.darkGray);
+    this.doc.setFont('helvetica', 'bold');
+    this.doc.text(title, this.margin, 70);
     
     if (subtitle) {
       this.doc.setFontSize(FONTS.body);
       this.doc.setTextColor(COLORS.gray);
       this.doc.setFont('helvetica', 'normal');
-      this.doc.text(subtitle, this.margin, 88);
+      this.doc.text(subtitle, this.margin, 78);
     }
     
-    this.currentY = 100;
+    this.currentY = 90;
   }
 
   /**
    * Add gradient background
    */
   protected addGradientBackground(x: number, y: number, width: number, height: number, startColor: string, endColor: string): void {
-    // Simulate gradient with multiple rectangles
-    const steps = 20;
+    const steps = 15;
     const stepHeight = height / steps;
     
     for (let i = 0; i < steps; i++) {
@@ -128,34 +117,9 @@ class BasePDFExporter {
   }
 
   /**
-   * Add gradient line
-   */
-  protected addGradientLine(x1: number, y: number, x2: number, y2: number): void {
-    this.doc.setDrawColor(COLORS.yellow);
-    this.doc.setLineWidth(2);
-    this.doc.line(x1, y, x2, y2);
-  }
-
-  /**
-   * Add text with shadow effect
-   */
-  protected addTextWithShadow(text: string, x: number, y: number, fontSize: number, color: string, bold: boolean = false): void {
-    // Shadow
-    this.doc.setFontSize(fontSize);
-    this.doc.setTextColor(200, 200, 200);
-    this.doc.setFont('helvetica', bold ? 'bold' : 'normal');
-    this.doc.text(text, x + 0.5, y + 0.5);
-    
-    // Main text
-    this.doc.setTextColor(color);
-    this.doc.text(text, x, y);
-  }
-
-  /**
    * Interpolate between two colors
    */
   protected interpolateColor(color1: string, color2: string, ratio: number): string {
-    // Simple color interpolation (hex to RGB)
     const hex1 = color1.replace('#', '');
     const hex2 = color2.replace('#', '');
     
@@ -175,46 +139,41 @@ class BasePDFExporter {
   }
 
   /**
-   * Add beautiful statistics cards
+   * Add professional statistics cards
    */
   protected addStatsSection(stats: { label: string; value: string; color?: string }[]): void {
-    const cardWidth = (this.pageWidth - this.margin * 2 - 15 * (stats.length - 1)) / stats.length;
-    const cardHeight = 35;
+    const cardWidth = (this.pageWidth - this.margin * 2 - 10 * (stats.length - 1)) / stats.length;
+    const cardHeight = 30;
 
     stats.forEach((stat, index) => {
-      const x = this.margin + index * (cardWidth + 15);
+      const x = this.margin + index * (cardWidth + 10);
       
       // Card shadow
       this.doc.setFillColor(0, 0, 0, 0.1);
-      this.doc.roundedRect(x + 1, this.currentY + 1, cardWidth, cardHeight, 5, 5, 'F');
+      this.doc.roundedRect(x + 1, this.currentY + 1, cardWidth, cardHeight, 3, 3, 'F');
       
-      // Card background with gradient
+      // Card background
       const cardColor = stat.color || COLORS.primary;
-      this.addGradientBackground(x, this.currentY, cardWidth, cardHeight, cardColor, this.lightenColor(cardColor, 0.3));
+      this.addGradientBackground(x, this.currentY, cardWidth, cardHeight, cardColor, this.lightenColor(cardColor, 0.2));
       
       // Card border
       this.doc.setDrawColor(cardColor);
       this.doc.setLineWidth(1);
-      this.doc.roundedRect(x, this.currentY, cardWidth, cardHeight, 5, 5, 'S');
+      this.doc.roundedRect(x, this.currentY, cardWidth, cardHeight, 3, 3, 'S');
       
       // Label
       this.doc.setFontSize(FONTS.small);
       this.doc.setTextColor(255, 255, 255);
       this.doc.setFont('helvetica', 'normal');
-      this.doc.text(stat.label, x + cardWidth / 2, this.currentY + 12, { align: 'center' });
+      this.doc.text(stat.label, x + cardWidth / 2, this.currentY + 10, { align: 'center' });
       
-      // Value with emphasis
+      // Value
       this.doc.setFontSize(FONTS.heading);
       this.doc.setFont('helvetica', 'bold');
-      this.doc.text(stat.value, x + cardWidth / 2, this.currentY + 25, { align: 'center' });
-      
-      // Decorative bottom line
-      this.doc.setDrawColor(255, 255, 255, 0.5);
-      this.doc.setLineWidth(2);
-      this.doc.line(x + 5, this.currentY + cardHeight - 3, x + cardWidth - 5, this.currentY + cardHeight - 3);
+      this.doc.text(stat.value, x + cardWidth / 2, this.currentY + 22, { align: 'center' });
     });
 
-    this.currentY += cardHeight + 25;
+    this.currentY += cardHeight + 20;
   }
 
   /**
@@ -230,14 +189,13 @@ class BasePDFExporter {
   }
 
   /**
-   * Add beautiful section heading
+   * Add professional section heading
    */
   protected addSectionHeading(title: string, color: string = COLORS.primary): void {
-    this.checkPageBreak(25);
+    this.checkPageBreak(20);
     
-    // Background bar
-    this.doc.setFillColor(color);
-    this.doc.rect(this.margin - 5, this.currentY - 2, this.pageWidth - this.margin * 2 + 10, 20, 'F');
+    // Background bar with gradient
+    this.addGradientBackground(this.margin - 5, this.currentY - 2, this.pageWidth - this.margin * 2 + 10, 16, color, this.lightenColor(color, 0.3));
     
     // Title text
     this.doc.setFontSize(FONTS.heading);
@@ -245,23 +203,18 @@ class BasePDFExporter {
     this.doc.setFont('helvetica', 'bold');
     this.doc.text(title, this.margin, this.currentY + 8);
     
-    // Decorative elements
-    this.doc.setFillColor(255, 255, 255, 0.3);
-    this.doc.circle(this.pageWidth - this.margin - 10, this.currentY + 8, 3, 'F');
-    this.doc.circle(this.pageWidth - this.margin - 20, this.currentY + 8, 2, 'F');
-    
-    this.currentY += 30;
+    this.currentY += 25;
   }
 
   /**
-   * Add beautiful table
+   * Add professional table
    */
   protected addTable(
     columns: { header: string; dataKey: string; width?: number }[],
     rows: any[],
     options: { title?: string; headerColor?: string } = {}
   ): void {
-    this.checkPageBreak(60);
+    this.checkPageBreak(50);
 
     if (options.title) {
       this.addSectionHeading(options.title, options.headerColor);
@@ -275,18 +228,17 @@ class BasePDFExporter {
       startY: this.currentY,
       styles: { 
         fontSize: FONTS.body, 
-        cellPadding: 4,
+        cellPadding: 3,
         textColor: COLORS.darkGray,
         lineColor: COLORS.lightGray,
-        lineWidth: 0.5,
-        overflow: 'linebreak',
+        lineWidth: 0.3,
       },
       headStyles: { 
         fillColor: headerColor,
         textColor: '#ffffff',
         fontStyle: 'bold',
         fontSize: FONTS.body,
-        cellPadding: 6,
+        cellPadding: 5,
       },
       alternateRowStyles: { 
         fillColor: '#fafafa'
@@ -298,15 +250,14 @@ class BasePDFExporter {
         return acc;
       }, {} as any),
       margin: { left: this.margin, right: this.margin },
-      tableWidth: 'auto',
       theme: 'grid',
     });
 
-    this.currentY = (this.doc as any).lastAutoTable.finalY + 20;
+    this.currentY = (this.doc as any).lastAutoTable.finalY + 15;
   }
 
   /**
-   * Add beautiful footer
+   * Add professional footer
    */
   protected addFooter(): void {
     const pageCount = this.doc.getNumberOfPages();
@@ -314,17 +265,14 @@ class BasePDFExporter {
     for (let i = 1; i <= pageCount; i++) {
       this.doc.setPage(i);
       
-      const footerY = this.pageHeight - 25;
+      const footerY = this.pageHeight - 20;
       
-      // Footer background
-      this.addGradientBackground(0, footerY - 5, this.pageWidth, 30, COLORS.lightGray, COLORS.white);
-      
-      // Footer border
+      // Footer line
       this.doc.setDrawColor(COLORS.yellow);
-      this.doc.setLineWidth(2);
+      this.doc.setLineWidth(1);
       this.doc.line(this.margin, footerY - 5, this.pageWidth - this.margin, footerY - 5);
 
-      // Page number with style
+      // Page number
       this.doc.setFontSize(FONTS.small);
       this.doc.setTextColor(COLORS.darkGray);
       this.doc.setFont('helvetica', 'bold');
@@ -343,30 +291,25 @@ class BasePDFExporter {
         footerY
       );
 
-      // Confidentiality notice with style
+      // Confidentiality notice
       this.doc.setFontSize(FONTS.tiny);
       this.doc.setTextColor(COLORS.gray);
       this.doc.text(
         'Confidential - Fitholics FC Internal Report',
         this.pageWidth / 2,
-        footerY + 8,
+        footerY + 6,
         { align: 'center' }
       );
-      
-      // Decorative footer elements
-      this.doc.setFillColor(COLORS.yellow);
-      this.doc.circle(this.margin + 5, footerY + 8, 1, 'F');
-      this.doc.circle(this.pageWidth - this.margin - 5, footerY + 8, 1, 'F');
     }
   }
 
   /**
    * Check if we need a new page
    */
-  protected checkPageBreak(requiredHeight: number = 40): void {
-    if (this.currentY + requiredHeight > this.pageHeight - 40) {
+  protected checkPageBreak(requiredHeight: number = 30): void {
+    if (this.currentY + requiredHeight > this.pageHeight - 35) {
       this.doc.addPage();
-      this.currentY = this.margin + 20;
+      this.currentY = this.margin + 15;
     }
   }
 
@@ -381,7 +324,7 @@ class BasePDFExporter {
 }
 
 /**
- * Enhanced Dashboard PDF Export with Date Filtering
+ * Dashboard PDF Export with Date Filtering
  */
 export class DashboardPDFExporter extends BasePDFExporter {
   exportDashboard(data: {
@@ -406,10 +349,10 @@ export class DashboardPDFExporter extends BasePDFExporter {
       
     this.addHeader(
       'DASHBOARD OVERVIEW', 
-      `Team Performance Report • ${dateRangeText}`
+      `Team Performance Report - ${dateRangeText}`
     );
 
-    // Enhanced team statistics
+    // Team statistics
     this.addStatsSection([
       { 
         label: 'Active Members', 
@@ -433,7 +376,7 @@ export class DashboardPDFExporter extends BasePDFExporter {
       },
     ]);
 
-    // Financial Summary with beautiful presentation
+    // Financial Summary
     this.addSectionHeading('FINANCIAL SUMMARY', COLORS.success);
     
     const financialData = [
@@ -464,7 +407,7 @@ export class DashboardPDFExporter extends BasePDFExporter {
       { headerColor: COLORS.success }
     );
 
-    // Upcoming Events with enhanced styling
+    // Upcoming Events
     if (data.upcomingEvents.length > 0) {
       const eventRows = data.upcomingEvents.slice(0, 6).map(event => ({
         date: formatDate(event.date, 'MMM d'),
@@ -487,7 +430,7 @@ export class DashboardPDFExporter extends BasePDFExporter {
       );
     }
 
-    // Recent Transactions with visual indicators
+    // Recent Transactions
     if (data.recentTransactions.length > 0) {
       const transactionRows = data.recentTransactions.slice(0, 10).map(transaction => ({
         date: formatDate(transaction.date, 'MMM d'),
@@ -538,7 +481,7 @@ export class DashboardPDFExporter extends BasePDFExporter {
 }
 
 /**
- * Enhanced Members PDF Export
+ * Members PDF Export
  */
 export class MembersPDFExporter extends BasePDFExporter {
   exportMembers(members: Member[]): void {
@@ -547,7 +490,7 @@ export class MembersPDFExporter extends BasePDFExporter {
       `Complete roster with ${members.length} registered members`
     );
 
-    // Enhanced member statistics
+    // Member statistics
     const activeMembers = members.filter(m => m.status === 'active').length;
     const inactiveMembers = members.filter(m => m.status === 'inactive').length;
     const injuredMembers = members.filter(m => m.status === 'injured').length;
@@ -629,7 +572,7 @@ export class MembersPDFExporter extends BasePDFExporter {
 }
 
 /**
- * Enhanced Contributions & Expenses PDF Export
+ * Contributions & Expenses PDF Export
  */
 export class ContributionsPDFExporter extends BasePDFExporter {
   exportContributions(data: {
@@ -642,10 +585,10 @@ export class ContributionsPDFExporter extends BasePDFExporter {
   }): void {
     this.addHeader(
       'FINANCIAL REPORT', 
-      `Contributions & Expenses Analysis • ${formatDate(new Date().toISOString())}`
+      `Contributions & Expenses Analysis - ${formatDate(new Date().toISOString())}`
     );
 
-    // Enhanced financial overview
+    // Financial overview
     this.addStatsSection([
       { 
         label: 'Total Income', 
@@ -669,7 +612,7 @@ export class ContributionsPDFExporter extends BasePDFExporter {
       },
     ]);
 
-    // Enhanced contribution analysis
+    // Contribution analysis
     if (data.contributions.length > 0) {
       const contributionsByType = data.contributions.reduce((acc, contrib) => {
         acc[contrib.type] = (acc[contrib.type] || 0) + (contrib.amount || 0);
@@ -694,7 +637,7 @@ export class ContributionsPDFExporter extends BasePDFExporter {
         { title: 'CONTRIBUTIONS BY TYPE', headerColor: COLORS.success }
       );
 
-      // Recent contributions with member details
+      // Recent contributions
       const recentContributions = data.contributions
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
         .slice(0, 15)
@@ -722,7 +665,7 @@ export class ContributionsPDFExporter extends BasePDFExporter {
       );
     }
 
-    // Enhanced expense analysis
+    // Expense analysis
     if (data.expenses.length > 0) {
       const expensesByCategory = data.expenses.reduce((acc, expense) => {
         acc[expense.category] = (acc[expense.category] || 0) + expense.amount;
@@ -775,7 +718,7 @@ export class ContributionsPDFExporter extends BasePDFExporter {
 }
 
 /**
- * Enhanced Events PDF Export
+ * Events PDF Export
  */
 export class EventsPDFExporter extends BasePDFExporter {
   exportEvents(events: Event[], type: 'training' | 'friendly' | 'all' = 'all'): void {
@@ -784,7 +727,7 @@ export class EventsPDFExporter extends BasePDFExporter {
     
     this.addHeader(title, `Complete schedule with ${filteredEvents.length} events`);
 
-    // Enhanced event statistics
+    // Event statistics
     const upcomingEvents = filteredEvents.filter(e => new Date(e.date) > new Date()).length;
     const pastEvents = filteredEvents.filter(e => new Date(e.date) <= new Date()).length;
     const trainingCount = filteredEvents.filter(e => e.type === 'training').length;
@@ -873,7 +816,7 @@ export class EventsPDFExporter extends BasePDFExporter {
 }
 
 /**
- * Enhanced Attendance PDF Export
+ * Attendance PDF Export
  */
 export class AttendancePDFExporter extends BasePDFExporter {
   exportAttendance(data: {
@@ -890,7 +833,7 @@ export class AttendancePDFExporter extends BasePDFExporter {
       `Comprehensive attendance analysis with ${data.attendanceRecords.length} records`
     );
 
-    // Enhanced attendance statistics
+    // Attendance statistics
     this.addStatsSection([
       { 
         label: 'Total Sessions', 
@@ -967,7 +910,7 @@ export class AttendancePDFExporter extends BasePDFExporter {
 }
 
 /**
- * Enhanced Leadership PDF Export
+ * Leadership PDF Export
  */
 export class LeadershipPDFExporter extends BasePDFExporter {
   exportLeadership(data: { leadership: Leadership[]; members: Member[] }): void {
@@ -976,7 +919,7 @@ export class LeadershipPDFExporter extends BasePDFExporter {
       `Organizational chart with ${data.leadership.length} leadership positions`
     );
 
-    // Enhanced leadership statistics
+    // Leadership statistics
     const activeRoles = data.leadership.filter(l => l.isActive).length;
     const inactiveRoles = data.leadership.filter(l => !l.isActive).length;
     const uniqueLeaders = new Set(data.leadership.map(l => l.memberId)).size;
