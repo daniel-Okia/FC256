@@ -47,7 +47,7 @@ class BasePDFExporter {
   }
 
   /**
-   * Add professional header with clear manager details
+   * Add professional header with properly positioned manager details
    */
   protected addHeader(title: string, subtitle?: string): void {
     // Clean header background with subtle gradient
@@ -65,36 +65,49 @@ class BasePDFExporter {
     this.doc.setTextColor(255, 255, 255); // Bright white
     this.doc.text('Excellence • Discipline • Teamwork', this.margin, this.margin + 25);
     
-    // Manager contact section - well-positioned and clearly visible
-    const contactX = this.pageWidth - 85;
-    const contactY = this.margin + 8;
+    // Manager contact section - properly positioned and sized
+    const contactBoxWidth = 75;
+    const contactBoxHeight = 32;
+    const contactX = this.pageWidth - contactBoxWidth - this.margin;
+    const contactY = this.margin + 10;
     
     // White background box for manager details
     this.doc.setFillColor(255, 255, 255); // Pure white background
-    this.doc.roundedRect(contactX, contactY, 80, 35, 3, 3, 'F');
+    this.doc.roundedRect(contactX, contactY, contactBoxWidth, contactBoxHeight, 3, 3, 'F');
     
     // Border for the contact box
     this.doc.setDrawColor(COLORS.yellow);
     this.doc.setLineWidth(1.5);
-    this.doc.roundedRect(contactX, contactY, 80, 35, 3, 3, 'S');
+    this.doc.roundedRect(contactX, contactY, contactBoxWidth, contactBoxHeight, 3, 3, 'S');
     
-    // Manager details with clear, dark text
-    this.doc.setFontSize(FONTS.small);
-    this.doc.setTextColor(COLORS.darkGray); // Very dark for contrast
+    // Manager details with proper spacing and positioning
+    const textX = contactX + 4;
+    let textY = contactY + 7;
+    
+    // Header
+    this.doc.setFontSize(FONTS.tiny);
+    this.doc.setTextColor(COLORS.darkGray);
     this.doc.setFont('helvetica', 'bold');
-    this.doc.text('TEAM MANAGER', contactX + 4, contactY + 8);
+    this.doc.text('TEAM MANAGER', textX, textY);
+    textY += 6;
     
-    this.doc.setFontSize(FONTS.body);
-    this.doc.setFont('helvetica', 'bold');
-    this.doc.setTextColor(COLORS.primary); // Primary blue for name
-    this.doc.text('Pius Paul', contactX + 4, contactY + 15);
-    
+    // Manager name
     this.doc.setFontSize(FONTS.small);
+    this.doc.setFont('helvetica', 'bold');
+    this.doc.setTextColor(COLORS.primary);
+    this.doc.text('Pius Paul', textX, textY);
+    textY += 5;
+    
+    // Contact details with proper spacing
+    this.doc.setFontSize(FONTS.tiny);
     this.doc.setFont('helvetica', 'normal');
-    this.doc.setTextColor(COLORS.darkGray); // Dark gray for contact info
-    this.doc.text('Email: piuspaul392@gmail.com', contactX + 4, contactY + 22);
-    this.doc.text('Phone: +256 700 654 321', contactX + 4, contactY + 29);
-    this.doc.text('Position: Team Manager', contactX + 4, contactY + 36);
+    this.doc.setTextColor(COLORS.darkGray);
+    
+    this.doc.text('Email: piuspaul392@gmail.com', textX, textY);
+    textY += 4;
+    this.doc.text('Phone: +256 700 654 321', textX, textY);
+    textY += 4;
+    this.doc.text('Position: Team Manager', textX, textY);
     
     // Professional separator line
     this.doc.setDrawColor(COLORS.yellow);
@@ -103,13 +116,13 @@ class BasePDFExporter {
     
     // Report title with clear, dark text
     this.doc.setFontSize(FONTS.subtitle);
-    this.doc.setTextColor(COLORS.darkGray); // Very dark for readability
+    this.doc.setTextColor(COLORS.darkGray);
     this.doc.setFont('helvetica', 'bold');
     this.doc.text(title, this.margin, 80);
     
     if (subtitle) {
       this.doc.setFontSize(FONTS.body);
-      this.doc.setTextColor(COLORS.gray); // Medium gray for subtitle
+      this.doc.setTextColor(COLORS.gray);
       this.doc.setFont('helvetica', 'normal');
       this.doc.text(subtitle, this.margin, 88);
     }
@@ -185,14 +198,14 @@ class BasePDFExporter {
       
       // Label with clear, dark text
       this.doc.setFontSize(FONTS.small);
-      this.doc.setTextColor(COLORS.darkGray); // Very dark for readability
+      this.doc.setTextColor(COLORS.darkGray);
       this.doc.setFont('helvetica', 'normal');
       this.doc.text(stat.label, x + cardWidth / 2, this.currentY + 18, { align: 'center' });
       
       // Value with bold, dark text
       this.doc.setFontSize(FONTS.heading);
       this.doc.setFont('helvetica', 'bold');
-      this.doc.setTextColor(COLORS.darkGray); // Very dark for readability
+      this.doc.setTextColor(COLORS.darkGray);
       this.doc.text(stat.value, x + cardWidth / 2, this.currentY + 28, { align: 'center' });
     });
 
@@ -211,7 +224,7 @@ class BasePDFExporter {
     
     // Title text in bright white
     this.doc.setFontSize(FONTS.heading);
-    this.doc.setTextColor(255, 255, 255); // Bright white
+    this.doc.setTextColor(255, 255, 255);
     this.doc.setFont('helvetica', 'bold');
     this.doc.text(title, this.margin, this.currentY + 8);
     
@@ -241,20 +254,20 @@ class BasePDFExporter {
       styles: { 
         fontSize: FONTS.body, 
         cellPadding: 4,
-        textColor: COLORS.darkGray, // Very dark text for readability
+        textColor: COLORS.darkGray,
         lineColor: '#e5e7eb',
         lineWidth: 0.5,
         fillColor: false,
       },
       headStyles: { 
         fillColor: headerColor,
-        textColor: '#ffffff', // Bright white for headers
+        textColor: '#ffffff',
         fontStyle: 'bold',
         fontSize: FONTS.body,
         cellPadding: 6,
       },
       alternateRowStyles: { 
-        fillColor: '#f9fafb' // Very light gray for alternating rows
+        fillColor: '#f9fafb'
       },
       columnStyles: columns.reduce((acc, col, index) => {
         if (col.width) {
@@ -285,9 +298,9 @@ class BasePDFExporter {
       this.doc.setLineWidth(1);
       this.doc.line(this.margin, footerY - 8, this.pageWidth - this.margin, footerY - 8);
 
-      // Page number - clear, dark text
+      // Page number
       this.doc.setFontSize(FONTS.small);
-      this.doc.setTextColor(COLORS.darkGray); // Very dark for readability
+      this.doc.setTextColor(COLORS.darkGray);
       this.doc.setFont('helvetica', 'bold');
       this.doc.text(
         `Page ${i} of ${pageCount}`,
@@ -296,18 +309,18 @@ class BasePDFExporter {
         { align: 'right' }
       );
 
-      // Generation info - clear, dark text
+      // Generation info
       this.doc.setFont('helvetica', 'normal');
-      this.doc.setTextColor(COLORS.darkGray); // Very dark for readability
+      this.doc.setTextColor(COLORS.darkGray);
       this.doc.text(
         `Generated: ${formatDate(new Date().toISOString(), 'MMM d, yyyy')} at ${new Date().toLocaleTimeString()}`,
         this.margin,
         footerY - 2
       );
 
-      // Confidentiality notice - medium gray
+      // Confidentiality notice
       this.doc.setFontSize(FONTS.tiny);
-      this.doc.setTextColor(COLORS.gray); // Medium gray
+      this.doc.setTextColor(COLORS.gray);
       this.doc.text(
         'Confidential - Fitholics FC Internal Report',
         this.pageWidth / 2,
