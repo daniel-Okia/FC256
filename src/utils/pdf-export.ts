@@ -31,7 +31,7 @@ const FONTS = {
 };
 
 /**
- * Professional PDF export class with clear formatting and bright text
+ * Professional PDF export class with proper page break management
  */
 class BasePDFExporter {
   protected doc: jsPDF;
@@ -39,6 +39,8 @@ class BasePDFExporter {
   protected pageHeight: number;
   protected margin: number = 20;
   protected currentY: number = 20;
+  protected footerHeight: number = 40; // Reserved space for footer
+  protected headerHeight: number = 100; // Reserved space for header
 
   constructor(orientation: 'portrait' | 'landscape' = 'portrait') {
     this.doc = new jsPDF(orientation, 'mm', 'a4');
@@ -127,7 +129,7 @@ class BasePDFExporter {
       this.doc.text(subtitle, this.margin, 88);
     }
     
-    this.currentY = 100;
+    this.currentY = this.headerHeight;
   }
 
   /**
@@ -173,6 +175,9 @@ class BasePDFExporter {
   protected addStatsSection(stats: { label: string; value: string; color?: string }[]): void {
     const cardWidth = (this.pageWidth - this.margin * 2 - 8 * (stats.length - 1)) / stats.length;
     const cardHeight = 35;
+
+    // Check if we have enough space for stats section
+    this.checkPageBreak(cardHeight + 25);
 
     stats.forEach((stat, index) => {
       const x = this.margin + index * (cardWidth + 8);
@@ -232,20 +237,25 @@ class BasePDFExporter {
   }
 
   /**
-   * Add professional table with clear formatting
+   * Add professional table with proper page break management
    */
   protected addTable(
     columns: { header: string; dataKey: string; width?: number }[],
     rows: any[],
     options: { title?: string; headerColor?: string } = {}
   ): void {
-    this.checkPageBreak(60);
+    // Ensure we have enough space for at least the title and a few rows
+    const estimatedTableHeight = 60 + (Math.min(rows.length, 5) * 8); // Rough estimate
+    this.checkPageBreak(estimatedTableHeight);
 
     if (options.title) {
       this.addSectionHeading(options.title, options.headerColor);
     }
 
     const headerColor = options.headerColor || COLORS.primary;
+
+    // Calculate available space for table
+    const availableHeight = this.pageHeight - this.currentY - this.footerHeight;
 
     (this.doc as any).autoTable({
       head: [columns.map(col => col.header)],
@@ -275,15 +285,43 @@ class BasePDFExporter {
         }
         return acc;
       }, {} as any),
-      margin: { left: this.margin, right: this.margin },
+      margin: { 
+        left: this.margin, 
+        right: this.margin,
+        bottom: this.footerHeight + 10 // Ensure space for footer
+      },
       theme: 'grid',
+      pageBreak: 'auto',
+      showHead: 'everyPage',
+      // Ensure proper spacing from footer
+      didDrawPage: (data: any) => {
+        // Update currentY to account for table content
+        this.currentY = data.cursor.y;
+      },
+      // Add page break logic to prevent overlap
+      willDrawPage: (data: any) => {
+        // Check if we're too close to the footer
+        if (data.cursor.y > this.pageHeight - this.footerHeight - 20) {
+          this.doc.addPage();
+          this.currentY = this.margin + 20;
+          return false; // Don't draw on this page
+        }
+        return true;
+      }
     });
 
+    // Update currentY position after table
     this.currentY = (this.doc as any).lastAutoTable.finalY + 20;
+    
+    // Ensure we don't get too close to footer
+    if (this.currentY > this.pageHeight - this.footerHeight - 20) {
+      this.doc.addPage();
+      this.currentY = this.margin + 20;
+    }
   }
 
   /**
-   * Add professional footer with clear text
+   * Add professional footer with clear text and proper positioning
    */
   protected addFooter(): void {
     const pageCount = this.doc.getNumberOfPages();
@@ -298,7 +336,7 @@ class BasePDFExporter {
       this.doc.setLineWidth(1);
       this.doc.line(this.margin, footerY - 8, this.pageWidth - this.margin, footerY - 8);
 
-      // Page number
+      // Page number - positioned clearly
       this.doc.setFontSize(FONTS.small);
       this.doc.setTextColor(COLORS.darkGray);
       this.doc.setFont('helvetica', 'bold');
@@ -309,7 +347,7 @@ class BasePDFExporter {
         { align: 'right' }
       );
 
-      // Generation info
+      // Generation info - positioned clearly
       this.doc.setFont('helvetica', 'normal');
       this.doc.setTextColor(COLORS.darkGray);
       this.doc.text(
@@ -318,7 +356,7 @@ class BasePDFExporter {
         footerY - 2
       );
 
-      // Confidentiality notice
+      // Confidentiality notice - positioned clearly
       this.doc.setFontSize(FONTS.tiny);
       this.doc.setTextColor(COLORS.gray);
       this.doc.text(
@@ -331,10 +369,13 @@ class BasePDFExporter {
   }
 
   /**
-   * Check if we need a new page
+   * Enhanced page break check with proper footer spacing
    */
   protected checkPageBreak(requiredHeight: number = 35): void {
-    if (this.currentY + requiredHeight > this.pageHeight - 40) {
+    // Calculate if we have enough space including footer buffer
+    const availableSpace = this.pageHeight - this.currentY - this.footerHeight - 10;
+    
+    if (requiredHeight > availableSpace) {
       this.doc.addPage();
       this.currentY = this.margin + 20;
     }
@@ -516,7 +557,7 @@ export class DashboardPDFExporter extends BasePDFExporter {
 }
 
 /**
- * Members PDF Export
+ * Members PDF Export with enhanced page break management
  */
 export class MembersPDFExporter extends BasePDFExporter {
   exportMembers(members: Member[]): void {
@@ -580,7 +621,7 @@ export class MembersPDFExporter extends BasePDFExporter {
       { title: 'SQUAD COMPOSITION BY POSITION', headerColor: COLORS.info }
     );
 
-    // Complete member roster
+    // Complete member roster with proper page management
     const memberRows = members
       .sort((a, b) => a.jerseyNumber - b.jerseyNumber)
       .map(member => ({
