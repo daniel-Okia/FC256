@@ -8,18 +8,24 @@ interface PageHeaderProps {
 
 const PageHeader: React.FC<PageHeaderProps> = ({ title, description, actions }) => {
   return (
-    <div className="mb-6 md:flex md:items-center md:justify-between">
-      <div className="min-w-0 flex-1">
-        <h1 className="text-2xl font-bold leading-7 text-gray-900 dark:text-white sm:truncate sm:text-3xl">
-          {title}
-        </h1>
-        {description && (
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            {description}
-          </p>
+    <div className="mb-6 w-full">
+      <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-2xl font-bold leading-7 text-gray-900 dark:text-white sm:truncate sm:text-3xl break-words">
+            {title}
+          </h1>
+          {description && (
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400 break-words">
+              {description}
+            </p>
+          )}
+        </div>
+        {actions && (
+          <div className="flex-shrink-0 w-full sm:w-auto">
+            {actions}
+          </div>
         )}
       </div>
-      {actions && <div className="mt-4 flex md:mt-0 md:ml-4">{actions}</div>}
     </div>
   );
 };
