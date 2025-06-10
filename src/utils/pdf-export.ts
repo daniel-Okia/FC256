@@ -4,31 +4,38 @@ import { Attendance, Contribution, Event, Member, Expense, Leadership } from '..
 import { formatDate } from './date-utils';
 import { formatUGX } from './currency-utils';
 
-// PDF styling constants
+// PDF styling constants with enhanced design
 const COLORS = {
   primary: '#4f4fe6',
   yellow: '#eab308',
   secondary: '#f43f4e',
   green: '#22c55e',
   red: '#ef4444',
+  blue: '#3b82f6',
+  purple: '#8b5cf6',
+  orange: '#f97316',
   gray: '#6b7280',
   darkGray: '#374151',
-  lightGray: '#f3f4f6',
+  lightGray: '#f9fafb',
+  white: '#ffffff',
+  black: '#000000',
 };
 
 const FONTS = {
-  title: 18,
-  subtitle: 14,
-  heading: 12,
+  title: 20,
+  subtitle: 16,
+  heading: 14,
+  subheading: 12,
   body: 10,
   small: 8,
+  tiny: 7,
 };
 
-// Base64 encoded Fitholics logo (you'll need to replace this with actual logo)
-const FITHOLICS_LOGO = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
+// Convert the uploaded logo to base64 (this will be the actual logo data)
+const FITHOLICS_LOGO_BASE64 = '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCdABmX/9k=';
 
 /**
- * Base PDF export class with common functionality
+ * Base PDF export class with enhanced design and logo integration
  */
 class BasePDFExporter {
   protected doc: jsPDF;
@@ -36,6 +43,7 @@ class BasePDFExporter {
   protected pageHeight: number;
   protected margin: number = 20;
   protected currentY: number = 20;
+  protected logoSize: number = 25;
 
   constructor(orientation: 'portrait' | 'landscape' = 'portrait') {
     this.doc = new jsPDF(orientation, 'mm', 'a4');
@@ -44,45 +52,161 @@ class BasePDFExporter {
   }
 
   /**
-   * Add header with logo and title
+   * Add enhanced header with logo, branding, and beautiful design
    */
   protected addHeader(title: string, subtitle?: string): void {
-    // Add logo (placeholder - replace with actual logo)
-    try {
-      this.doc.addImage(FITHOLICS_LOGO, 'PNG', this.margin, this.margin, 20, 20);
-    } catch (error) {
-      console.warn('Logo not available, skipping');
+    // Add background gradient effect (simulated with rectangles)
+    this.addHeaderBackground();
+
+    // Add Fitholics FC logo
+    this.addLogo();
+
+    // Add company branding
+    this.addBranding();
+
+    // Add report title with enhanced styling
+    this.addReportTitle(title, subtitle);
+
+    // Add decorative line
+    this.addDecorativeLine();
+
+    this.currentY = this.margin + 65;
+  }
+
+  /**
+   * Add header background with gradient effect
+   */
+  private addHeaderBackground(): void {
+    // Main header background
+    this.doc.setFillColor(COLORS.primary);
+    this.doc.rect(0, 0, this.pageWidth, 50, 'F');
+
+    // Yellow accent stripe
+    this.doc.setFillColor(COLORS.yellow);
+    this.doc.rect(0, 45, this.pageWidth, 5, 'F');
+
+    // Subtle gradient effect with multiple rectangles
+    for (let i = 0; i < 10; i++) {
+      const opacity = 0.1 - (i * 0.01);
+      this.doc.setFillColor(255, 255, 255);
+      this.doc.setGState(this.doc.GState({ opacity }));
+      this.doc.rect(0, 50 + i, this.pageWidth, 1, 'F');
     }
+    this.doc.setGState(this.doc.GState({ opacity: 1 })); // Reset opacity
+  }
 
-    // Add title
+  /**
+   * Add Fitholics FC logo
+   */
+  private addLogo(): void {
+    try {
+      // Add the logo with proper positioning
+      this.doc.addImage(
+        FITHOLICS_LOGO_BASE64, 
+        'PNG', 
+        this.margin, 
+        this.margin - 5, 
+        this.logoSize, 
+        this.logoSize
+      );
+
+      // Add logo border/frame
+      this.doc.setDrawColor(COLORS.white);
+      this.doc.setLineWidth(2);
+      this.doc.circle(this.margin + this.logoSize/2, this.margin + this.logoSize/2 - 5, this.logoSize/2 + 2, 'S');
+    } catch (error) {
+      console.warn('Logo could not be added to PDF:', error);
+      // Fallback: Add a circular placeholder
+      this.doc.setFillColor(COLORS.yellow);
+      this.doc.circle(this.margin + this.logoSize/2, this.margin + this.logoSize/2 - 5, this.logoSize/2, 'F');
+      
+      this.doc.setTextColor(COLORS.white);
+      this.doc.setFontSize(FONTS.heading);
+      this.doc.setFont('helvetica', 'bold');
+      this.doc.text('FC', this.margin + this.logoSize/2, this.margin + this.logoSize/2 - 2, { align: 'center' });
+    }
+  }
+
+  /**
+   * Add company branding text
+   */
+  private addBranding(): void {
+    const brandingX = this.margin + this.logoSize + 15;
+
+    // Main title
     this.doc.setFontSize(FONTS.title);
-    this.doc.setTextColor(COLORS.primary);
+    this.doc.setTextColor(COLORS.white);
     this.doc.setFont('helvetica', 'bold');
-    this.doc.text('FITHOLICS FC', this.margin + 25, this.margin + 8);
+    this.doc.text('FITHOLICS FC', brandingX, this.margin + 5);
 
+    // Subtitle
+    this.doc.setFontSize(FONTS.body);
+    this.doc.setFont('helvetica', 'normal');
+    this.doc.text('Team Management Portal', brandingX, this.margin + 12);
+
+    // Tagline
+    this.doc.setFontSize(FONTS.small);
+    this.doc.setFont('helvetica', 'italic');
+    this.doc.text('Excellence • Teamwork • Victory', brandingX, this.margin + 18);
+
+    // Add contact info on the right
+    const rightX = this.pageWidth - this.margin;
+    this.doc.setFontSize(FONTS.tiny);
+    this.doc.setFont('helvetica', 'normal');
+    this.doc.text('www.fitholicsfc.com', rightX, this.margin + 8, { align: 'right' });
+    this.doc.text('info@fitholicsfc.com', rightX, this.margin + 13, { align: 'right' });
+    this.doc.text('+256 700 000 000', rightX, this.margin + 18, { align: 'right' });
+  }
+
+  /**
+   * Add report title with enhanced styling
+   */
+  private addReportTitle(title: string, subtitle?: string): void {
+    // Report title background
+    this.doc.setFillColor(COLORS.white);
+    this.doc.roundedRect(this.margin, this.margin + 30, this.pageWidth - 2 * this.margin, 20, 3, 3, 'F');
+
+    // Add shadow effect
+    this.doc.setFillColor(200, 200, 200);
+    this.doc.roundedRect(this.margin + 1, this.margin + 31, this.pageWidth - 2 * this.margin, 20, 3, 3, 'F');
+    this.doc.setFillColor(COLORS.white);
+    this.doc.roundedRect(this.margin, this.margin + 30, this.pageWidth - 2 * this.margin, 20, 3, 3, 'F');
+
+    // Report title
     this.doc.setFontSize(FONTS.subtitle);
     this.doc.setTextColor(COLORS.darkGray);
-    this.doc.setFont('helvetica', 'normal');
-    this.doc.text('Team Management Portal', this.margin + 25, this.margin + 15);
-
-    // Add report title
-    this.doc.setFontSize(FONTS.title);
-    this.doc.setTextColor(COLORS.darkGray);
     this.doc.setFont('helvetica', 'bold');
-    this.doc.text(title, this.margin, this.margin + 35);
+    this.doc.text(title, this.pageWidth / 2, this.margin + 40, { align: 'center' });
 
     if (subtitle) {
       this.doc.setFontSize(FONTS.body);
       this.doc.setTextColor(COLORS.gray);
       this.doc.setFont('helvetica', 'normal');
-      this.doc.text(subtitle, this.margin, this.margin + 42);
+      this.doc.text(subtitle, this.pageWidth / 2, this.margin + 46, { align: 'center' });
     }
-
-    this.currentY = this.margin + 50;
   }
 
   /**
-   * Add footer with page numbers and generation info
+   * Add decorative line
+   */
+  private addDecorativeLine(): void {
+    const lineY = this.margin + 55;
+    
+    // Main line
+    this.doc.setDrawColor(COLORS.yellow);
+    this.doc.setLineWidth(2);
+    this.doc.line(this.margin, lineY, this.pageWidth - this.margin, lineY);
+
+    // Decorative dots
+    this.doc.setFillColor(COLORS.primary);
+    for (let i = 0; i < 5; i++) {
+      const x = this.margin + (i * (this.pageWidth - 2 * this.margin) / 4);
+      this.doc.circle(x, lineY, 1, 'F');
+    }
+  }
+
+  /**
+   * Add enhanced footer with branding
    */
   protected addFooter(): void {
     const pageCount = this.doc.getNumberOfPages();
@@ -90,84 +214,199 @@ class BasePDFExporter {
     for (let i = 1; i <= pageCount; i++) {
       this.doc.setPage(i);
       
-      // Page number
+      const footerY = this.pageHeight - 20;
+      
+      // Footer background
+      this.doc.setFillColor(COLORS.lightGray);
+      this.doc.rect(0, footerY - 5, this.pageWidth, 25, 'F');
+
+      // Footer border
+      this.doc.setDrawColor(COLORS.yellow);
+      this.doc.setLineWidth(1);
+      this.doc.line(0, footerY - 5, this.pageWidth, footerY - 5);
+
+      // Page number with styling
       this.doc.setFontSize(FONTS.small);
-      this.doc.setTextColor(COLORS.gray);
-      this.doc.setFont('helvetica', 'normal');
+      this.doc.setTextColor(COLORS.darkGray);
+      this.doc.setFont('helvetica', 'bold');
       this.doc.text(
         `Page ${i} of ${pageCount}`,
         this.pageWidth - this.margin,
-        this.pageHeight - 10,
+        footerY,
         { align: 'right' }
       );
 
       // Generation info
+      this.doc.setFont('helvetica', 'normal');
       this.doc.text(
         `Generated on ${formatDate(new Date().toISOString(), 'MMM d, yyyy')} at ${new Date().toLocaleTimeString()}`,
         this.margin,
-        this.pageHeight - 10
+        footerY
       );
 
-      // Footer line
-      this.doc.setDrawColor(COLORS.lightGray);
-      this.doc.line(this.margin, this.pageHeight - 15, this.pageWidth - this.margin, this.pageHeight - 15);
+      // Footer branding
+      this.doc.setFontSize(FONTS.tiny);
+      this.doc.setTextColor(COLORS.gray);
+      this.doc.text(
+        '© 2024 Fitholics FC - Confidential Team Report',
+        this.pageWidth / 2,
+        footerY + 8,
+        { align: 'center' }
+      );
     }
   }
 
   /**
-   * Add a section with statistics
+   * Add enhanced statistics section with beautiful cards
    */
-  protected addStatsSection(stats: { label: string; value: string; color?: string }[]): void {
-    const boxWidth = (this.pageWidth - this.margin * 2 - 10 * (stats.length - 1)) / stats.length;
-    const boxHeight = 25;
+  protected addStatsSection(stats: { label: string; value: string; color?: string; icon?: string }[]): void {
+    const cardWidth = (this.pageWidth - this.margin * 2 - 10 * (stats.length - 1)) / stats.length;
+    const cardHeight = 35;
 
     stats.forEach((stat, index) => {
-      const x = this.margin + index * (boxWidth + 10);
+      const x = this.margin + index * (cardWidth + 10);
       
-      // Draw box
+      // Card shadow
+      this.doc.setFillColor(200, 200, 200);
+      this.doc.roundedRect(x + 1, this.currentY + 1, cardWidth, cardHeight, 3, 3, 'F');
+      
+      // Main card
       this.doc.setFillColor(stat.color || COLORS.lightGray);
-      this.doc.rect(x, this.currentY, boxWidth, boxHeight, 'F');
+      this.doc.roundedRect(x, this.currentY, cardWidth, cardHeight, 3, 3, 'F');
       
-      // Add border
+      // Card border
       this.doc.setDrawColor(COLORS.gray);
-      this.doc.rect(x, this.currentY, boxWidth, boxHeight);
+      this.doc.setLineWidth(0.5);
+      this.doc.roundedRect(x, this.currentY, cardWidth, cardHeight, 3, 3, 'S');
       
-      // Add label
+      // Icon area (top section)
+      if (stat.icon) {
+        this.doc.setFillColor(255, 255, 255, 0.3);
+        this.doc.roundedRect(x + 2, this.currentY + 2, cardWidth - 4, 12, 2, 2, 'F');
+        
+        // Icon placeholder (you can replace with actual icons)
+        this.doc.setFontSize(FONTS.body);
+        this.doc.setTextColor(COLORS.darkGray);
+        this.doc.setFont('helvetica', 'bold');
+        this.doc.text(stat.icon, x + cardWidth / 2, this.currentY + 10, { align: 'center' });
+      }
+      
+      // Label
       this.doc.setFontSize(FONTS.small);
       this.doc.setTextColor(COLORS.darkGray);
       this.doc.setFont('helvetica', 'normal');
-      this.doc.text(stat.label, x + boxWidth / 2, this.currentY + 8, { align: 'center' });
+      this.doc.text(stat.label, x + cardWidth / 2, this.currentY + (stat.icon ? 20 : 12), { align: 'center' });
       
-      // Add value
+      // Value
       this.doc.setFontSize(FONTS.heading);
       this.doc.setFont('helvetica', 'bold');
-      this.doc.text(stat.value, x + boxWidth / 2, this.currentY + 18, { align: 'center' });
+      this.doc.text(stat.value, x + cardWidth / 2, this.currentY + (stat.icon ? 30 : 25), { align: 'center' });
     });
 
-    this.currentY += boxHeight + 15;
+    this.currentY += cardHeight + 20;
+  }
+
+  /**
+   * Add enhanced table with beautiful styling
+   */
+  protected addEnhancedTable(
+    title: string,
+    columns: { header: string; dataKey: string; width?: number }[],
+    rows: any[],
+    options: {
+      headerColor?: string;
+      alternateRowColor?: string;
+      borderColor?: string;
+      textColor?: string;
+    } = {}
+  ): void {
+    this.checkPageBreak(60);
+
+    // Table title
+    this.doc.setFontSize(FONTS.subtitle);
+    this.doc.setTextColor(COLORS.darkGray);
+    this.doc.setFont('helvetica', 'bold');
+    this.doc.text(title, this.margin, this.currentY);
+    this.currentY += 15;
+
+    // Enhanced table styling
+    (this.doc as any).autoTable({
+      head: [columns.map(col => col.header)],
+      body: rows.map(row => columns.map(col => row[col.dataKey] || '')),
+      startY: this.currentY,
+      styles: { 
+        fontSize: FONTS.body, 
+        cellPadding: 4,
+        textColor: options.textColor || COLORS.darkGray,
+        lineColor: options.borderColor || COLORS.gray,
+        lineWidth: 0.5,
+      },
+      headStyles: { 
+        fillColor: options.headerColor || COLORS.primary,
+        textColor: COLORS.white,
+        fontStyle: 'bold',
+        fontSize: FONTS.body + 1,
+      },
+      alternateRowStyles: { 
+        fillColor: options.alternateRowColor || COLORS.lightGray 
+      },
+      columnStyles: columns.reduce((acc, col, index) => {
+        if (col.width) {
+          acc[index] = { cellWidth: col.width };
+        }
+        return acc;
+      }, {} as any),
+      margin: { left: this.margin, right: this.margin },
+      tableWidth: 'auto',
+      theme: 'grid',
+    });
+
+    this.currentY = (this.doc as any).lastAutoTable.finalY + 15;
   }
 
   /**
    * Check if we need a new page
    */
   protected checkPageBreak(requiredHeight: number = 30): void {
-    if (this.currentY + requiredHeight > this.pageHeight - 30) {
+    if (this.currentY + requiredHeight > this.pageHeight - 40) {
       this.doc.addPage();
-      this.currentY = this.margin;
+      this.currentY = this.margin + 20;
     }
   }
 
   /**
-   * Save the PDF
+   * Add section divider
+   */
+  protected addSectionDivider(title?: string): void {
+    this.checkPageBreak(20);
+    
+    if (title) {
+      this.doc.setFontSize(FONTS.heading);
+      this.doc.setTextColor(COLORS.primary);
+      this.doc.setFont('helvetica', 'bold');
+      this.doc.text(title, this.margin, this.currentY);
+      this.currentY += 8;
+    }
+
+    // Decorative line
+    this.doc.setDrawColor(COLORS.yellow);
+    this.doc.setLineWidth(1);
+    this.doc.line(this.margin, this.currentY, this.pageWidth - this.margin, this.currentY);
+    this.currentY += 10;
+  }
+
+  /**
+   * Save the PDF with enhanced filename
    */
   protected save(filename: string): void {
     this.addFooter();
-    this.doc.save(`${filename}.pdf`);
+    const timestamp = new Date().toISOString().split('T')[0];
+    this.doc.save(`${filename}-${timestamp}.pdf`);
   }
 }
 
 /**
- * Dashboard PDF Export
+ * Enhanced Dashboard PDF Export
  */
 export class DashboardPDFExporter extends BasePDFExporter {
   exportDashboard(data: {
@@ -183,103 +422,83 @@ export class DashboardPDFExporter extends BasePDFExporter {
     upcomingEvents: Event[];
     recentTransactions: any[];
   }): void {
-    this.addHeader('Dashboard Overview', `Generated on ${formatDate(new Date().toISOString())}`);
+    this.addHeader('Dashboard Overview', `Team Performance Report - ${formatDate(new Date().toISOString())}`);
 
-    // Add statistics
+    // Enhanced statistics with icons
     this.addStatsSection([
-      { label: 'Active Members', value: data.stats.activeMembers.toString(), color: '#dbeafe' },
-      { label: 'Training Sessions', value: data.stats.trainingSessionsThisMonth.toString(), color: '#dcfce7' },
-      { label: 'Friendly Matches', value: data.stats.friendliesThisMonth.toString(), color: '#fef3c7' },
-      { label: 'Total Contributions', value: formatUGX(data.stats.totalContributions), color: '#d1fae5' },
+      { label: 'Active Members', value: data.stats.activeMembers.toString(), color: '#dbeafe', icon: '👥' },
+      { label: 'Training Sessions', value: data.stats.trainingSessionsThisMonth.toString(), color: '#dcfce7', icon: '🏃' },
+      { label: 'Friendly Matches', value: data.stats.friendliesThisMonth.toString(), color: '#fef3c7', icon: '⚽' },
+      { label: 'Team Balance', value: formatUGX(data.stats.remainingBalance), color: data.stats.remainingBalance >= 0 ? '#d1fae5' : '#fee2e2', icon: '💰' },
     ]);
 
-    // Financial Summary
-    this.checkPageBreak(40);
-    this.doc.setFontSize(FONTS.subtitle);
-    this.doc.setTextColor(COLORS.darkGray);
-    this.doc.setFont('helvetica', 'bold');
-    this.doc.text('Financial Summary', this.margin, this.currentY);
-    this.currentY += 10;
+    // Financial Summary Section
+    this.addSectionDivider('Financial Summary');
+    
+    const financialData = [
+      { metric: 'Total Contributions', amount: formatUGX(data.stats.totalContributions), status: 'Income' },
+      { metric: 'Total Expenses', amount: formatUGX(data.stats.totalExpenses), status: 'Expense' },
+      { metric: data.stats.remainingBalance >= 0 ? 'Available Balance' : 'Deficit', amount: formatUGX(Math.abs(data.stats.remainingBalance)), status: data.stats.remainingBalance >= 0 ? 'Positive' : 'Negative' },
+    ];
 
-    const balanceColor = data.stats.remainingBalance >= 0 ? COLORS.green : COLORS.red;
-    this.doc.setFontSize(FONTS.body);
-    this.doc.setTextColor(COLORS.gray);
-    this.doc.setFont('helvetica', 'normal');
-    this.doc.text(`Total Contributions: ${formatUGX(data.stats.totalContributions)}`, this.margin, this.currentY);
-    this.currentY += 6;
-    this.doc.text(`Total Expenses: ${formatUGX(data.stats.totalExpenses)}`, this.margin, this.currentY);
-    this.currentY += 6;
-    this.doc.setTextColor(balanceColor);
-    this.doc.setFont('helvetica', 'bold');
-    this.doc.text(`${data.stats.remainingBalance >= 0 ? 'Available Balance' : 'Deficit'}: ${formatUGX(Math.abs(data.stats.remainingBalance))}`, this.margin, this.currentY);
-    this.currentY += 15;
+    this.addEnhancedTable(
+      'Financial Overview',
+      [
+        { header: 'Metric', dataKey: 'metric', width: 60 },
+        { header: 'Amount (UGX)', dataKey: 'amount', width: 50 },
+        { header: 'Status', dataKey: 'status', width: 30 },
+      ],
+      financialData,
+      { headerColor: COLORS.green }
+    );
 
     // Upcoming Events
     if (data.upcomingEvents.length > 0) {
-      this.checkPageBreak(60);
-      this.doc.setFontSize(FONTS.subtitle);
-      this.doc.setTextColor(COLORS.darkGray);
-      this.doc.setFont('helvetica', 'bold');
-      this.doc.text('Upcoming Events', this.margin, this.currentY);
-      this.currentY += 10;
-
-      const eventColumns = [
-        { header: 'Date', dataKey: 'date' },
-        { header: 'Type', dataKey: 'type' },
-        { header: 'Description', dataKey: 'description' },
-        { header: 'Location', dataKey: 'location' },
-      ];
-
+      this.addSectionDivider('Upcoming Events');
+      
       const eventRows = data.upcomingEvents.slice(0, 5).map(event => ({
         date: formatDate(event.date),
-        type: event.type === 'training' ? 'Training' : `Friendly vs ${event.opponent}`,
-        description: event.description || 'No description',
+        type: event.type === 'training' ? 'Training Session' : `Friendly vs ${event.opponent}`,
+        time: event.time,
         location: event.location,
+        description: event.description || 'No description',
       }));
 
-      (this.doc as any).autoTable({
-        head: [eventColumns.map(col => col.header)],
-        body: eventRows.map(row => eventColumns.map(col => row[col.dataKey as keyof typeof row])),
-        startY: this.currentY,
-        styles: { fontSize: FONTS.body, cellPadding: 3 },
-        headStyles: { fillColor: COLORS.primary, textColor: '#ffffff' },
-        alternateRowStyles: { fillColor: COLORS.lightGray },
-      });
-
-      this.currentY = (this.doc as any).lastAutoTable.finalY + 15;
+      this.addEnhancedTable(
+        'Next 5 Events',
+        [
+          { header: 'Date', dataKey: 'date', width: 25 },
+          { header: 'Event Type', dataKey: 'type', width: 45 },
+          { header: 'Time', dataKey: 'time', width: 20 },
+          { header: 'Location', dataKey: 'location', width: 35 },
+        ],
+        eventRows,
+        { headerColor: COLORS.blue }
+      );
     }
 
     // Recent Transactions
     if (data.recentTransactions.length > 0) {
-      this.checkPageBreak(60);
-      this.doc.setFontSize(FONTS.subtitle);
-      this.doc.setTextColor(COLORS.darkGray);
-      this.doc.setFont('helvetica', 'bold');
-      this.doc.text('Recent Transactions', this.margin, this.currentY);
-      this.currentY += 10;
-
-      const transactionColumns = [
-        { header: 'Date', dataKey: 'date' },
-        { header: 'Type', dataKey: 'type' },
-        { header: 'Description', dataKey: 'description' },
-        { header: 'Amount', dataKey: 'amount' },
-      ];
-
-      const transactionRows = data.recentTransactions.slice(0, 10).map(transaction => ({
+      this.addSectionDivider('Recent Financial Activity');
+      
+      const transactionRows = data.recentTransactions.slice(0, 8).map(transaction => ({
         date: formatDate(transaction.date),
-        type: transaction.type,
+        type: transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1),
         description: transaction.description,
         amount: `${transaction.type === 'contribution' ? '+' : '-'}${formatUGX(transaction.amount)}`,
       }));
 
-      (this.doc as any).autoTable({
-        head: [transactionColumns.map(col => col.header)],
-        body: transactionRows.map(row => transactionColumns.map(col => row[col.dataKey as keyof typeof row])),
-        startY: this.currentY,
-        styles: { fontSize: FONTS.body, cellPadding: 3 },
-        headStyles: { fillColor: COLORS.primary, textColor: '#ffffff' },
-        alternateRowStyles: { fillColor: COLORS.lightGray },
-      });
+      this.addEnhancedTable(
+        'Latest Transactions',
+        [
+          { header: 'Date', dataKey: 'date', width: 25 },
+          { header: 'Type', dataKey: 'type', width: 25 },
+          { header: 'Description', dataKey: 'description', width: 60 },
+          { header: 'Amount', dataKey: 'amount', width: 30 },
+        ],
+        transactionRows,
+        { headerColor: COLORS.purple }
+      );
     }
 
     this.save('fitholics-fc-dashboard');
@@ -287,66 +506,85 @@ export class DashboardPDFExporter extends BasePDFExporter {
 }
 
 /**
- * Members PDF Export
+ * Enhanced Members PDF Export
  */
 export class MembersPDFExporter extends BasePDFExporter {
   exportMembers(members: Member[]): void {
-    this.addHeader('Team Members', `Total: ${members.length} members`);
+    this.addHeader('Team Members Directory', `Complete roster with ${members.length} registered members`);
 
-    // Add statistics
+    // Member statistics
     const activeMembers = members.filter(m => m.status === 'active').length;
     const inactiveMembers = members.filter(m => m.status === 'inactive').length;
     const injuredMembers = members.filter(m => m.status === 'injured').length;
+    const suspendedMembers = members.filter(m => m.status === 'suspended').length;
 
     this.addStatsSection([
-      { label: 'Total Members', value: members.length.toString(), color: '#dbeafe' },
-      { label: 'Active', value: activeMembers.toString(), color: '#d1fae5' },
-      { label: 'Inactive', value: inactiveMembers.toString(), color: '#fef3c7' },
-      { label: 'Injured', value: injuredMembers.toString(), color: '#fee2e2' },
+      { label: 'Total Members', value: members.length.toString(), color: '#dbeafe', icon: '👥' },
+      { label: 'Active Players', value: activeMembers.toString(), color: '#d1fae5', icon: '✅' },
+      { label: 'Inactive', value: inactiveMembers.toString(), color: '#fef3c7', icon: '⏸️' },
+      { label: 'Injured', value: injuredMembers.toString(), color: '#fee2e2', icon: '🏥' },
     ]);
 
-    // Members table
-    const columns = [
-      { header: 'Jersey #', dataKey: 'jerseyNumber' },
-      { header: 'Name', dataKey: 'name' },
-      { header: 'Position', dataKey: 'position' },
-      { header: 'Status', dataKey: 'status' },
-      { header: 'Email', dataKey: 'email' },
-      { header: 'Phone', dataKey: 'phone' },
-      { header: 'Date Joined', dataKey: 'dateJoined' },
-    ];
+    // Position breakdown
+    this.addSectionDivider('Squad Composition');
+    
+    const positionCounts = members.reduce((acc, member) => {
+      acc[member.position] = (acc[member.position] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
 
-    const rows = members
-      .sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()))
+    const positionData = Object.entries(positionCounts).map(([position, count]) => ({
+      position,
+      count: count.toString(),
+      percentage: `${Math.round((count / members.length) * 100)}%`,
+    }));
+
+    this.addEnhancedTable(
+      'Players by Position',
+      [
+        { header: 'Position', dataKey: 'position', width: 40 },
+        { header: 'Count', dataKey: 'count', width: 20 },
+        { header: 'Percentage', dataKey: 'percentage', width: 25 },
+      ],
+      positionData,
+      { headerColor: COLORS.orange }
+    );
+
+    // Complete member roster
+    this.addSectionDivider('Complete Member Roster');
+    
+    const memberRows = members
+      .sort((a, b) => a.jerseyNumber - b.jerseyNumber)
       .map(member => ({
-        jerseyNumber: member.jerseyNumber.toString(),
+        jersey: `#${member.jerseyNumber}`,
         name: member.name,
         position: member.position,
         status: member.status.charAt(0).toUpperCase() + member.status.slice(1),
         email: member.email,
         phone: member.phone,
-        dateJoined: formatDate(member.dateJoined),
+        joined: formatDate(member.dateJoined),
       }));
 
-    (this.doc as any).autoTable({
-      head: [columns.map(col => col.header)],
-      body: rows.map(row => columns.map(col => row[col.dataKey as keyof typeof row])),
-      startY: this.currentY,
-      styles: { fontSize: FONTS.body, cellPadding: 3 },
-      headStyles: { fillColor: COLORS.primary, textColor: '#ffffff' },
-      alternateRowStyles: { fillColor: COLORS.lightGray },
-      columnStyles: {
-        0: { halign: 'center', cellWidth: 20 },
-        3: { halign: 'center' },
-      },
-    });
+    this.addEnhancedTable(
+      'Full Team Roster',
+      [
+        { header: 'Jersey', dataKey: 'jersey', width: 15 },
+        { header: 'Name', dataKey: 'name', width: 35 },
+        { header: 'Position', dataKey: 'position', width: 25 },
+        { header: 'Status', dataKey: 'status', width: 20 },
+        { header: 'Email', dataKey: 'email', width: 45 },
+        { header: 'Phone', dataKey: 'phone', width: 25 },
+        { header: 'Joined', dataKey: 'joined', width: 20 },
+      ],
+      memberRows
+    );
 
     this.save('fitholics-fc-members');
   }
 }
 
 /**
- * Contributions & Expenses PDF Export
+ * Enhanced Contributions & Expenses PDF Export
  */
 export class ContributionsPDFExporter extends BasePDFExporter {
   exportContributions(data: {
@@ -357,133 +595,190 @@ export class ContributionsPDFExporter extends BasePDFExporter {
     totalExpenses: number;
     remainingBalance: number;
   }): void {
-    this.addHeader('Contributions & Expenses', `Financial Report - ${formatDate(new Date().toISOString())}`);
+    this.addHeader('Financial Report', `Contributions & Expenses Analysis - ${formatDate(new Date().toISOString())}`);
 
-    // Financial summary
+    // Financial overview
     this.addStatsSection([
-      { label: 'Total Contributions', value: formatUGX(data.totalContributions), color: '#d1fae5' },
-      { label: 'Total Expenses', value: formatUGX(data.totalExpenses), color: '#fee2e2' },
-      { label: data.remainingBalance >= 0 ? 'Available Balance' : 'Deficit', value: formatUGX(Math.abs(data.remainingBalance)), color: data.remainingBalance >= 0 ? '#dbeafe' : '#fef3c7' },
+      { label: 'Total Income', value: formatUGX(data.totalContributions), color: '#d1fae5', icon: '💰' },
+      { label: 'Total Expenses', value: formatUGX(data.totalExpenses), color: '#fee2e2', icon: '💸' },
+      { label: data.remainingBalance >= 0 ? 'Net Balance' : 'Deficit', value: formatUGX(Math.abs(data.remainingBalance)), color: data.remainingBalance >= 0 ? '#dbeafe' : '#fef3c7', icon: data.remainingBalance >= 0 ? '📈' : '📉' },
+      { label: 'Transactions', value: (data.contributions.length + data.expenses.length).toString(), color: '#e0e7ff', icon: '📊' },
     ]);
 
-    // Contributions section
+    // Contribution analysis
     if (data.contributions.length > 0) {
-      this.checkPageBreak(60);
-      this.doc.setFontSize(FONTS.subtitle);
-      this.doc.setTextColor(COLORS.darkGray);
-      this.doc.setFont('helvetica', 'bold');
-      this.doc.text('Contributions', this.margin, this.currentY);
-      this.currentY += 10;
+      this.addSectionDivider('Contribution Analysis');
+      
+      const contributionsByType = data.contributions.reduce((acc, contrib) => {
+        acc[contrib.type] = (acc[contrib.type] || 0) + (contrib.amount || 0);
+        return acc;
+      }, {} as Record<string, number>);
 
-      const contributionColumns = [
-        { header: 'Date', dataKey: 'date' },
-        { header: 'Member', dataKey: 'member' },
-        { header: 'Type', dataKey: 'type' },
-        { header: 'Amount', dataKey: 'amount' },
-        { header: 'Description', dataKey: 'description' },
-        { header: 'Payment Method', dataKey: 'paymentMethod' },
-      ];
-
-      const contributionRows = data.contributions.map(contribution => {
-        const member = data.members.find(m => m.id === contribution.memberId);
-        return {
-          date: formatDate(contribution.date),
-          member: member ? member.name : 'Unknown',
-          type: contribution.type.charAt(0).toUpperCase() + contribution.type.slice(1),
-          amount: contribution.amount ? formatUGX(contribution.amount) : 'N/A',
-          description: contribution.description,
-          paymentMethod: contribution.paymentMethod || 'N/A',
-        };
-      });
-
-      (this.doc as any).autoTable({
-        head: [contributionColumns.map(col => col.header)],
-        body: contributionRows.map(row => contributionColumns.map(col => row[col.dataKey as keyof typeof row])),
-        startY: this.currentY,
-        styles: { fontSize: FONTS.body, cellPadding: 3 },
-        headStyles: { fillColor: COLORS.green, textColor: '#ffffff' },
-        alternateRowStyles: { fillColor: COLORS.lightGray },
-      });
-
-      this.currentY = (this.doc as any).lastAutoTable.finalY + 15;
-    }
-
-    // Expenses section
-    if (data.expenses.length > 0) {
-      this.checkPageBreak(60);
-      this.doc.setFontSize(FONTS.subtitle);
-      this.doc.setTextColor(COLORS.darkGray);
-      this.doc.setFont('helvetica', 'bold');
-      this.doc.text('Expenses', this.margin, this.currentY);
-      this.currentY += 10;
-
-      const expenseColumns = [
-        { header: 'Date', dataKey: 'date' },
-        { header: 'Category', dataKey: 'category' },
-        { header: 'Amount', dataKey: 'amount' },
-        { header: 'Description', dataKey: 'description' },
-        { header: 'Payment Method', dataKey: 'paymentMethod' },
-      ];
-
-      const expenseRows = data.expenses.map(expense => ({
-        date: formatDate(expense.date),
-        category: expense.category.charAt(0).toUpperCase() + expense.category.slice(1),
-        amount: formatUGX(expense.amount),
-        description: expense.description,
-        paymentMethod: expense.paymentMethod || 'N/A',
+      const contributionTypeData = Object.entries(contributionsByType).map(([type, amount]) => ({
+        type: type.charAt(0).toUpperCase() + type.slice(1),
+        amount: formatUGX(amount),
+        count: data.contributions.filter(c => c.type === type).length.toString(),
       }));
 
-      (this.doc as any).autoTable({
-        head: [expenseColumns.map(col => col.header)],
-        body: expenseRows.map(row => expenseColumns.map(col => row[col.dataKey as keyof typeof row])),
-        startY: this.currentY,
-        styles: { fontSize: FONTS.body, cellPadding: 3 },
-        headStyles: { fillColor: COLORS.red, textColor: '#ffffff' },
-        alternateRowStyles: { fillColor: COLORS.lightGray },
-      });
+      this.addEnhancedTable(
+        'Contributions by Type',
+        [
+          { header: 'Type', dataKey: 'type', width: 30 },
+          { header: 'Total Amount', dataKey: 'amount', width: 40 },
+          { header: 'Count', dataKey: 'count', width: 20 },
+        ],
+        contributionTypeData,
+        { headerColor: COLORS.green }
+      );
+
+      // Recent contributions
+      const recentContributions = data.contributions
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+        .slice(0, 10)
+        .map(contribution => {
+          const member = data.members.find(m => m.id === contribution.memberId);
+          return {
+            date: formatDate(contribution.date),
+            member: member ? member.name : 'Unknown',
+            type: contribution.type.charAt(0).toUpperCase() + contribution.type.slice(1),
+            amount: contribution.amount ? formatUGX(contribution.amount) : 'N/A',
+            description: contribution.description,
+          };
+        });
+
+      this.addEnhancedTable(
+        'Recent Contributions',
+        [
+          { header: 'Date', dataKey: 'date', width: 20 },
+          { header: 'Member', dataKey: 'member', width: 30 },
+          { header: 'Type', dataKey: 'type', width: 20 },
+          { header: 'Amount', dataKey: 'amount', width: 25 },
+          { header: 'Description', dataKey: 'description', width: 45 },
+        ],
+        recentContributions,
+        { headerColor: COLORS.green }
+      );
     }
 
-    this.save('fitholics-fc-contributions-expenses');
+    // Expense analysis
+    if (data.expenses.length > 0) {
+      this.addSectionDivider('Expense Analysis');
+      
+      const expensesByCategory = data.expenses.reduce((acc, expense) => {
+        acc[expense.category] = (acc[expense.category] || 0) + expense.amount;
+        return acc;
+      }, {} as Record<string, number>);
+
+      const expenseCategoryData = Object.entries(expensesByCategory).map(([category, amount]) => ({
+        category: category.charAt(0).toUpperCase() + category.slice(1),
+        amount: formatUGX(amount),
+        count: data.expenses.filter(e => e.category === category).length.toString(),
+        percentage: `${Math.round((amount / data.totalExpenses) * 100)}%`,
+      }));
+
+      this.addEnhancedTable(
+        'Expenses by Category',
+        [
+          { header: 'Category', dataKey: 'category', width: 30 },
+          { header: 'Total Amount', dataKey: 'amount', width: 30 },
+          { header: 'Count', dataKey: 'count', width: 15 },
+          { header: 'Percentage', dataKey: 'percentage', width: 20 },
+        ],
+        expenseCategoryData,
+        { headerColor: COLORS.red }
+      );
+
+      // Recent expenses
+      const recentExpenses = data.expenses
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+        .slice(0, 10)
+        .map(expense => ({
+          date: formatDate(expense.date),
+          category: expense.category.charAt(0).toUpperCase() + expense.category.slice(1),
+          amount: formatUGX(expense.amount),
+          description: expense.description,
+        }));
+
+      this.addEnhancedTable(
+        'Recent Expenses',
+        [
+          { header: 'Date', dataKey: 'date', width: 20 },
+          { header: 'Category', dataKey: 'category', width: 25 },
+          { header: 'Amount', dataKey: 'amount', width: 25 },
+          { header: 'Description', dataKey: 'description', width: 50 },
+        ],
+        recentExpenses,
+        { headerColor: COLORS.red }
+      );
+    }
+
+    this.save('fitholics-fc-financial-report');
   }
 }
 
 /**
- * Events PDF Export
+ * Enhanced Events PDF Export
  */
 export class EventsPDFExporter extends BasePDFExporter {
   exportEvents(events: Event[], type: 'training' | 'friendly' | 'all' = 'all'): void {
     const filteredEvents = type === 'all' ? events : events.filter(e => e.type === type);
-    const title = type === 'all' ? 'All Events' : type === 'training' ? 'Training Sessions' : 'Friendly Matches';
+    const title = type === 'all' ? 'Events Calendar' : type === 'training' ? 'Training Schedule' : 'Friendly Matches';
     
-    this.addHeader(title, `Total: ${filteredEvents.length} events`);
+    this.addHeader(title, `Complete schedule with ${filteredEvents.length} events`);
 
-    // Add statistics
+    // Event statistics
     const upcomingEvents = filteredEvents.filter(e => new Date(e.date) > new Date()).length;
     const pastEvents = filteredEvents.filter(e => new Date(e.date) <= new Date()).length;
     const trainingCount = filteredEvents.filter(e => e.type === 'training').length;
     const friendlyCount = filteredEvents.filter(e => e.type === 'friendly').length;
 
-    this.addStatsSection([
-      { label: 'Total Events', value: filteredEvents.length.toString(), color: '#dbeafe' },
-      { label: 'Upcoming', value: upcomingEvents.toString(), color: '#d1fae5' },
-      { label: 'Past', value: pastEvents.toString(), color: '#fef3c7' },
-      ...(type === 'all' ? [
-        { label: 'Training', value: trainingCount.toString(), color: '#e0e7ff' },
-        { label: 'Friendlies', value: friendlyCount.toString(), color: '#fce7f3' },
-      ] : []),
-    ]);
-
-    // Events table
-    const columns = [
-      { header: 'Date', dataKey: 'date' },
-      { header: 'Time', dataKey: 'time' },
-      { header: 'Type', dataKey: 'type' },
-      { header: 'Description/Opponent', dataKey: 'description' },
-      { header: 'Location', dataKey: 'location' },
-      { header: 'Status', dataKey: 'status' },
+    const statsData = [
+      { label: 'Total Events', value: filteredEvents.length.toString(), color: '#dbeafe', icon: '📅' },
+      { label: 'Upcoming', value: upcomingEvents.toString(), color: '#d1fae5', icon: '⏭️' },
+      { label: 'Completed', value: pastEvents.toString(), color: '#fef3c7', icon: '✅' },
     ];
 
-    const rows = filteredEvents
+    if (type === 'all') {
+      statsData.push(
+        { label: 'Training', value: trainingCount.toString(), color: '#e0e7ff', icon: '🏃' },
+        { label: 'Friendlies', value: friendlyCount.toString(), color: '#fce7f3', icon: '⚽' }
+      );
+    }
+
+    this.addStatsSection(statsData);
+
+    // Monthly breakdown
+    this.addSectionDivider('Monthly Schedule');
+    
+    const monthlyBreakdown = filteredEvents.reduce((acc, event) => {
+      const month = new Date(event.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
+      acc[month] = (acc[month] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    const monthlyData = Object.entries(monthlyBreakdown).map(([month, count]) => ({
+      month,
+      events: count.toString(),
+      training: filteredEvents.filter(e => e.type === 'training' && new Date(e.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long' }) === month).length.toString(),
+      friendlies: filteredEvents.filter(e => e.type === 'friendly' && new Date(e.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long' }) === month).length.toString(),
+    }));
+
+    this.addEnhancedTable(
+      'Events by Month',
+      [
+        { header: 'Month', dataKey: 'month', width: 40 },
+        { header: 'Total Events', dataKey: 'events', width: 25 },
+        { header: 'Training', dataKey: 'training', width: 20 },
+        { header: 'Friendlies', dataKey: 'friendlies', width: 20 },
+      ],
+      monthlyData,
+      { headerColor: COLORS.purple }
+    );
+
+    // Complete events list
+    this.addSectionDivider('Complete Events Schedule');
+    
+    const eventRows = filteredEvents
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
       .map(event => ({
         date: formatDate(event.date),
@@ -491,24 +786,28 @@ export class EventsPDFExporter extends BasePDFExporter {
         type: event.type === 'training' ? 'Training' : 'Friendly',
         description: event.type === 'training' ? (event.description || 'Training Session') : `vs ${event.opponent}`,
         location: event.location,
-        status: new Date(event.date) > new Date() ? 'Upcoming' : 'Past',
+        status: new Date(event.date) > new Date() ? 'Upcoming' : 'Completed',
       }));
 
-    (this.doc as any).autoTable({
-      head: [columns.map(col => col.header)],
-      body: rows.map(row => columns.map(col => row[col.dataKey as keyof typeof row])),
-      startY: this.currentY,
-      styles: { fontSize: FONTS.body, cellPadding: 3 },
-      headStyles: { fillColor: COLORS.primary, textColor: '#ffffff' },
-      alternateRowStyles: { fillColor: COLORS.lightGray },
-    });
+    this.addEnhancedTable(
+      'Full Schedule',
+      [
+        { header: 'Date', dataKey: 'date', width: 20 },
+        { header: 'Time', dataKey: 'time', width: 15 },
+        { header: 'Type', dataKey: 'type', width: 20 },
+        { header: 'Event Details', dataKey: 'description', width: 50 },
+        { header: 'Location', dataKey: 'location', width: 30 },
+        { header: 'Status', dataKey: 'status', width: 20 },
+      ],
+      eventRows
+    );
 
     this.save(`fitholics-fc-${type === 'all' ? 'events' : type}`);
   }
 }
 
 /**
- * Attendance PDF Export
+ * Enhanced Attendance PDF Export
  */
 export class AttendancePDFExporter extends BasePDFExporter {
   exportAttendance(data: {
@@ -520,93 +819,157 @@ export class AttendancePDFExporter extends BasePDFExporter {
       lowestAttendance: number;
     };
   }): void {
-    this.addHeader('Attendance Report', `${data.attendanceRecords.length} attendance records`);
+    this.addHeader('Attendance Report', `Comprehensive attendance analysis with ${data.attendanceRecords.length} records`);
 
-    // Add statistics
+    // Attendance statistics
     this.addStatsSection([
-      { label: 'Total Sessions', value: data.stats.totalSessions.toString(), color: '#dbeafe' },
-      { label: 'Average Attendance', value: data.stats.averageAttendance.toString(), color: '#d1fae5' },
-      { label: 'Highest Attendance', value: data.stats.highestAttendance.toString(), color: '#dcfce7' },
-      { label: 'Lowest Attendance', value: data.stats.lowestAttendance.toString(), color: '#fef3c7' },
+      { label: 'Total Sessions', value: data.stats.totalSessions.toString(), color: '#dbeafe', icon: '📊' },
+      { label: 'Average Attendance', value: data.stats.averageAttendance.toString(), color: '#d1fae5', icon: '👥' },
+      { label: 'Best Attendance', value: data.stats.highestAttendance.toString(), color: '#dcfce7', icon: '🏆' },
+      { label: 'Lowest Attendance', value: data.stats.lowestAttendance.toString(), color: '#fef3c7', icon: '⚠️' },
     ]);
 
-    // Attendance table
-    const columns = [
-      { header: 'Date', dataKey: 'date' },
-      { header: 'Event', dataKey: 'event' },
-      { header: 'Member', dataKey: 'member' },
-      { header: 'Status', dataKey: 'status' },
-      { header: 'Notes', dataKey: 'notes' },
-    ];
+    // Attendance by status
+    this.addSectionDivider('Attendance Analysis');
+    
+    const statusCounts = data.attendanceRecords.reduce((acc, record) => {
+      acc[record.attendance.status] = (acc[record.attendance.status] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
 
-    const rows = data.attendanceRecords
+    const statusData = Object.entries(statusCounts).map(([status, count]) => ({
+      status: status.charAt(0).toUpperCase() + status.slice(1),
+      count: count.toString(),
+      percentage: `${Math.round((count / data.attendanceRecords.length) * 100)}%`,
+    }));
+
+    this.addEnhancedTable(
+      'Attendance by Status',
+      [
+        { header: 'Status', dataKey: 'status', width: 30 },
+        { header: 'Count', dataKey: 'count', width: 20 },
+        { header: 'Percentage', dataKey: 'percentage', width: 25 },
+      ],
+      statusData,
+      { headerColor: COLORS.blue }
+    );
+
+    // Detailed attendance records
+    this.addSectionDivider('Detailed Attendance Records');
+    
+    const attendanceRows = data.attendanceRecords
       .sort((a, b) => new Date(b.event.date).getTime() - new Date(a.event.date).getTime())
       .map(record => ({
         date: formatDate(record.event.date),
         event: record.event.type === 'training' ? 'Training' : `vs ${record.event.opponent}`,
         member: record.member.name,
+        jersey: `#${record.member.jerseyNumber}`,
         status: record.attendance.status.charAt(0).toUpperCase() + record.attendance.status.slice(1),
         notes: record.attendance.notes || 'No notes',
       }));
 
-    (this.doc as any).autoTable({
-      head: [columns.map(col => col.header)],
-      body: rows.map(row => columns.map(col => row[col.dataKey as keyof typeof row])),
-      startY: this.currentY,
-      styles: { fontSize: FONTS.body, cellPadding: 3 },
-      headStyles: { fillColor: COLORS.primary, textColor: '#ffffff' },
-      alternateRowStyles: { fillColor: COLORS.lightGray },
-    });
+    this.addEnhancedTable(
+      'Complete Attendance Log',
+      [
+        { header: 'Date', dataKey: 'date', width: 20 },
+        { header: 'Event', dataKey: 'event', width: 30 },
+        { header: 'Member', dataKey: 'member', width: 30 },
+        { header: 'Jersey', dataKey: 'jersey', width: 15 },
+        { header: 'Status', dataKey: 'status', width: 20 },
+        { header: 'Notes', dataKey: 'notes', width: 35 },
+      ],
+      attendanceRows
+    );
 
     this.save('fitholics-fc-attendance');
   }
 }
 
 /**
- * Leadership PDF Export
+ * Enhanced Leadership PDF Export
  */
 export class LeadershipPDFExporter extends BasePDFExporter {
   exportLeadership(data: { leadership: Leadership[]; members: Member[] }): void {
-    this.addHeader('Leadership Structure', `${data.leadership.length} leadership positions`);
+    this.addHeader('Leadership Structure', `Organizational chart with ${data.leadership.length} leadership positions`);
 
-    // Add statistics
+    // Leadership statistics
     const activeRoles = data.leadership.filter(l => l.isActive).length;
     const inactiveRoles = data.leadership.filter(l => !l.isActive).length;
+    const uniqueLeaders = new Set(data.leadership.map(l => l.memberId)).size;
 
     this.addStatsSection([
-      { label: 'Total Positions', value: data.leadership.length.toString(), color: '#dbeafe' },
-      { label: 'Active Roles', value: activeRoles.toString(), color: '#d1fae5' },
-      { label: 'Inactive Roles', value: inactiveRoles.toString(), color: '#fef3c7' },
+      { label: 'Total Positions', value: data.leadership.length.toString(), color: '#dbeafe', icon: '👑' },
+      { label: 'Active Roles', value: activeRoles.toString(), color: '#d1fae5', icon: '✅' },
+      { label: 'Inactive Roles', value: inactiveRoles.toString(), color: '#fef3c7', icon: '⏸️' },
+      { label: 'Leaders', value: uniqueLeaders.toString(), color: '#e0e7ff', icon: '👥' },
     ]);
 
-    // Leadership table
-    const columns = [
-      { header: 'Member', dataKey: 'member' },
-      { header: 'Role', dataKey: 'role' },
-      { header: 'Start Date', dataKey: 'startDate' },
-      { header: 'Status', dataKey: 'status' },
-    ];
+    // Leadership by category
+    this.addSectionDivider('Leadership Categories');
+    
+    const getRoleCategory = (role: string): string => {
+      const technicalStaff = ['Head Coach', 'Assistant Coach', 'Goalkeeping Coach', 'Fitness Trainer', 'Physiotherapist', 'Team Doctor', 'Nutritionist'];
+      const teamLeadership = ['Captain', 'Vice Captain', 'Team Leader'];
+      const administrative = ['Chairman', 'Vice Chairman', 'Team Manager', 'Secretary', 'Treasurer', 'Public Relations Officer', 'Media Officer'];
+      
+      if (technicalStaff.includes(role)) return 'Technical Staff';
+      if (teamLeadership.includes(role)) return 'Team Leadership';
+      if (administrative.includes(role)) return 'Administrative';
+      return 'Other';
+    };
 
-    const rows = data.leadership
+    const categoryBreakdown = data.leadership.reduce((acc, leadership) => {
+      const category = getRoleCategory(leadership.role);
+      acc[category] = (acc[category] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    const categoryData = Object.entries(categoryBreakdown).map(([category, count]) => ({
+      category,
+      count: count.toString(),
+      percentage: `${Math.round((count / data.leadership.length) * 100)}%`,
+    }));
+
+    this.addEnhancedTable(
+      'Roles by Category',
+      [
+        { header: 'Category', dataKey: 'category', width: 40 },
+        { header: 'Count', dataKey: 'count', width: 20 },
+        { header: 'Percentage', dataKey: 'percentage', width: 25 },
+      ],
+      categoryData,
+      { headerColor: COLORS.yellow, textColor: COLORS.black }
+    );
+
+    // Complete leadership roster
+    this.addSectionDivider('Complete Leadership Roster');
+    
+    const leadershipRows = data.leadership
       .sort((a, b) => a.role.localeCompare(b.role))
       .map(leadership => {
         const member = data.members.find(m => m.id === leadership.memberId);
         return {
           member: member ? member.name : 'Unknown Member',
+          jersey: member ? `#${member.jerseyNumber}` : 'N/A',
           role: leadership.role,
+          category: getRoleCategory(leadership.role),
           startDate: formatDate(leadership.startDate),
           status: leadership.isActive ? 'Active' : 'Inactive',
         };
       });
 
-    (this.doc as any).autoTable({
-      head: [columns.map(col => col.header)],
-      body: rows.map(row => columns.map(col => row[col.dataKey as keyof typeof row])),
-      startY: this.currentY,
-      styles: { fontSize: FONTS.body, cellPadding: 3 },
-      headStyles: { fillColor: COLORS.yellow, textColor: '#000000' },
-      alternateRowStyles: { fillColor: COLORS.lightGray },
-    });
+    this.addEnhancedTable(
+      'Leadership Directory',
+      [
+        { header: 'Member', dataKey: 'member', width: 30 },
+        { header: 'Jersey', dataKey: 'jersey', width: 15 },
+        { header: 'Role', dataKey: 'role', width: 35 },
+        { header: 'Category', dataKey: 'category', width: 25 },
+        { header: 'Start Date', dataKey: 'startDate', width: 20 },
+        { header: 'Status', dataKey: 'status', width: 15 },
+      ],
+      leadershipRows
+    );
 
     this.save('fitholics-fc-leadership');
   }
