@@ -52,17 +52,17 @@ const Button: React.FC<ButtonProps> = ({
   const getSizeClasses = (): string => {
     switch (size) {
       case 'sm':
-        return 'text-xs px-2.5 py-1.5';
+        return 'text-xs px-2.5 py-1.5 min-h-[32px]';
       case 'md':
-        return 'text-sm px-4 py-2';
+        return 'text-sm px-4 py-2 min-h-[40px]';
       case 'lg':
-        return 'text-base px-6 py-3';
+        return 'text-base px-6 py-3 min-h-[48px]';
       default:
-        return 'text-sm px-4 py-2';
+        return 'text-sm px-4 py-2 min-h-[40px]';
     }
   };
 
-  const baseClasses = 'inline-flex items-center justify-center font-medium rounded-md transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed';
+  const baseClasses = 'inline-flex items-center justify-center font-medium rounded-md transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed min-w-0';
   const widthClass = fullWidth ? 'w-full' : '';
 
   return (
@@ -79,7 +79,7 @@ const Button: React.FC<ButtonProps> = ({
     >
       {isLoading && (
         <svg
-          className="animate-spin -ml-1 mr-2 h-4 w-4 text-current"
+          className="animate-spin -ml-1 mr-2 h-4 w-4 text-current flex-shrink-0"
           xmlns="http://www.w3.org/2000/svg"
           fill="none"
           viewBox="0 0 24 24"
@@ -99,9 +99,9 @@ const Button: React.FC<ButtonProps> = ({
           ></path>
         </svg>
       )}
-      {!isLoading && leftIcon && <span className="mr-2">{leftIcon}</span>}
-      {children}
-      {!isLoading && rightIcon && <span className="ml-2">{rightIcon}</span>}
+      {!isLoading && leftIcon && <span className="mr-2 flex-shrink-0">{leftIcon}</span>}
+      <span className="truncate">{children}</span>
+      {!isLoading && rightIcon && <span className="ml-2 flex-shrink-0">{rightIcon}</span>}
     </button>
   );
 };

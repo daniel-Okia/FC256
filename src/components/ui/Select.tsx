@@ -32,7 +32,7 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
     const selectId = id || label?.toLowerCase().replace(/\s+/g, '-');
 
     return (
-      <div className={twMerge(fullWidth ? 'w-full' : '', containerClassName)}>
+      <div className={twMerge(fullWidth ? 'w-full' : '', 'min-w-0', containerClassName)}>
         {label && (
           <label
             htmlFor={selectId}
@@ -42,12 +42,12 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
             {props.required && <span className="text-red-500 ml-1">*</span>}
           </label>
         )}
-        <div className="relative">
+        <div className="relative min-w-0">
           <select
             ref={ref}
             id={selectId}
             className={twMerge(
-              'block w-full rounded-lg shadow-sm border transition-colors duration-200 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 sm:text-sm appearance-none',
+              'block w-full min-w-0 rounded-lg shadow-sm border transition-colors duration-200 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 text-sm appearance-none',
               'border-gray-300 dark:border-gray-600 dark:bg-neutral-700 dark:text-white',
               'hover:border-gray-400 dark:hover:border-gray-500',
               'px-3 py-2.5 pr-10',
@@ -63,7 +63,7 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
             {...props}
           >
             {placeholder && (
-              <option value="\" disabled>
+              <option value="" disabled>
                 {placeholder}
               </option>
             )}

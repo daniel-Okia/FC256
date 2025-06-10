@@ -30,7 +30,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
     const inputId = id || label?.toLowerCase().replace(/\s+/g, '-');
 
     return (
-      <div className={twMerge(fullWidth ? 'w-full' : '', containerClassName)}>
+      <div className={twMerge(fullWidth ? 'w-full' : '', 'min-w-0', containerClassName)}>
         {label && (
           <label
             htmlFor={inputId}
@@ -40,7 +40,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
             {props.required && <span className="text-red-500 ml-1">*</span>}
           </label>
         )}
-        <div className="relative">
+        <div className="relative min-w-0">
           {leftIcon && (
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-500 dark:text-gray-400">
               {leftIcon}
@@ -50,7 +50,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
             ref={ref}
             id={inputId}
             className={twMerge(
-              'block w-full rounded-lg shadow-sm border transition-colors duration-200 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 sm:text-sm',
+              'block w-full min-w-0 rounded-lg shadow-sm border transition-colors duration-200 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 text-sm',
               'border-gray-300 dark:border-gray-600 dark:bg-neutral-700 dark:text-white placeholder-gray-400 dark:placeholder-gray-500',
               'hover:border-gray-400 dark:hover:border-gray-500',
               leftIcon ? 'pl-10' : 'px-3',
