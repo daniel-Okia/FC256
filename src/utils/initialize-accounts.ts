@@ -6,7 +6,7 @@ import { User } from '../types';
 // Hardcoded account credentials
 export const ADMIN_CREDENTIALS = {
   email: 'danielokia256@gmail.com',
-  password: 'FitholicsAdmin2024!@#',
+  password: 'FC256Admin2024!@#',
   userData: {
     name: 'Daniel Okia',
     email: 'danielokia256@gmail.com',
@@ -19,7 +19,7 @@ export const ADMIN_CREDENTIALS = {
 
 export const MANAGER_CREDENTIALS = {
   email: 'piuspaul392@gmail.com',
-  password: 'FitholicsManager2024$%^',
+  password: 'FC256Manager2024$%^',
   userData: {
     name: 'Pius Paul',
     email: 'piuspaul392@gmail.com',

@@ -98,7 +98,7 @@ const ForgotPassword: React.FC = () => {
             <div className="flex justify-center mb-6">
               <img 
                 src="/Fitholics Logo.png" 
-                alt="Fitholics FC Logo" 
+                alt="FC256 Logo" 
                 className="h-20 w-20 object-contain"
               />
             </div>
@@ -157,7 +157,7 @@ const ForgotPassword: React.FC = () => {
           <div className="flex justify-center mb-6">
             <img 
               src="/Fitholics Logo.png" 
-              alt="Fitholics FC Logo" 
+              alt="FC256 Logo" 
               className="h-20 w-20 object-contain"
             />
           </div>

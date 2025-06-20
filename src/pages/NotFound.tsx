@@ -26,7 +26,7 @@ const NotFound: React.FC = () => {
         <div className="flex justify-center mb-8">
           <img 
             src="/Fitholics Logo.png" 
-            alt="Fitholics FC Logo" 
+            alt="FC256 Logo" 
             className="h-20 w-20 object-contain"
             onError={(e) => {
               // Hide image if it fails to load

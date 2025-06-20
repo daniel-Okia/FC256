@@ -75,7 +75,7 @@ const InitializeAccounts: React.FC = () => {
             <div className="flex justify-center mb-6">
               <img 
                 src="/Fitholics Logo.png" 
-                alt="Fitholics FC Logo" 
+                alt="FC256 Logo" 
                 className="h-20 w-20 object-contain"
               />
             </div>
@@ -226,7 +226,7 @@ const InitializeAccounts: React.FC = () => {
           <div className="flex justify-center mb-6">
             <img 
               src="/Fitholics Logo.png" 
-              alt="Fitholics FC Logo" 
+              alt="FC256 Logo" 
               className="h-20 w-20 object-contain"
             />
           </div>
@@ -235,7 +235,7 @@ const InitializeAccounts: React.FC = () => {
             Initialize Accounts
           </h2>
           <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-            Create hardcoded admin and manager accounts for Fitholics FC
+            Create hardcoded admin and manager accounts for FC256
           </p>
         </div>
         

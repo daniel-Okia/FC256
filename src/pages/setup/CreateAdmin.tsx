@@ -28,7 +28,7 @@ const CreateAdmin: React.FC = () => {
   } = useForm<AdminFormData>({
     defaultValues: {
       name: 'Administrator',
-      email: 'admin@fitholicsfc.com',
+      email: 'admin@fc256.com',
       phone: '+256 700 000 000',
     },
   });
@@ -65,7 +65,7 @@ const CreateAdmin: React.FC = () => {
             <div className="flex justify-center mb-6">
               <img 
                 src="/Fitholics Logo.png" 
-                alt="Fitholics FC Logo" 
+                alt="FC256 Logo" 
                 className="h-20 w-20 object-contain"
               />
             </div>
@@ -140,7 +140,7 @@ const CreateAdmin: React.FC = () => {
           <div className="flex justify-center mb-6">
             <img 
               src="/Fitholics Logo.png" 
-              alt="Fitholics FC Logo" 
+              alt="FC256 Logo" 
               className="h-20 w-20 object-contain"
             />
           </div>
@@ -149,7 +149,7 @@ const CreateAdmin: React.FC = () => {
             Create Admin User
           </h2>
           <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-            Set up the administrator account for Fitholics FC
+            Set up the administrator account for FC256
           </p>
         </div>
         
@@ -177,7 +177,7 @@ const CreateAdmin: React.FC = () => {
               leftIcon={<Mail size={18} />}
               error={errors.email?.message}
               fullWidth
-              placeholder="admin@fitholicsfc.com"
+              placeholder="admin@fc256.com"
               helperText="This will be the admin login email"
               {...register('email', {
                 required: 'Email is required',

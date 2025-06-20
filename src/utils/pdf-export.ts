@@ -59,7 +59,7 @@ class BasePDFExporter {
     this.doc.setFontSize(FONTS.title);
     this.doc.setTextColor(255, 255, 255); // Bright white
     this.doc.setFont('helvetica', 'bold');
-    this.doc.text('FITHOLICS FC', this.margin, this.margin + 15);
+    this.doc.text('FC256', this.margin, this.margin + 15);
     
     // Core values in bright white
     this.doc.setFontSize(FONTS.small);
@@ -360,7 +360,7 @@ class BasePDFExporter {
       this.doc.setFontSize(FONTS.tiny);
       this.doc.setTextColor(COLORS.gray);
       this.doc.text(
-        'Confidential - Fitholics FC Internal Report',
+        'Confidential - FC256 Internal Report',
         this.pageWidth / 2,
         footerY + 5,
         { align: 'center' }
@@ -552,7 +552,7 @@ export class DashboardPDFExporter extends BasePDFExporter {
       );
     }
 
-    this.save('fitholics-fc-dashboard');
+    this.save('fc256-dashboard');
   }
 }
 
@@ -648,7 +648,7 @@ export class MembersPDFExporter extends BasePDFExporter {
       { title: 'COMPLETE TEAM ROSTER', headerColor: COLORS.primary }
     );
 
-    this.save('fitholics-fc-members');
+    this.save('fc256-members');
   }
 }
 
@@ -806,7 +806,7 @@ export class ContributionsPDFExporter extends BasePDFExporter {
       );
     }
 
-    this.save('fitholics-fc-financial-report');
+    this.save('fc256-financial-report');
   }
 }
 
@@ -909,7 +909,7 @@ export class EventsPDFExporter extends BasePDFExporter {
       { title: 'COMPLETE EVENTS SCHEDULE', headerColor: COLORS.primary }
     );
 
-    this.save(`fitholics-fc-${type === 'all' ? 'events' : type}`);
+    this.save(`fc256-${type === 'all' ? 'events' : type}`);
   }
 }
 
@@ -1009,7 +1009,7 @@ export class AttendancePDFExporter extends BasePDFExporter {
       { title: 'DETAILED ATTENDANCE RECORDS', headerColor: COLORS.primary }
     );
 
-    this.save('fitholics-fc-attendance');
+    this.save('fc256-attendance');
   }
 
   private getStatusDescription(status: string): string {
@@ -1121,7 +1121,7 @@ export class LeadershipPDFExporter extends BasePDFExporter {
       [
         { header: 'Member Name', dataKey: 'member', width: 35 },
         { header: 'Jersey', dataKey: 'jersey', width: 15 },
-        { header: 'Leadership Role', dataKey: 'role', width: 40 },
+        { header: 'Leadership Role', dataKey: 'role', width:  40 },
         { header: 'Category', dataKey: 'category', width: 30 },
         { header: 'Start Date', dataKey: 'startDate', width: 25 },
         { header: 'Status', dataKey: 'status', width: 20 },
@@ -1131,7 +1131,7 @@ export class LeadershipPDFExporter extends BasePDFExporter {
       { title: 'COMPLETE LEADERSHIP DIRECTORY', headerColor: COLORS.primary }
     );
 
-    this.save('fitholics-fc-leadership');
+    this.save('fc256-leadership');
   }
 
   private calculateDuration(startDate: string): string {

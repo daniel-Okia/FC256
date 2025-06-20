@@ -112,7 +112,7 @@ const Register: React.FC = () => {
             <div className="relative">
               <img 
                 src="/Fitholics Logo.png" 
-                alt="Fitholics FC Logo" 
+                alt="FC256 Logo" 
                 className="h-20 w-20 object-contain"
               />
             </div>
@@ -120,7 +120,7 @@ const Register: React.FC = () => {
           
           {/* Title with gradient */}
           <h2 className="text-3xl font-bold bg-gradient-to-r from-primary-600 via-yellow-500 to-secondary-600 bg-clip-text text-transparent">
-            Join Fitholics FC
+            Join FC256
           </h2>
           <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
             Create your account to access the team portal
