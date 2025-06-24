@@ -25,7 +25,7 @@ const NotFound: React.FC = () => {
         {/* Logo */}
         <div className="flex justify-center mb-8">
           <img 
-            src="/Fitholics Logo.png" 
+            src="/fc256-logo.png" 
             alt="FC256 Logo" 
             className="h-20 w-20 object-contain"
             onError={(e) => {

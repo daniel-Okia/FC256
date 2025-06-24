@@ -63,7 +63,7 @@ const Login: React.FC = () => {
           <div className="flex justify-center mb-6">
             <div className="relative">
               <img 
-                src="/Fitholics Logo.png" 
+                src="/fc256-logo.png" 
                 alt="FC256 Logo" 
                 className="h-20 w-20 object-contain"
               />

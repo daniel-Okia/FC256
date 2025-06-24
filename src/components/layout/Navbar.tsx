@@ -45,7 +45,7 @@ const Navbar: React.FC<NavbarProps> = ({ onMenuClick }) => {
             {/* Logo - visible on mobile when sidebar is closed */}
             <Link to="/" className="lg:hidden flex-shrink-0 flex items-center space-x-2" onClick={closeMenus}>
               <img 
-                src="/Fitholics Logo.png" 
+                src="/fc256-logo.png" 
                 alt="FC256 Logo" 
                 className="h-8 w-8 object-contain"
               />

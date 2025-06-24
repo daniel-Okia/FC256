@@ -102,7 +102,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
           <Link to="/" className="flex items-center space-x-3" onClick={onClose}>
             {/* Logo */}
             <img 
-              src="/Fitholics Logo.png" 
+              src="/fc256-logo.png" 
               alt="FC256 Logo" 
               className="h-8 w-8 object-contain"
             />
