@@ -142,7 +142,7 @@ export default {
         },
       },
       backgroundImage: {
-        'gradient-fitholics': 'linear-gradient(135deg, #4f4fe6 0%, #eab308 50%, #f43f4e 100%)',
+        'gradient-fc256': 'linear-gradient(135deg, #4f4fe6 0%, #eab308 50%, #f43f4e 100%)',
         'gradient-yellow-primary': 'linear-gradient(135deg, #eab308 0%, #4f4fe6 100%)',
       },
       // Add mobile-specific utilities

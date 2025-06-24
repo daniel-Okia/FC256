@@ -14,7 +14,7 @@ export const createAdminUser = async (): Promise<void> => {
   try {
     const adminUser: Omit<User, 'id'> = {
       name: 'Administrator',
-      email: 'admin@fitholicsfc.com',
+      email: 'admin@fc256.com',
       role: 'admin',
       phone: '+256 700 000 000',
       dateJoined: new Date().toISOString(),
@@ -22,12 +22,12 @@ export const createAdminUser = async (): Promise<void> => {
     };
 
     // Create the admin user document with a specific ID
-    const adminUserId = 'admin-user-fitholics-fc';
+    const adminUserId = 'admin-user-fc256';
     await setDoc(doc(db, 'users', adminUserId), adminUser);
 
     console.log('Admin user created successfully!');
     console.log('Admin credentials:');
-    console.log('Email: admin@fitholicsfc.com');
+    console.log('Email: admin@fc256.com');
     console.log('You can now create a password for this account using Firebase Auth');
     
     return;

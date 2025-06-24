@@ -102,13 +102,13 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
           <Link to="/" className="flex items-center space-x-3" onClick={onClose}>
             {/* Logo */}
             <img 
-              src="/Fitholics Logo.png" 
-              alt="Fitholics FC Logo" 
+              src="/fc256-logo.png" 
+              alt="FC256 Logo" 
               className="h-8 w-8 object-contain"
             />
             {/* Text with gradient */}
             <span className="text-xl font-bold bg-gradient-to-r from-primary-600 via-yellow-500 to-secondary-600 bg-clip-text text-transparent">
-              Fitholics FC
+              FC256
             </span>
           </Link>
           <button
