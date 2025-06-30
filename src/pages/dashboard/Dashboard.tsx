@@ -9,6 +9,7 @@ import PositionChart from './PositionChart';
 import FinancialChart from './FinancialChart';
 import UpcomingEvents from './UpcomingEvents';
 import RecentTransactions from './RecentTransactions';
+import RecentResults from './RecentResults';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
@@ -380,6 +381,10 @@ const Dashboard: React.FC = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         <AttendanceChart />
+        <RecentResults />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         <UpcomingEvents />
       </div>
 
