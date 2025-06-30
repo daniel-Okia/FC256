@@ -60,9 +60,17 @@ export type EventType = 'training' | 'friendly';
 export type MatchResult = 'win' | 'draw' | 'loss';
 
 export interface MatchDetails {
-  homeScore: number;
-  awayScore: number;
+  // New simplified score fields
+  fc256Score: number;
+  opponentScore: number;
   result: MatchResult; // From FC256's perspective
+  venue: 'home' | 'away' | 'neutral';
+  
+  // Team composition
+  fc256Players?: number; // Number of players FC256 fielded
+  opponentPlayers?: number; // Number of players opponent fielded
+  
+  // Player statistics
   goalScorers?: string[]; // Member IDs who scored
   assists?: string[]; // Member IDs who assisted
   yellowCards?: string[]; // Member IDs who received yellow cards
@@ -70,7 +78,10 @@ export interface MatchDetails {
   manOfTheMatch?: string; // Member ID
   matchReport?: string; // Detailed match report
   attendance?: number; // Number of spectators
-  venue?: 'home' | 'away' | 'neutral';
+  
+  // Legacy fields for backward compatibility
+  homeScore?: number;
+  awayScore?: number;
 }
 
 export interface Event {

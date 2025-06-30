@@ -27,9 +27,11 @@ interface FriendlyFormData {
 }
 
 interface MatchResultFormData {
-  homeScore: number;
-  awayScore: number;
+  fc256Score: number;
+  opponentScore: number;
   venue: 'home' | 'away' | 'neutral';
+  fc256Players: number;
+  opponentPlayers: number;
   goalScorers: string[];
   assists: string[];
   yellowCards: string[];
@@ -77,8 +79,8 @@ const Friendlies: React.FC = () => {
     formState: { errors: errorsResult },
   } = useForm<MatchResultFormData>();
 
-  const watchHomeScore = watchResult('homeScore');
-  const watchAwayScore = watchResult('awayScore');
+  const watchFC256Score = watchResult('fc256Score');
+  const watchOpponentScore = watchResult('opponentScore');
   const watchVenue = watchResult('venue');
 
   // Load friendlies and members from Firestore
@@ -157,11 +159,9 @@ const Friendlies: React.FC = () => {
     }
   };
 
-  const getScoreDisplay = (matchDetails: MatchDetails, venue: 'home' | 'away' | 'neutral') => {
-    if (venue === 'away') {
-      return `${matchDetails.awayScore} - ${matchDetails.homeScore}`;
-    }
-    return `${matchDetails.homeScore} - ${matchDetails.awayScore}`;
+  const getScoreDisplay = (matchDetails: MatchDetails) => {
+    // Always show FC256 score first, then opponent score
+    return `${matchDetails.fc256Score || 0} - ${matchDetails.opponentScore || 0}`;
   };
 
   const memberOptions = members
@@ -231,7 +231,10 @@ const Friendlies: React.FC = () => {
           <div className="flex flex-col space-y-1">
             {getResultBadge(friendly.matchDetails.result)}
             <span className="text-sm font-mono">
-              {getScoreDisplay(friendly.matchDetails, friendly.matchDetails.venue || 'home')}
+              FC256 {getScoreDisplay(friendly.matchDetails)} {friendly.opponent}
+            </span>
+            <span className="text-xs text-gray-500 dark:text-gray-400 capitalize">
+              {friendly.matchDetails.venue} • {friendly.matchDetails.fc256Players || 11}v{friendly.matchDetails.opponentPlayers || 11}
             </span>
           </div>
         );
@@ -324,9 +327,11 @@ const Friendlies: React.FC = () => {
   const handleAddResult = (friendly: Event) => {
     setSelectedMatch(friendly);
     resetResult({
-      homeScore: 0,
-      awayScore: 0,
+      fc256Score: 0,
+      opponentScore: 0,
       venue: 'home',
+      fc256Players: 11,
+      opponentPlayers: 11,
       goalScorers: [],
       assists: [],
       yellowCards: [],
@@ -396,24 +401,24 @@ const Friendlies: React.FC = () => {
     try {
       setSubmitting(true);
 
-      // Determine result based on scores and venue
+      // Determine result based on FC256 vs opponent scores
       let result: MatchResult;
-      const fc256Score = data.venue === 'away' ? data.awayScore : data.homeScore;
-      const opponentScore = data.venue === 'away' ? data.homeScore : data.awayScore;
-
-      if (fc256Score > opponentScore) {
+      if (data.fc256Score > data.opponentScore) {
         result = 'win';
-      } else if (fc256Score < opponentScore) {
+      } else if (data.fc256Score < data.opponentScore) {
         result = 'loss';
       } else {
         result = 'draw';
       }
 
       const matchDetails: MatchDetails = {
-        homeScore: data.homeScore,
-        awayScore: data.awayScore,
+        // Store the actual scores as entered by user
+        fc256Score: data.fc256Score,
+        opponentScore: data.opponentScore,
         result,
         venue: data.venue,
+        fc256Players: data.fc256Players,
+        opponentPlayers: data.opponentPlayers,
         goalScorers: data.goalScorers.filter(id => id !== ''),
         assists: data.assists.filter(id => id !== ''),
         yellowCards: data.yellowCards.filter(id => id !== ''),
@@ -421,6 +426,9 @@ const Friendlies: React.FC = () => {
         manOfTheMatch: data.manOfTheMatch || undefined,
         matchReport: data.matchReport || undefined,
         attendance: data.attendance || undefined,
+        // Legacy fields for backward compatibility
+        homeScore: data.venue === 'home' ? data.fc256Score : data.opponentScore,
+        awayScore: data.venue === 'home' ? data.opponentScore : data.fc256Score,
       };
 
       const updatedEvent = {
@@ -692,7 +700,7 @@ const Friendlies: React.FC = () => {
           <form onSubmit={handleSubmitResult(onSubmitResult)} className="space-y-6">
             <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
               <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-2">
-                {selectedMatch.opponent} vs FC256
+                FC256 vs {selectedMatch.opponent}
               </h4>
               <div className="text-sm text-blue-700 dark:text-blue-300 space-y-1">
                 <p><strong>Date:</strong> {formatDate(selectedMatch.date)}</p>
@@ -711,51 +719,83 @@ const Friendlies: React.FC = () => {
               />
 
               <Input
-                label={watchVenue === 'away' ? 'FC256 Score' : 'Home Score'}
+                label="FC256 Score"
                 type="number"
                 min="0"
-                error={errorsResult.homeScore?.message}
+                error={errorsResult.fc256Score?.message}
                 required
-                {...registerResult('homeScore', { 
-                  required: 'Score is required',
+                {...registerResult('fc256Score', { 
+                  required: 'FC256 score is required',
                   min: { value: 0, message: 'Score cannot be negative' },
                   valueAsNumber: true
                 })}
               />
 
               <Input
-                label={watchVenue === 'away' ? `${selectedMatch.opponent} Score` : 'Away Score'}
+                label={`${selectedMatch.opponent} Score`}
                 type="number"
                 min="0"
-                error={errorsResult.awayScore?.message}
+                error={errorsResult.opponentScore?.message}
                 required
-                {...registerResult('awayScore', { 
-                  required: 'Score is required',
+                {...registerResult('opponentScore', { 
+                  required: 'Opponent score is required',
                   min: { value: 0, message: 'Score cannot be negative' },
                   valueAsNumber: true
                 })}
               />
             </div>
 
+            {/* Team Composition */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Input
+                label="FC256 Players"
+                type="number"
+                min="1"
+                max="15"
+                error={errorsResult.fc256Players?.message}
+                helperText="Number of players FC256 fielded"
+                required
+                {...registerResult('fc256Players', { 
+                  required: 'Number of FC256 players is required',
+                  min: { value: 1, message: 'Must have at least 1 player' },
+                  max: { value: 15, message: 'Cannot exceed 15 players' },
+                  valueAsNumber: true
+                })}
+              />
+
+              <Input
+                label={`${selectedMatch.opponent} Players`}
+                type="number"
+                min="1"
+                max="15"
+                error={errorsResult.opponentPlayers?.message}
+                helperText="Number of players opponent fielded"
+                required
+                {...registerResult('opponentPlayers', { 
+                  required: 'Number of opponent players is required',
+                  min: { value: 1, message: 'Must have at least 1 player' },
+                  max: { value: 15, message: 'Cannot exceed 15 players' },
+                  valueAsNumber: true
+                })}
+              />
+            </div>
+
             {/* Result Preview */}
-            {(watchHomeScore !== undefined && watchAwayScore !== undefined) && (
+            {(watchFC256Score !== undefined && watchOpponentScore !== undefined) && (
               <div className="bg-gray-50 dark:bg-neutral-700/30 rounded-lg p-4">
                 <h4 className="font-medium text-gray-900 dark:text-white mb-2">Match Result Preview</h4>
                 <div className="text-center">
                   <div className="text-2xl font-bold text-gray-900 dark:text-white">
-                    {watchVenue === 'away' 
-                      ? `FC256 ${watchAwayScore} - ${watchHomeScore} ${selectedMatch.opponent}`
-                      : `FC256 ${watchHomeScore} - ${watchAwayScore} ${selectedMatch.opponent}`
-                    }
+                    FC256 {watchFC256Score} - {watchOpponentScore} {selectedMatch.opponent}
+                  </div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                    {watchResult('fc256Players') || 11}v{watchResult('opponentPlayers') || 11} • {watchVenue || 'home'}
                   </div>
                   <div className="mt-2">
                     {(() => {
-                      const fc256Score = watchVenue === 'away' ? watchAwayScore : watchHomeScore;
-                      const opponentScore = watchVenue === 'away' ? watchHomeScore : watchAwayScore;
-                      
-                      if (fc256Score > opponentScore) {
+                      if (watchFC256Score > watchOpponentScore) {
                         return <Badge variant="success" size="lg">Victory!</Badge>;
-                      } else if (fc256Score < opponentScore) {
+                      } else if (watchFC256Score < watchOpponentScore) {
                         return <Badge variant="danger" size="lg">Defeat</Badge>;
                       } else {
                         return <Badge variant="warning" size="lg">Draw</Badge>;
@@ -911,10 +951,7 @@ const Friendlies: React.FC = () => {
             <div className="bg-gradient-to-r from-blue-50 to-green-50 dark:from-blue-900/20 dark:to-green-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-6">
               <div className="text-center">
                 <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-                  {selectedMatch.matchDetails.venue === 'away' 
-                    ? `FC256 ${selectedMatch.matchDetails.awayScore} - ${selectedMatch.matchDetails.homeScore} ${selectedMatch.opponent}`
-                    : `FC256 ${selectedMatch.matchDetails.homeScore} - ${selectedMatch.matchDetails.awayScore} ${selectedMatch.opponent}`
-                  }
+                  FC256 {getScoreDisplay(selectedMatch.matchDetails)} {selectedMatch.opponent}
                 </h3>
                 <div className="flex justify-center mb-4">
                   {getResultBadge(selectedMatch.matchDetails.result)}
@@ -922,6 +959,7 @@ const Friendlies: React.FC = () => {
                 <div className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
                   <p><strong>Date:</strong> {formatDate(selectedMatch.date)}</p>
                   <p><strong>Venue:</strong> {selectedMatch.matchDetails.venue === 'home' ? 'Home (Kiyinda Main Field)' : selectedMatch.matchDetails.venue === 'away' ? 'Away' : 'Neutral'}</p>
+                  <p><strong>Team Composition:</strong> {selectedMatch.matchDetails.fc256Players || 11}v{selectedMatch.matchDetails.opponentPlayers || 11}</p>
                   {selectedMatch.matchDetails.attendance && (
                     <p><strong>Attendance:</strong> {selectedMatch.matchDetails.attendance} spectators</p>
                   )}
