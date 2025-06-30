@@ -423,9 +423,9 @@ const Friendlies: React.FC = () => {
         assists: data.assists.filter(id => id !== ''),
         yellowCards: data.yellowCards.filter(id => id !== ''),
         redCards: data.redCards.filter(id => id !== ''),
-        manOfTheMatch: data.manOfTheMatch || undefined,
-        matchReport: data.matchReport || undefined,
-        attendance: data.attendance || undefined,
+        manOfTheMatch: data.manOfTheMatch || null,
+        matchReport: data.matchReport || null,
+        attendance: data.attendance || null,
         // Legacy fields for backward compatibility
         homeScore: data.venue === 'home' ? data.fc256Score : data.opponentScore,
         awayScore: data.venue === 'home' ? data.opponentScore : data.fc256Score,
