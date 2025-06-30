@@ -56,6 +56,23 @@ export interface Member {
 // Event Types
 export type EventType = 'training' | 'friendly';
 
+// Match Result Types
+export type MatchResult = 'win' | 'draw' | 'loss';
+
+export interface MatchDetails {
+  homeScore: number;
+  awayScore: number;
+  result: MatchResult; // From FC256's perspective
+  goalScorers?: string[]; // Member IDs who scored
+  assists?: string[]; // Member IDs who assisted
+  yellowCards?: string[]; // Member IDs who received yellow cards
+  redCards?: string[]; // Member IDs who received red cards
+  manOfTheMatch?: string; // Member ID
+  matchReport?: string; // Detailed match report
+  attendance?: number; // Number of spectators
+  venue?: 'home' | 'away' | 'neutral';
+}
+
 export interface Event {
   id: string;
   type: EventType;
@@ -67,6 +84,9 @@ export interface Event {
   createdBy: string;
   createdAt: string;
   updatedAt: string;
+  // Match result fields for completed friendlies
+  isCompleted?: boolean;
+  matchDetails?: MatchDetails;
 }
 
 // Attendance Types

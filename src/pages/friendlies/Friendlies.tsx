@@ -1,16 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Plus, Edit, Trash2, MapPin, Clock, Download } from 'lucide-react';
+import { Calendar, Plus, Edit, Trash2, MapPin, Clock, Download, Trophy, Target, Users, TrendingUp, Eye, Award } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { EventService } from '../../services/firestore';
+import { EventService, MemberService } from '../../services/firestore';
 import PageHeader from '../../components/layout/PageHeader';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Table from '../../components/ui/Table';
 import Modal from '../../components/ui/Modal';
 import Input from '../../components/ui/Input';
+import Select from '../../components/ui/Select';
+import Badge from '../../components/ui/Badge';
 import EmptyState from '../../components/common/EmptyState';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
-import { Event } from '../../types';
+import { Event, Member, MatchResult, MatchDetails } from '../../types';
 import { formatDate } from '../../utils/date-utils';
 import { canUserAccess, Permissions } from '../../utils/permissions';
 import { EventsPDFExporter } from '../../utils/pdf-export';
@@ -24,16 +26,34 @@ interface FriendlyFormData {
   description: string;
 }
 
+interface MatchResultFormData {
+  homeScore: number;
+  awayScore: number;
+  venue: 'home' | 'away' | 'neutral';
+  goalScorers: string[];
+  assists: string[];
+  yellowCards: string[];
+  redCards: string[];
+  manOfTheMatch: string;
+  matchReport: string;
+  attendance: number;
+}
+
 const Friendlies: React.FC = () => {
   const { user } = useAuth();
+  const [members, setMembers] = useState<Member[]>([]);
   const [friendlies, setFriendlies] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isResultModalOpen, setIsResultModalOpen] = useState(false);
+  const [isViewResultModalOpen, setIsViewResultModalOpen] = useState(false);
   const [editingFriendly, setEditingFriendly] = useState<Event | null>(null);
+  const [selectedMatch, setSelectedMatch] = useState<Event | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [friendlyToDelete, setFriendlyToDelete] = useState<Event | null>(null);
+  const [activeTab, setActiveTab] = useState<'upcoming' | 'completed' | 'all'>('all');
 
   const canCreateFriendly = user && canUserAccess(user.role, Permissions.CREATE_EVENT);
   const canEditFriendly = user && canUserAccess(user.role, Permissions.EDIT_EVENT);
@@ -48,37 +68,114 @@ const Friendlies: React.FC = () => {
     formState: { errors },
   } = useForm<FriendlyFormData>();
 
-  // Load friendlies from Firestore
+  const {
+    register: registerResult,
+    handleSubmit: handleSubmitResult,
+    reset: resetResult,
+    setValue: setValueResult,
+    watch: watchResult,
+    formState: { errors: errorsResult },
+  } = useForm<MatchResultFormData>();
+
+  const watchHomeScore = watchResult('homeScore');
+  const watchAwayScore = watchResult('awayScore');
+  const watchVenue = watchResult('venue');
+
+  // Load friendlies and members from Firestore
   useEffect(() => {
-    const loadFriendlies = async () => {
+    const loadData = async () => {
       try {
         setLoading(true);
-        const events = await EventService.getEventsByType('friendly');
-        setFriendlies(events);
+        const [eventsData, membersData] = await Promise.all([
+          EventService.getEventsByType('friendly'),
+          MemberService.getAllMembers(),
+        ]);
+        setFriendlies(eventsData);
+        setMembers(membersData);
       } catch (error) {
-        console.error('Error loading friendlies:', error);
+        console.error('Error loading data:', error);
       } finally {
         setLoading(false);
       }
     };
 
-    loadFriendlies();
+    loadData();
 
-    // Set up real-time listener for friendly events
-    const unsubscribe = EventService.subscribeToEvents((events) => {
+    // Set up real-time listeners
+    const unsubscribeEvents = EventService.subscribeToEvents((events) => {
       const friendlyEvents = events
         .filter(event => event.type === 'friendly')
         .sort((a, b) => {
           const dateA = new Date(a.date);
           const dateB = new Date(b.date);
-          return dateA.getTime() - dateB.getTime(); // Past to present (earliest first)
+          return dateB.getTime() - dateA.getTime(); // Latest first
         });
       setFriendlies(friendlyEvents);
       setLoading(false);
     });
 
-    return () => unsubscribe();
+    const unsubscribeMembers = MemberService.subscribeToMembers(setMembers);
+
+    return () => {
+      unsubscribeEvents();
+      unsubscribeMembers();
+    };
   }, []);
+
+  // Filter friendlies based on active tab
+  const filteredFriendlies = friendlies.filter(friendly => {
+    const matchDate = new Date(friendly.date);
+    const now = new Date();
+    
+    switch (activeTab) {
+      case 'upcoming':
+        return matchDate > now;
+      case 'completed':
+        return matchDate <= now;
+      default:
+        return true;
+    }
+  });
+
+  // Calculate statistics
+  const completedMatches = friendlies.filter(f => f.isCompleted && f.matchDetails);
+  const wins = completedMatches.filter(f => f.matchDetails?.result === 'win').length;
+  const draws = completedMatches.filter(f => f.matchDetails?.result === 'draw').length;
+  const losses = completedMatches.filter(f => f.matchDetails?.result === 'loss').length;
+  const upcomingMatches = friendlies.filter(f => new Date(f.date) > new Date()).length;
+
+  const getResultBadge = (result: MatchResult) => {
+    switch (result) {
+      case 'win':
+        return <Badge variant="success">Win</Badge>;
+      case 'draw':
+        return <Badge variant="warning">Draw</Badge>;
+      case 'loss':
+        return <Badge variant="danger">Loss</Badge>;
+      default:
+        return null;
+    }
+  };
+
+  const getScoreDisplay = (matchDetails: MatchDetails, venue: 'home' | 'away' | 'neutral') => {
+    if (venue === 'away') {
+      return `${matchDetails.awayScore} - ${matchDetails.homeScore}`;
+    }
+    return `${matchDetails.homeScore} - ${matchDetails.awayScore}`;
+  };
+
+  const memberOptions = members
+    .filter(m => m.status === 'active')
+    .map(member => ({
+      value: member.id,
+      label: `${member.name} (#${member.jerseyNumber})`,
+    }));
+
+  const venueOptions = [
+    { value: 'home', label: 'Home (Kiyinda Main Field)' },
+    { value: 'away', label: 'Away' },
+    { value: 'neutral', label: 'Neutral Venue' },
+  ];
 
   const columns = [
     {
@@ -90,7 +187,7 @@ const Friendlies: React.FC = () => {
             {formatDate(friendly.date)}
           </div>
           <div className="text-sm text-gray-500 dark:text-gray-400">
-            {new Date(friendly.date) > new Date() ? 'Upcoming' : 'Past'}
+            {new Date(friendly.date) > new Date() ? 'Upcoming' : 'Completed'}
           </div>
         </div>
       ),
@@ -123,15 +220,54 @@ const Friendlies: React.FC = () => {
       ),
     },
     {
-      key: 'description',
-      title: 'Description',
-      render: (friendly: Event) => friendly.description || 'No description',
+      key: 'result',
+      title: 'Result',
+      render: (friendly: Event) => {
+        if (!friendly.isCompleted || !friendly.matchDetails) {
+          return <Badge variant="info">Not Played</Badge>;
+        }
+        
+        return (
+          <div className="flex flex-col space-y-1">
+            {getResultBadge(friendly.matchDetails.result)}
+            <span className="text-sm font-mono">
+              {getScoreDisplay(friendly.matchDetails, friendly.matchDetails.venue || 'home')}
+            </span>
+          </div>
+        );
+      },
     },
     {
       key: 'actions',
       title: 'Actions',
       render: (friendly: Event) => (
-        <div className="flex space-x-2">
+        <div className="flex space-x-1">
+          {friendly.isCompleted && friendly.matchDetails && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleViewResult(friendly);
+              }}
+              className="p-1"
+            >
+              <Eye size={14} />
+            </Button>
+          )}
+          {new Date(friendly.date) <= new Date() && !friendly.isCompleted && canEditFriendly && (
+            <Button
+              size="sm"
+              variant="success"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleAddResult(friendly);
+              }}
+              className="p-1"
+            >
+              <Trophy size={14} />
+            </Button>
+          )}
           {canEditFriendly && (
             <Button
               size="sm"
@@ -140,8 +276,9 @@ const Friendlies: React.FC = () => {
                 e.stopPropagation();
                 handleEdit(friendly);
               }}
+              className="p-1"
             >
-              <Edit size={16} />
+              <Edit size={14} />
             </Button>
           )}
           {canDeleteFriendly && (
@@ -152,8 +289,9 @@ const Friendlies: React.FC = () => {
                 e.stopPropagation();
                 handleDeleteClick(friendly);
               }}
+              className="p-1"
             >
-              <Trash2 size={16} />
+              <Trash2 size={14} />
             </Button>
           )}
         </div>
@@ -181,6 +319,28 @@ const Friendlies: React.FC = () => {
     setValue('opponent', friendly.opponent || '');
     setValue('description', friendly.description || '');
     setIsModalOpen(true);
+  };
+
+  const handleAddResult = (friendly: Event) => {
+    setSelectedMatch(friendly);
+    resetResult({
+      homeScore: 0,
+      awayScore: 0,
+      venue: 'home',
+      goalScorers: [],
+      assists: [],
+      yellowCards: [],
+      redCards: [],
+      manOfTheMatch: '',
+      matchReport: '',
+      attendance: 0,
+    });
+    setIsResultModalOpen(true);
+  };
+
+  const handleViewResult = (friendly: Event) => {
+    setSelectedMatch(friendly);
+    setIsViewResultModalOpen(true);
   };
 
   const handleDeleteClick = (friendly: Event) => {
@@ -212,6 +372,7 @@ const Friendlies: React.FC = () => {
         opponent: data.opponent,
         description: data.description,
         createdBy: user?.id || '',
+        isCompleted: false,
       };
 
       if (editingFriendly) {
@@ -229,6 +390,56 @@ const Friendlies: React.FC = () => {
     }
   };
 
+  const onSubmitResult = async (data: MatchResultFormData) => {
+    if (!selectedMatch) return;
+
+    try {
+      setSubmitting(true);
+
+      // Determine result based on scores and venue
+      let result: MatchResult;
+      const fc256Score = data.venue === 'away' ? data.awayScore : data.homeScore;
+      const opponentScore = data.venue === 'away' ? data.homeScore : data.awayScore;
+
+      if (fc256Score > opponentScore) {
+        result = 'win';
+      } else if (fc256Score < opponentScore) {
+        result = 'loss';
+      } else {
+        result = 'draw';
+      }
+
+      const matchDetails: MatchDetails = {
+        homeScore: data.homeScore,
+        awayScore: data.awayScore,
+        result,
+        venue: data.venue,
+        goalScorers: data.goalScorers.filter(id => id !== ''),
+        assists: data.assists.filter(id => id !== ''),
+        yellowCards: data.yellowCards.filter(id => id !== ''),
+        redCards: data.redCards.filter(id => id !== ''),
+        manOfTheMatch: data.manOfTheMatch || undefined,
+        matchReport: data.matchReport || undefined,
+        attendance: data.attendance || undefined,
+      };
+
+      const updatedEvent = {
+        ...selectedMatch,
+        isCompleted: true,
+        matchDetails,
+      };
+
+      await EventService.updateEvent(selectedMatch.id, updatedEvent);
+      setIsResultModalOpen(false);
+      resetResult();
+      setSelectedMatch(null);
+    } catch (error) {
+      console.error('Error saving match result:', error);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const handleExport = async () => {
     try {
       setExporting(true);
@@ -239,6 +450,11 @@ const Friendlies: React.FC = () => {
     } finally {
       setExporting(false);
     }
+  };
+
+  const getMemberName = (memberId: string) => {
+    const member = members.find(m => m.id === memberId);
+    return member ? `${member.name} (#${member.jerseyNumber})` : 'Unknown Player';
   };
 
   if (loading) {
@@ -253,7 +469,7 @@ const Friendlies: React.FC = () => {
     <div>
       <PageHeader
         title="Friendly Matches"
-        description={`Schedule and manage friendly matches (${friendlies.length} matches)`}
+        description={`Schedule and track friendly match results (${friendlies.length} matches)`}
         actions={
           <div className="flex space-x-2">
             {canCreateFriendly && (
@@ -279,20 +495,112 @@ const Friendlies: React.FC = () => {
         }
       />
 
+      {/* Statistics Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4 border border-green-200 dark:border-green-800">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-green-600 dark:text-green-400">
+                Wins
+              </p>
+              <p className="text-2xl font-bold text-green-900 dark:text-green-100">
+                {wins}
+              </p>
+            </div>
+            <Trophy className="h-8 w-8 text-green-600 dark:text-green-400" />
+          </div>
+        </div>
+        
+        <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-lg p-4 border border-yellow-200 dark:border-yellow-800">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-yellow-600 dark:text-yellow-400">
+                Draws
+              </p>
+              <p className="text-2xl font-bold text-yellow-900 dark:text-yellow-100">
+                {draws}
+              </p>
+            </div>
+            <Target className="h-8 w-8 text-yellow-600 dark:text-yellow-400" />
+          </div>
+        </div>
+        
+        <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-4 border border-red-200 dark:border-red-800">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-red-600 dark:text-red-400">
+                Losses
+              </p>
+              <p className="text-2xl font-bold text-red-900 dark:text-red-100">
+                {losses}
+              </p>
+            </div>
+            <TrendingUp className="h-8 w-8 text-red-600 dark:text-red-400 rotate-180" />
+          </div>
+        </div>
+        
+        <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 border border-blue-200 dark:border-blue-800">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-blue-600 dark:text-blue-400">
+                Upcoming
+              </p>
+              <p className="text-2xl font-bold text-blue-900 dark:text-blue-100">
+                {upcomingMatches}
+              </p>
+            </div>
+            <Calendar className="h-8 w-8 text-blue-600 dark:text-blue-400" />
+          </div>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="mb-6">
+        <div className="border-b border-gray-200 dark:border-gray-700">
+          <nav className="-mb-px flex space-x-8">
+            {[
+              { key: 'all', label: 'All Matches', count: friendlies.length },
+              { key: 'upcoming', label: 'Upcoming', count: upcomingMatches },
+              { key: 'completed', label: 'Completed', count: completedMatches.length },
+            ].map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key as any)}
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === tab.key
+                    ? 'border-primary-500 text-primary-600 dark:text-primary-400'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+                }`}
+              >
+                {tab.label} ({tab.count})
+              </button>
+            ))}
+          </nav>
+        </div>
+      </div>
+
       <Card>
-        {friendlies.length > 0 ? (
+        {filteredFriendlies.length > 0 ? (
           <Table
-            data={friendlies}
+            data={filteredFriendlies}
             columns={columns}
-            onRowClick={(friendly) => console.log('Clicked friendly:', friendly)}
+            onRowClick={(friendly) => {
+              if (friendly.isCompleted && friendly.matchDetails) {
+                handleViewResult(friendly);
+              }
+            }}
           />
         ) : (
           <EmptyState
-            title="No friendly matches scheduled"
-            description="There are no friendly matches scheduled at the moment."
+            title="No friendly matches found"
+            description={
+              activeTab === 'all' 
+                ? "There are no friendly matches scheduled at the moment."
+                : `No ${activeTab} friendly matches found.`
+            }
             icon={<Calendar size={24} />}
             action={
-              canCreateFriendly
+              canCreateFriendly && activeTab !== 'completed'
                 ? {
                     label: 'Add Friendly Match',
                     onClick: handleCreate,
@@ -339,7 +647,7 @@ const Friendlies: React.FC = () => {
 
           <Input
             label="Match Location"
-            placeholder="e.g., Victory Park, Central Stadium, Away Ground"
+            placeholder="e.g., Kiyinda Main Field, Victory Park, Central Stadium"
             error={errors.location?.message}
             helperText="Enter the venue where the match will be played"
             required
@@ -371,6 +679,350 @@ const Friendlies: React.FC = () => {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      {/* Add Result Modal */}
+      <Modal
+        isOpen={isResultModalOpen}
+        onClose={() => setIsResultModalOpen(false)}
+        title="Add Match Result"
+        size="2xl"
+      >
+        {selectedMatch && (
+          <form onSubmit={handleSubmitResult(onSubmitResult)} className="space-y-6">
+            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+              <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-2">
+                {selectedMatch.opponent} vs FC256
+              </h4>
+              <div className="text-sm text-blue-700 dark:text-blue-300 space-y-1">
+                <p><strong>Date:</strong> {formatDate(selectedMatch.date)}</p>
+                <p><strong>Time:</strong> {selectedMatch.time}</p>
+                <p><strong>Location:</strong> {selectedMatch.location}</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <Select
+                label="Venue"
+                options={venueOptions}
+                error={errorsResult.venue?.message}
+                required
+                {...registerResult('venue', { required: 'Venue is required' })}
+              />
+
+              <Input
+                label={watchVenue === 'away' ? 'FC256 Score' : 'Home Score'}
+                type="number"
+                min="0"
+                error={errorsResult.homeScore?.message}
+                required
+                {...registerResult('homeScore', { 
+                  required: 'Score is required',
+                  min: { value: 0, message: 'Score cannot be negative' },
+                  valueAsNumber: true
+                })}
+              />
+
+              <Input
+                label={watchVenue === 'away' ? `${selectedMatch.opponent} Score` : 'Away Score'}
+                type="number"
+                min="0"
+                error={errorsResult.awayScore?.message}
+                required
+                {...registerResult('awayScore', { 
+                  required: 'Score is required',
+                  min: { value: 0, message: 'Score cannot be negative' },
+                  valueAsNumber: true
+                })}
+              />
+            </div>
+
+            {/* Result Preview */}
+            {(watchHomeScore !== undefined && watchAwayScore !== undefined) && (
+              <div className="bg-gray-50 dark:bg-neutral-700/30 rounded-lg p-4">
+                <h4 className="font-medium text-gray-900 dark:text-white mb-2">Match Result Preview</h4>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                    {watchVenue === 'away' 
+                      ? `FC256 ${watchAwayScore} - ${watchHomeScore} ${selectedMatch.opponent}`
+                      : `FC256 ${watchHomeScore} - ${watchAwayScore} ${selectedMatch.opponent}`
+                    }
+                  </div>
+                  <div className="mt-2">
+                    {(() => {
+                      const fc256Score = watchVenue === 'away' ? watchAwayScore : watchHomeScore;
+                      const opponentScore = watchVenue === 'away' ? watchHomeScore : watchAwayScore;
+                      
+                      if (fc256Score > opponentScore) {
+                        return <Badge variant="success" size="lg">Victory!</Badge>;
+                      } else if (fc256Score < opponentScore) {
+                        return <Badge variant="danger" size="lg">Defeat</Badge>;
+                      } else {
+                        return <Badge variant="warning" size="lg">Draw</Badge>;
+                      }
+                    })()}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Player Statistics */}
+            <div className="space-y-4">
+              <h4 className="font-medium text-gray-900 dark:text-white">Player Statistics (Optional)</h4>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Goal Scorers
+                  </label>
+                  <div className="space-y-2">
+                    {[0, 1, 2, 3, 4].map((index) => (
+                      <Select
+                        key={`goalScorer-${index}`}
+                        options={[
+                          { value: '', label: 'Select player...' },
+                          ...memberOptions
+                        ]}
+                        {...registerResult(`goalScorers.${index}` as any)}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Assists
+                  </label>
+                  <div className="space-y-2">
+                    {[0, 1, 2, 3, 4].map((index) => (
+                      <Select
+                        key={`assist-${index}`}
+                        options={[
+                          { value: '', label: 'Select player...' },
+                          ...memberOptions
+                        ]}
+                        {...registerResult(`assists.${index}` as any)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <Select
+                  label="Man of the Match"
+                  options={[
+                    { value: '', label: 'Select player...' },
+                    ...memberOptions
+                  ]}
+                  {...registerResult('manOfTheMatch')}
+                />
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Yellow Cards
+                  </label>
+                  <div className="space-y-2">
+                    {[0, 1, 2].map((index) => (
+                      <Select
+                        key={`yellowCard-${index}`}
+                        options={[
+                          { value: '', label: 'Select player...' },
+                          ...memberOptions
+                        ]}
+                        {...registerResult(`yellowCards.${index}` as any)}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Red Cards
+                  </label>
+                  <div className="space-y-2">
+                    {[0, 1].map((index) => (
+                      <Select
+                        key={`redCard-${index}`}
+                        options={[
+                          { value: '', label: 'Select player...' },
+                          ...memberOptions
+                        ]}
+                        {...registerResult(`redCards.${index}` as any)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Input
+                label="Attendance (Optional)"
+                type="number"
+                min="0"
+                placeholder="Number of spectators"
+                {...registerResult('attendance', { valueAsNumber: true })}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Match Report (Optional)
+              </label>
+              <textarea
+                rows={4}
+                className="block w-full rounded-lg shadow-sm border transition-colors duration-200 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 text-sm border-gray-300 dark:border-gray-600 dark:bg-neutral-700 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 hover:border-gray-400 dark:hover:border-gray-500 px-3 py-2.5"
+                placeholder="Describe the match performance, key moments, tactical notes..."
+                {...registerResult('matchReport')}
+              />
+            </div>
+
+            <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200 dark:border-gray-700">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsResultModalOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button 
+                type="submit" 
+                isLoading={submitting}
+                className="bg-green-600 hover:bg-green-700 text-white"
+              >
+                Save Result
+              </Button>
+            </div>
+          </form>
+        )}
+      </Modal>
+
+      {/* View Result Modal */}
+      <Modal
+        isOpen={isViewResultModalOpen}
+        onClose={() => setIsViewResultModalOpen(false)}
+        title="Match Result Details"
+        size="2xl"
+      >
+        {selectedMatch && selectedMatch.matchDetails && (
+          <div className="space-y-6">
+            {/* Match Header */}
+            <div className="bg-gradient-to-r from-blue-50 to-green-50 dark:from-blue-900/20 dark:to-green-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-6">
+              <div className="text-center">
+                <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+                  {selectedMatch.matchDetails.venue === 'away' 
+                    ? `FC256 ${selectedMatch.matchDetails.awayScore} - ${selectedMatch.matchDetails.homeScore} ${selectedMatch.opponent}`
+                    : `FC256 ${selectedMatch.matchDetails.homeScore} - ${selectedMatch.matchDetails.awayScore} ${selectedMatch.opponent}`
+                  }
+                </h3>
+                <div className="flex justify-center mb-4">
+                  {getResultBadge(selectedMatch.matchDetails.result)}
+                </div>
+                <div className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
+                  <p><strong>Date:</strong> {formatDate(selectedMatch.date)}</p>
+                  <p><strong>Venue:</strong> {selectedMatch.matchDetails.venue === 'home' ? 'Home (Kiyinda Main Field)' : selectedMatch.matchDetails.venue === 'away' ? 'Away' : 'Neutral'}</p>
+                  {selectedMatch.matchDetails.attendance && (
+                    <p><strong>Attendance:</strong> {selectedMatch.matchDetails.attendance} spectators</p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Player Statistics */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Goal Scorers */}
+              {selectedMatch.matchDetails.goalScorers && selectedMatch.matchDetails.goalScorers.length > 0 && (
+                <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4">
+                  <h4 className="font-medium text-green-900 dark:text-green-100 mb-3 flex items-center">
+                    <Trophy size={18} className="mr-2" />
+                    Goal Scorers
+                  </h4>
+                  <div className="space-y-2">
+                    {selectedMatch.matchDetails.goalScorers.map((scorerId, index) => (
+                      <div key={index} className="text-sm text-green-700 dark:text-green-300">
+                        ⚽ {getMemberName(scorerId)}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Assists */}
+              {selectedMatch.matchDetails.assists && selectedMatch.matchDetails.assists.length > 0 && (
+                <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
+                  <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-3 flex items-center">
+                    <Target size={18} className="mr-2" />
+                    Assists
+                  </h4>
+                  <div className="space-y-2">
+                    {selectedMatch.matchDetails.assists.map((assistId, index) => (
+                      <div key={index} className="text-sm text-blue-700 dark:text-blue-300">
+                        🎯 {getMemberName(assistId)}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Man of the Match */}
+              {selectedMatch.matchDetails.manOfTheMatch && (
+                <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-lg p-4">
+                  <h4 className="font-medium text-yellow-900 dark:text-yellow-100 mb-3 flex items-center">
+                    <Award size={18} className="mr-2" />
+                    Man of the Match
+                  </h4>
+                  <div className="text-sm text-yellow-700 dark:text-yellow-300">
+                    🏆 {getMemberName(selectedMatch.matchDetails.manOfTheMatch)}
+                  </div>
+                </div>
+              )}
+
+              {/* Cards */}
+              {((selectedMatch.matchDetails.yellowCards && selectedMatch.matchDetails.yellowCards.length > 0) ||
+                (selectedMatch.matchDetails.redCards && selectedMatch.matchDetails.redCards.length > 0)) && (
+                <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-4">
+                  <h4 className="font-medium text-red-900 dark:text-red-100 mb-3">
+                    Disciplinary Actions
+                  </h4>
+                  <div className="space-y-2">
+                    {selectedMatch.matchDetails.yellowCards?.map((cardId, index) => (
+                      <div key={index} className="text-sm text-yellow-700 dark:text-yellow-300">
+                        🟨 {getMemberName(cardId)}
+                      </div>
+                    ))}
+                    {selectedMatch.matchDetails.redCards?.map((cardId, index) => (
+                      <div key={index} className="text-sm text-red-700 dark:text-red-300">
+                        🟥 {getMemberName(cardId)}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Match Report */}
+            {selectedMatch.matchDetails.matchReport && (
+              <div className="bg-gray-50 dark:bg-neutral-700/30 rounded-lg p-4">
+                <h4 className="font-medium text-gray-900 dark:text-white mb-3">
+                  Match Report
+                </h4>
+                <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+                  {selectedMatch.matchDetails.matchReport}
+                </p>
+              </div>
+            )}
+
+            <div className="flex justify-end pt-4 border-t border-gray-200 dark:border-gray-700">
+              <Button
+                variant="outline"
+                onClick={() => setIsViewResultModalOpen(false)}
+              >
+                Close
+              </Button>
+            </div>
+          </div>
+        )}
       </Modal>
 
       {/* Delete Confirmation Modal */}
