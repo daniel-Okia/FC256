@@ -70,8 +70,8 @@ const CreateAdmin: React.FC = () => {
               />
             </div>
             
-            <h2 className="text-3xl font-bold bg-gradient-to-r from-primary-600 via-yellow-500 to-secondary-600 bg-clip-text text-transparent">
-              Admin Created!
+            <h2 className="text-3xl font-bold mb-2">
+              <span className="text-gray-700 dark:text-gray-300">Admin Created!</span>
             </h2>
           </div>
           
@@ -145,8 +145,8 @@ const CreateAdmin: React.FC = () => {
             />
           </div>
           
-          <h2 className="text-3xl font-bold bg-gradient-to-r from-primary-600 via-yellow-500 to-secondary-600 bg-clip-text text-transparent">
-            Create Admin User
+          <h2 className="text-3xl font-bold mb-2">
+            <span className="text-gray-700 dark:text-gray-300">Create Admin User</span>
           </h2>
           <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
             Set up the administrator account for FC256

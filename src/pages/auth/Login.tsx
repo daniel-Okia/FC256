@@ -70,9 +70,13 @@ const Login: React.FC = () => {
             </div>
           </div>
           
-          {/* Title with gradient */}
-          <h2 className="text-3xl font-bold bg-gradient-to-r from-primary-600 via-yellow-500 to-secondary-600 bg-clip-text text-transparent">
-            FC256
+          {/* Title with updated colors to match logo */}
+          <h2 className="text-3xl font-bold mb-2">
+            <span className="text-blue-600 dark:text-blue-400">F</span>
+            <span className="text-blue-600 dark:text-blue-400">C</span>
+            <span className="text-yellow-500 dark:text-yellow-400">2</span>
+            <span className="text-yellow-500 dark:text-yellow-400">5</span>
+            <span className="text-red-500 dark:text-red-400">6</span>
           </h2>
           <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
             Sign in to access your team management portal

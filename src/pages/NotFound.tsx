@@ -36,8 +36,10 @@ const NotFound: React.FC = () => {
         </div>
 
         {/* Error Code */}
-        <h1 className="text-6xl font-bold bg-gradient-to-r from-primary-600 via-yellow-500 to-secondary-600 bg-clip-text text-transparent mb-4">
-          404
+        <h1 className="text-6xl font-bold mb-4">
+          <span className="text-blue-600 dark:text-blue-400">4</span>
+          <span className="text-yellow-500 dark:text-yellow-400">0</span>
+          <span className="text-red-500 dark:text-red-400">4</span>
         </h1>
         
         {/* Error Message */}

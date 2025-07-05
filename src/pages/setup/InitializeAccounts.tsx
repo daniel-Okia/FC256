@@ -80,8 +80,8 @@ const InitializeAccounts: React.FC = () => {
               />
             </div>
             
-            <h2 className="text-3xl font-bold bg-gradient-to-r from-primary-600 via-yellow-500 to-secondary-600 bg-clip-text text-transparent">
-              Accounts Initialized!
+            <h2 className="text-3xl font-bold mb-2">
+              <span className="text-gray-700 dark:text-gray-300">Accounts Initialized!</span>
             </h2>
           </div>
           
@@ -231,8 +231,8 @@ const InitializeAccounts: React.FC = () => {
             />
           </div>
           
-          <h2 className="text-3xl font-bold bg-gradient-to-r from-primary-600 via-yellow-500 to-secondary-600 bg-clip-text text-transparent">
-            Initialize Accounts
+          <h2 className="text-3xl font-bold mb-2">
+            <span className="text-gray-700 dark:text-gray-300">Initialize Accounts</span>
           </h2>
           <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
             Create hardcoded admin and manager accounts for FC256
