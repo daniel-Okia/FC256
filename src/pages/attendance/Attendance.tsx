@@ -382,7 +382,7 @@ const AttendancePage: React.FC = () => {
     }
   };
 
-  // Update member attendance status
+  // Fixed: Update member attendance status with proper state management
   const updateMemberStatus = (memberId: string, status: AttendanceStatus) => {
     setMemberAttendance(prev => {
       const newMap = new Map(prev);
@@ -392,7 +392,7 @@ const AttendancePage: React.FC = () => {
     });
   };
 
-  // Update member attendance notes
+  // Fixed: Update member attendance notes with proper state management
   const updateMemberNotes = (memberId: string, notes: string) => {
     setMemberAttendance(prev => {
       const newMap = new Map(prev);
