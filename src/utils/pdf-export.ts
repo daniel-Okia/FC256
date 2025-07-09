@@ -412,13 +412,41 @@ export class DashboardPDFExporter extends BasePDFExporter {
     dateRange?: { startDate: string; endDate: string };
   }): void {
     const dateRangeText = data.dateRange 
-      ? `${formatDate(data.dateRange.startDate)} to ${formatDate(data.dateRange.endDate)}`
-      : formatDate(new Date().toISOString());
+      ? `Filtered: ${formatDate(data.dateRange.startDate)} to ${formatDate(data.dateRange.endDate)}`
+      : `Generated: ${formatDate(new Date().toISOString())}`;
       
     this.addHeader(
-      'DASHBOARD OVERVIEW', 
-      `Team Performance Report - ${dateRangeText}`
+      data.dateRange ? 'FILTERED DASHBOARD REPORT' : 'DASHBOARD OVERVIEW', 
+      `Team Performance Analysis - ${dateRangeText}`
     );
+
+    // Add date range notice if filtering is applied
+    if (data.dateRange) {
+      this.checkPageBreak(30);
+      
+      // Date range info box
+      this.doc.setFillColor('#dbeafe'); // Light blue background
+      this.doc.roundedRect(this.margin, this.currentY, this.pageWidth - this.margin * 2, 25, 4, 4, 'F');
+      
+      this.doc.setDrawColor('#3b82f6'); // Blue border
+      this.doc.setLineWidth(1);
+      this.doc.roundedRect(this.margin, this.currentY, this.pageWidth - this.margin * 2, 25, 4, 4, 'S');
+      
+      this.doc.setFontSize(FONTS.small);
+      this.doc.setTextColor('#1e40af'); // Dark blue text
+      this.doc.setFont('helvetica', 'bold');
+      this.doc.text('📅 FILTERED REPORT', this.margin + 5, this.currentY + 8);
+      
+      this.doc.setFont('helvetica', 'normal');
+      this.doc.setTextColor('#374151'); // Dark gray text
+      this.doc.text(
+        `This report contains data filtered from ${formatDate(data.dateRange.startDate, 'MMM d, yyyy')} to ${formatDate(data.dateRange.endDate, 'MMM d, yyyy')}`,
+        this.margin + 5,
+        this.currentY + 16
+      );
+      
+      this.currentY += 35;
+    }
 
     // Team statistics with clear colors
     this.addStatsSection([
@@ -428,40 +456,45 @@ export class DashboardPDFExporter extends BasePDFExporter {
         color: COLORS.success,
       },
       { 
-        label: 'Training Sessions', 
+        label: data.dateRange ? 'Training (Period)' : 'Training Sessions', 
         value: data.stats.trainingSessionsThisMonth.toString(),
         color: COLORS.info,
       },
       { 
-        label: 'Friendly Matches', 
+        label: data.dateRange ? 'Friendlies (Period)' : 'Friendly Matches', 
         value: data.stats.friendliesThisMonth.toString(),
         color: COLORS.warning,
       },
       { 
-        label: 'Team Balance', 
+        label: data.dateRange ? 'Period Balance' : 'Team Balance', 
         value: formatUGX(data.stats.remainingBalance),
         color: data.stats.remainingBalance >= 0 ? COLORS.success : COLORS.danger,
       },
     ]);
 
-    // Financial Summary
-    this.addSectionHeading('FINANCIAL SUMMARY', COLORS.success);
+    // Financial Summary with period context
+    this.addSectionHeading(
+      data.dateRange ? 'FINANCIAL SUMMARY (FILTERED PERIOD)' : 'FINANCIAL SUMMARY', 
+      COLORS.success
+    );
     
     const financialData = [
       { 
-        metric: 'Total Contributions', 
+        metric: data.dateRange ? 'Period Contributions' : 'Total Contributions', 
         amount: formatUGX(data.stats.totalContributions),
         status: 'Income',
         category: 'Positive'
       },
       { 
-        metric: 'Total Expenses', 
+        metric: data.dateRange ? 'Period Expenses' : 'Total Expenses', 
         amount: formatUGX(data.stats.totalExpenses),
         status: 'Outgoing',
         category: 'Negative'
       },
       { 
-        metric: data.stats.remainingBalance >= 0 ? 'Available Balance' : 'Deficit', 
+        metric: data.stats.remainingBalance >= 0 
+          ? (data.dateRange ? 'Period Surplus' : 'Available Balance')
+          : (data.dateRange ? 'Period Deficit' : 'Deficit'), 
         amount: formatUGX(Math.abs(data.stats.remainingBalance)),
         status: data.stats.remainingBalance >= 0 ? 'Positive' : 'Negative',
         category: data.stats.remainingBalance >= 0 ? 'Surplus' : 'Deficit'
@@ -499,7 +532,10 @@ export class DashboardPDFExporter extends BasePDFExporter {
           { header: 'Status', dataKey: 'status', width: 20 },
         ],
         eventRows,
-        { title: 'UPCOMING EVENTS', headerColor: COLORS.info }
+        { 
+          title: data.dateRange ? 'UPCOMING EVENTS (IN FILTERED PERIOD)' : 'UPCOMING EVENTS', 
+          headerColor: COLORS.info 
+        }
       );
     }
 
@@ -523,7 +559,10 @@ export class DashboardPDFExporter extends BasePDFExporter {
           { header: 'Status', dataKey: 'status', width: 18 },
         ],
         transactionRows,
-        { title: 'RECENT TRANSACTIONS', headerColor: COLORS.warning }
+        { 
+          title: data.dateRange ? 'TRANSACTIONS (FILTERED PERIOD)' : 'RECENT TRANSACTIONS', 
+          headerColor: COLORS.warning 
+        }
       );
     }
 
@@ -548,11 +587,63 @@ export class DashboardPDFExporter extends BasePDFExporter {
           { header: 'Status', dataKey: 'status', width: 20 },
         ],
         attendanceRows,
-        { title: 'ATTENDANCE TRENDS', headerColor: COLORS.primary }
+        { 
+          title: data.dateRange ? 'ATTENDANCE TRENDS (FILTERED PERIOD)' : 'ATTENDANCE TRENDS', 
+          headerColor: COLORS.primary 
+        }
       );
+    } else if (data.dateRange) {
+      // Show message if no attendance data in filtered period
+      this.addSectionHeading('ATTENDANCE TRENDS (FILTERED PERIOD)', COLORS.primary);
+      
+      this.doc.setFontSize(FONTS.body);
+      this.doc.setTextColor('#6b7280');
+      this.doc.setFont('helvetica', 'italic');
+      this.doc.text(
+        'No training sessions with attendance records found in the selected date range.',
+        this.margin,
+        this.currentY
+      );
+      this.currentY += 20;
     }
 
-    this.save('fc256-dashboard');
+    // Add summary note for filtered reports
+    if (data.dateRange) {
+      this.checkPageBreak(40);
+      
+      this.doc.setFillColor('#f3f4f6'); // Light gray background
+      this.doc.roundedRect(this.margin, this.currentY, this.pageWidth - this.margin * 2, 35, 4, 4, 'F');
+      
+      this.doc.setDrawColor('#9ca3af'); // Gray border
+      this.doc.setLineWidth(1);
+      this.doc.roundedRect(this.margin, this.currentY, this.pageWidth - this.margin * 2, 35, 4, 4, 'S');
+      
+      this.doc.setFontSize(FONTS.small);
+      this.doc.setTextColor('#374151');
+      this.doc.setFont('helvetica', 'bold');
+      this.doc.text('📊 REPORT SUMMARY', this.margin + 5, this.currentY + 8);
+      
+      this.doc.setFont('helvetica', 'normal');
+      this.doc.text(
+        `This filtered report shows data from ${formatDate(data.dateRange.startDate, 'MMM d, yyyy')} to ${formatDate(data.dateRange.endDate, 'MMM d, yyyy')}.`,
+        this.margin + 5,
+        this.currentY + 16
+      );
+      
+      this.doc.text(
+        'Financial figures represent transactions within this period only, not cumulative totals.',
+        this.margin + 5,
+        this.currentY + 24
+      );
+      
+      this.currentY += 45;
+    }
+
+    const filename = data.dateRange 
+      ? `fc256-dashboard-filtered-${data.dateRange.startDate}-to-${data.dateRange.endDate}`
+      : 'fc256-dashboard';
+      
+    this.save(filename);
   }
 }
 

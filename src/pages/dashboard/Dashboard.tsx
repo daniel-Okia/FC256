@@ -222,20 +222,158 @@ const Dashboard: React.FC = () => {
       setExporting(true);
       const exporter = new DashboardPDFExporter();
       
-      // Include date range if specified
-      const exportData = {
+      // Filter data by date range if specified
+      let filteredData = {
         stats,
         upcomingEvents,
         recentTransactions,
         attendanceTrends,
-        ...(dateRange.startDate && dateRange.endDate && { dateRange }),
       };
+
+      if (dateRange.startDate && dateRange.endDate) {
+        filteredData = await getFilteredDashboardData(dateRange);
+      }
       
-      exporter.exportDashboard(exportData);
+      exporter.exportDashboard({
+        ...filteredData,
+        dateRange: dateRange.startDate && dateRange.endDate ? dateRange : undefined,
+      });
     } catch (error) {
       console.error('Error exporting dashboard:', error);
     } finally {
       setExporting(false);
+    }
+  };
+
+  const getFilteredDashboardData = async (dateRange: DateRange) => {
+    try {
+      // Load all data fresh for filtering
+      const [members, events, contributions, expenses, attendance] = await Promise.all([
+        MemberService.getAllMembers(),
+        EventService.getAllEvents(),
+        ContributionService.getAllContributions(),
+        ExpenseService.getAllExpenses(),
+        AttendanceService.getAllAttendance(),
+      ]);
+
+      const startDate = new Date(dateRange.startDate);
+      const endDate = new Date(dateRange.endDate);
+      endDate.setHours(23, 59, 59, 999); // Include the entire end date
+
+      console.log('Filtering data from', startDate, 'to', endDate);
+
+      // Filter events by date range
+      const filteredEvents = events.filter(event => {
+        const eventDate = new Date(event.date);
+        return eventDate >= startDate && eventDate <= endDate;
+      });
+
+      // Filter contributions by date range
+      const filteredContributions = contributions.filter(contribution => {
+        const contributionDate = new Date(contribution.date);
+        return contributionDate >= startDate && contributionDate <= endDate;
+      });
+
+      // Filter expenses by date range
+      const filteredExpenses = expenses.filter(expense => {
+        const expenseDate = new Date(expense.date);
+        return expenseDate >= startDate && expenseDate <= endDate;
+      });
+
+      // Filter attendance by event date (not recorded date)
+      const filteredAttendance = attendance.filter(attendanceRecord => {
+        const event = events.find(e => e.id === attendanceRecord.eventId);
+        if (!event) return false;
+        const eventDate = new Date(event.date);
+        return eventDate >= startDate && eventDate <= endDate;
+      });
+
+      console.log('Filtered results:', {
+        events: filteredEvents.length,
+        contributions: filteredContributions.length,
+        expenses: filteredExpenses.length,
+        attendance: filteredAttendance.length
+      });
+
+      // Calculate filtered stats
+      const activeMembers = members.filter(m => m.status === 'active').length;
+      const trainingSessionsInRange = filteredEvents.filter(e => e.type === 'training').length;
+      const friendliesInRange = filteredEvents.filter(e => e.type === 'friendly').length;
+      
+      // Calculate financial totals for the date range
+      const totalContributions = filteredContributions
+        .filter(c => c.type === 'monetary' && c.amount !== undefined && c.amount !== null)
+        .reduce((sum, c) => sum + (parseFloat(String(c.amount)) || 0), 0);
+      
+      const totalExpenses = filteredExpenses
+        .filter(e => e.amount !== undefined && e.amount !== null)
+        .reduce((sum, e) => sum + (parseFloat(String(e.amount)) || 0), 0);
+      
+      const remainingBalance = totalContributions - totalExpenses;
+
+      const filteredStats = {
+        totalMembers: members.length, // Total members doesn't change
+        activeMembers,
+        trainingSessionsThisMonth: trainingSessionsInRange,
+        friendliesThisMonth: friendliesInRange,
+        totalContributions: Math.round(totalContributions),
+        totalExpenses: Math.round(totalExpenses),
+        remainingBalance: Math.round(remainingBalance),
+      };
+
+      // Get upcoming events from filtered events
+      const now = new Date();
+      const filteredUpcomingEvents = filteredEvents
+        .filter(event => new Date(event.date) >= now)
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+        .slice(0, 5);
+
+      // Get recent transactions from filtered data
+      const recentContributions = filteredContributions
+        .filter(c => c.type === 'monetary' && c.amount)
+        .map(c => ({ ...c, type: 'contribution' }));
+      
+      const recentExpenses = filteredExpenses
+        .filter(e => e.amount)
+        .map(e => ({ ...e, type: 'expense' }));
+      
+      const filteredRecentTransactions = [...recentContributions, ...recentExpenses]
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+        .slice(0, 10);
+
+      // Calculate attendance trends for filtered events
+      const filteredTrainingEvents = filteredEvents.filter(event => event.type === 'training');
+      
+      const filteredAttendanceTrends = filteredTrainingEvents.map(event => {
+        const eventAttendance = filteredAttendance.filter(a => 
+          a.eventId === event.id && a.status === 'present'
+        );
+        
+        return {
+          date: event.date,
+          type: event.type,
+          opponent: event.opponent,
+          presentCount: eventAttendance.length,
+          totalMembers: activeMembers,
+          attendanceRate: activeMembers > 0 ? (eventAttendance.length / activeMembers) * 100 : 0,
+        };
+      });
+
+      return {
+        stats: filteredStats,
+        upcomingEvents: filteredUpcomingEvents,
+        recentTransactions: filteredRecentTransactions,
+        attendanceTrends: filteredAttendanceTrends,
+      };
+    } catch (error) {
+      console.error('Error filtering dashboard data:', error);
+      // Return original data if filtering fails
+      return {
+        stats,
+        upcomingEvents,
+        recentTransactions,
+        attendanceTrends,
+      };
     }
   };
 
