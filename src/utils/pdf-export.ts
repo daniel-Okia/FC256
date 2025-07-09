@@ -43,7 +43,18 @@ class BasePDFExporter {
   protected headerHeight: number = 100; // Reserved space for header
 
   constructor(orientation: 'portrait' | 'landscape' = 'portrait') {
-    this.doc = new jsPDF(orientation, 'mm', 'a4');
+    this.doc = new jsPDF({
+      orientation: orientation,
+      unit: 'mm',
+      format: 'a4',
+      putOnlyUsedFonts: true,
+      compress: true
+    });
+    
+    // Set proper encoding to avoid strange characters
+    this.doc.setFont('helvetica');
+    this.doc.setFontSize(12);
+    
     this.pageWidth = this.doc.internal.pageSize.getWidth();
     this.pageHeight = this.doc.internal.pageSize.getHeight();
   }
@@ -90,14 +101,14 @@ class BasePDFExporter {
     this.doc.setFontSize(FONTS.tiny);
     this.doc.setTextColor(COLORS.darkGray);
     this.doc.setFont('helvetica', 'bold');
-    this.doc.text('TEAM MANAGER', textX, textY);
+    this.doc.text('TEAM MANAGER', textX, textY, { maxWidth: contactBoxWidth - 8 });
     textY += 6;
     
     // Manager name
     this.doc.setFontSize(FONTS.small);
     this.doc.setFont('helvetica', 'bold');
     this.doc.setTextColor(COLORS.primary);
-    this.doc.text('Pius Paul', textX, textY);
+    this.doc.text('Pius Paul', textX, textY, { maxWidth: contactBoxWidth - 8 });
     textY += 5;
     
     // Contact details with proper spacing
@@ -105,11 +116,11 @@ class BasePDFExporter {
     this.doc.setFont('helvetica', 'normal');
     this.doc.setTextColor(COLORS.darkGray);
     
-    this.doc.text('Email: piuspaul392@gmail.com', textX, textY);
+    this.doc.text('Email: piuspaul392@gmail.com', textX, textY, { maxWidth: contactBoxWidth - 8 });
     textY += 4;
-    this.doc.text('Phone: +256 700 654 321', textX, textY);
+    this.doc.text('Phone: +256 700 654 321', textX, textY, { maxWidth: contactBoxWidth - 8 });
     textY += 4;
-    this.doc.text('Position: Team Manager', textX, textY);
+    this.doc.text('Position: Team Manager', textX, textY, { maxWidth: contactBoxWidth - 8 });
     
     // Professional separator line
     this.doc.setDrawColor(COLORS.yellow);
@@ -120,13 +131,13 @@ class BasePDFExporter {
     this.doc.setFontSize(FONTS.subtitle);
     this.doc.setTextColor(COLORS.darkGray);
     this.doc.setFont('helvetica', 'bold');
-    this.doc.text(title, this.margin, 80);
+    this.doc.text(title, this.margin, 80, { maxWidth: this.pageWidth - this.margin * 2 });
     
     if (subtitle) {
       this.doc.setFontSize(FONTS.body);
       this.doc.setTextColor(COLORS.gray);
       this.doc.setFont('helvetica', 'normal');
-      this.doc.text(subtitle, this.margin, 88);
+      this.doc.text(subtitle, this.margin, 88, { maxWidth: this.pageWidth - this.margin * 2 });
     }
     
     this.currentY = this.headerHeight;
@@ -237,7 +248,7 @@ class BasePDFExporter {
   }
 
   /**
-   * Add professional table with proper page break management
+   * Add professional table with proper page break management and improved column widths
    */
   protected addTable(
     columns: { header: string; dataKey: string; width?: number }[],
@@ -254,12 +265,26 @@ class BasePDFExporter {
 
     const headerColor = options.headerColor || COLORS.primary;
 
-    // Calculate available space for table
-    const availableHeight = this.pageHeight - this.currentY - this.footerHeight;
+    // Calculate optimal column widths if not specified
+    const totalSpecifiedWidth = columns.reduce((sum, col) => sum + (col.width || 0), 0);
+    const availableWidth = this.pageWidth - this.margin * 2;
+    const unspecifiedColumns = columns.filter(col => !col.width);
+    const remainingWidth = availableWidth - totalSpecifiedWidth;
+    const defaultColumnWidth = unspecifiedColumns.length > 0 ? remainingWidth / unspecifiedColumns.length : 0;
+
+    // Ensure minimum column width for readability
+    const processedColumns = columns.map(col => ({
+      ...col,
+      width: col.width || Math.max(defaultColumnWidth, 25) // Minimum 25mm width
+    }));
 
     (this.doc as any).autoTable({
-      head: [columns.map(col => col.header)],
-      body: rows.map(row => columns.map(col => row[col.dataKey] || '')),
+      head: [processedColumns.map(col => col.header)],
+      body: rows.map(row => processedColumns.map(col => {
+        const value = row[col.dataKey] || '';
+        // Clean the text to avoid encoding issues
+        return String(value).replace(/[^\x00-\x7F]/g, ''); // Remove non-ASCII characters
+      })),
       startY: this.currentY,
       styles: { 
         fontSize: FONTS.body, 
@@ -268,6 +293,9 @@ class BasePDFExporter {
         lineColor: '#e5e7eb',
         lineWidth: 0.5,
         fillColor: false,
+        font: 'helvetica',
+        overflow: 'linebreak',
+        cellWidth: 'wrap'
       },
       headStyles: { 
         fillColor: headerColor,
@@ -275,14 +303,20 @@ class BasePDFExporter {
         fontStyle: 'bold',
         fontSize: FONTS.body,
         cellPadding: 6,
+        font: 'helvetica',
+        overflow: 'linebreak',
+        cellWidth: 'wrap',
+        minCellHeight: 12
       },
       alternateRowStyles: { 
         fillColor: '#f9fafb'
       },
-      columnStyles: columns.reduce((acc, col, index) => {
-        if (col.width) {
-          acc[index] = { cellWidth: col.width };
-        }
+      columnStyles: processedColumns.reduce((acc, col, index) => {
+        acc[index] = { 
+          cellWidth: col.width,
+          overflow: 'linebreak',
+          cellPadding: { top: 3, right: 3, bottom: 3, left: 3 }
+        };
         return acc;
       }, {} as any),
       margin: { 
@@ -293,6 +327,9 @@ class BasePDFExporter {
       theme: 'grid',
       pageBreak: 'auto',
       showHead: 'everyPage',
+      tableWidth: 'auto',
+      tableLineColor: '#e5e7eb',
+      tableLineWidth: 0.5,
       // Ensure proper spacing from footer
       didDrawPage: (data: any) => {
         // Update currentY to account for table content
@@ -350,11 +387,8 @@ class BasePDFExporter {
       // Generation info - positioned clearly
       this.doc.setFont('helvetica', 'normal');
       this.doc.setTextColor(COLORS.darkGray);
-      this.doc.text(
-        `Generated: ${formatDate(new Date().toISOString(), 'MMM d, yyyy')} at ${new Date().toLocaleTimeString()}`,
-        this.margin,
-        footerY - 2
-      );
+      const generatedText = `Generated: ${formatDate(new Date().toISOString(), 'MMM d, yyyy')} at ${new Date().toLocaleTimeString()}`;
+      this.doc.text(generatedText, this.margin, footerY - 2, { maxWidth: this.pageWidth - this.margin * 3 });
 
       // Confidentiality notice - positioned clearly
       this.doc.setFontSize(FONTS.tiny);
@@ -440,9 +474,10 @@ export class DashboardPDFExporter extends BasePDFExporter {
       this.doc.setFont('helvetica', 'normal');
       this.doc.setTextColor('#374151'); // Dark gray text
       this.doc.text(
-        `This report contains data filtered from ${formatDate(data.dateRange.startDate, 'MMM d, yyyy')} to ${formatDate(data.dateRange.endDate, 'MMM d, yyyy')}`,
+        `This report contains data filtered from ${formatDate(data.dateRange.startDate, 'MMM d, yyyy')} to ${formatDate(data.dateRange.endDate, 'MMM d, yyyy')}.`,
         this.margin + 5,
-        this.currentY + 16
+        this.currentY + 16,
+        { maxWidth: this.pageWidth - this.margin * 2 - 10 }
       );
       
       this.currentY += 35;
@@ -503,10 +538,10 @@ export class DashboardPDFExporter extends BasePDFExporter {
 
     this.addTable(
       [
-        { header: 'Financial Metric', dataKey: 'metric', width: 50 },
-        { header: 'Amount (UGX)', dataKey: 'amount', width: 35 },
-        { header: 'Status', dataKey: 'status', width: 25 },
-        { header: 'Category', dataKey: 'category', width: 25 },
+        { header: 'Financial Metric', dataKey: 'metric', width: 60 },
+        { header: 'Amount (UGX)', dataKey: 'amount', width: 40 },
+        { header: 'Status', dataKey: 'status', width: 30 },
+        { header: 'Category', dataKey: 'category', width: 30 },
       ],
       financialData,
       { headerColor: COLORS.success }
@@ -525,11 +560,11 @@ export class DashboardPDFExporter extends BasePDFExporter {
 
       this.addTable(
         [
-          { header: 'Date', dataKey: 'date', width: 25 },
-          { header: 'Event Type', dataKey: 'type', width: 40 },
-          { header: 'Time', dataKey: 'time', width: 20 },
-          { header: 'Location', dataKey: 'location', width: 30 },
-          { header: 'Status', dataKey: 'status', width: 20 },
+          { header: 'Date', dataKey: 'date', width: 30 },
+          { header: 'Event Type', dataKey: 'type', width: 50 },
+          { header: 'Time', dataKey: 'time', width: 25 },
+          { header: 'Location', dataKey: 'location', width: 40 },
+          { header: 'Status', dataKey: 'status', width: 25 },
         ],
         eventRows,
         { 
@@ -552,11 +587,11 @@ export class DashboardPDFExporter extends BasePDFExporter {
 
       this.addTable(
         [
-          { header: 'Date', dataKey: 'date', width: 22 },
-          { header: 'Type', dataKey: 'type', width: 20 },
-          { header: 'Description', dataKey: 'description', width: 45 },
-          { header: 'Amount', dataKey: 'amount', width: 25 },
-          { header: 'Status', dataKey: 'status', width: 18 },
+          { header: 'Date', dataKey: 'date', width: 28 },
+          { header: 'Type', dataKey: 'type', width: 25 },
+          { header: 'Description', dataKey: 'description', width: 55 },
+          { header: 'Amount', dataKey: 'amount', width: 30 },
+          { header: 'Status', dataKey: 'status', width: 25 },
         ],
         transactionRows,
         { 
@@ -579,12 +614,12 @@ export class DashboardPDFExporter extends BasePDFExporter {
 
       this.addTable(
         [
-          { header: 'Date', dataKey: 'date', width: 25 },
-          { header: 'Session Type', dataKey: 'session', width: 35 },
-          { header: 'Present', dataKey: 'present', width: 18 },
-          { header: 'Total', dataKey: 'total', width: 18 },
-          { header: 'Rate', dataKey: 'rate', width: 18 },
-          { header: 'Status', dataKey: 'status', width: 20 },
+          { header: 'Date', dataKey: 'date', width: 30 },
+          { header: 'Session Type', dataKey: 'session', width: 45 },
+          { header: 'Present', dataKey: 'present', width: 22 },
+          { header: 'Total', dataKey: 'total', width: 22 },
+          { header: 'Rate', dataKey: 'rate', width: 22 },
+          { header: 'Status', dataKey: 'status', width: 25 },
         ],
         attendanceRows,
         { 
@@ -599,7 +634,15 @@ export class DashboardPDFExporter extends BasePDFExporter {
       this.doc.setFontSize(FONTS.body);
       this.doc.setTextColor('#6b7280');
       this.doc.setFont('helvetica', 'italic');
+      const noDataText = 'No training sessions with attendance records found in the selected date range.';
       this.doc.text(
+        noDataText,
+        this.margin,
+        this.currentY,
+        { maxWidth: this.pageWidth - this.margin * 2 }
+      );
+      this.currentY += 20;
+    }
         'No training sessions with attendance records found in the selected date range.',
         this.margin,
         this.currentY
@@ -627,13 +670,15 @@ export class DashboardPDFExporter extends BasePDFExporter {
       this.doc.text(
         `This filtered report shows data from ${formatDate(data.dateRange.startDate, 'MMM d, yyyy')} to ${formatDate(data.dateRange.endDate, 'MMM d, yyyy')}.`,
         this.margin + 5,
-        this.currentY + 16
+        this.currentY + 16,
+        { maxWidth: this.pageWidth - this.margin * 2 - 10 }
       );
       
       this.doc.text(
         'Financial figures represent transactions within this period only, not cumulative totals.',
         this.margin + 5,
-        this.currentY + 24
+        this.currentY + 24,
+        { maxWidth: this.pageWidth - this.margin * 2 - 10 }
       );
       
       this.currentY += 45;
