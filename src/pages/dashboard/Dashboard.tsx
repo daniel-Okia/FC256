@@ -256,33 +256,27 @@ const Dashboard: React.FC = () => {
         AttendanceService.getAllAttendance(),
       ]);
 
-      // Fix date parsing to handle timezone issues
-      const startDate = new Date(dateRange.startDate + 'T00:00:00');
-      const endDate = new Date(dateRange.endDate + 'T23:59:59');
-      
-      // Ensure we're working with valid dates
-      if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-        console.error('Invalid date range provided');
-        throw new Error('Invalid date range');
-      }
+      const startDate = new Date(dateRange.startDate);
+      const endDate = new Date(dateRange.endDate);
+      endDate.setHours(23, 59, 59, 999); // Include the entire end date
 
       console.log('Filtering data from', startDate, 'to', endDate);
 
       // Filter events by date range
       const filteredEvents = events.filter(event => {
-        const eventDate = new Date(event.date.split('T')[0] + 'T00:00:00');
+        const eventDate = new Date(event.date);
         return eventDate >= startDate && eventDate <= endDate;
       });
 
       // Filter contributions by date range
       const filteredContributions = contributions.filter(contribution => {
-        const contributionDate = new Date(contribution.date.split('T')[0] + 'T00:00:00');
+        const contributionDate = new Date(contribution.date);
         return contributionDate >= startDate && contributionDate <= endDate;
       });
 
       // Filter expenses by date range
       const filteredExpenses = expenses.filter(expense => {
-        const expenseDate = new Date(expense.date.split('T')[0] + 'T00:00:00');
+        const expenseDate = new Date(expense.date);
         return expenseDate >= startDate && expenseDate <= endDate;
       });
 
@@ -290,7 +284,7 @@ const Dashboard: React.FC = () => {
       const filteredAttendance = attendance.filter(attendanceRecord => {
         const event = events.find(e => e.id === attendanceRecord.eventId);
         if (!event) return false;
-        const eventDate = new Date(event.date.split('T')[0] + 'T00:00:00');
+        const eventDate = new Date(event.date);
         return eventDate >= startDate && eventDate <= endDate;
       });
 
@@ -298,8 +292,7 @@ const Dashboard: React.FC = () => {
         events: filteredEvents.length,
         contributions: filteredContributions.length,
         expenses: filteredExpenses.length,
-        attendance: filteredAttendance.length,
-        dateRange: { startDate: startDate.toISOString(), endDate: endDate.toISOString() }
+        attendance: filteredAttendance.length
       });
 
       // Calculate filtered stats
