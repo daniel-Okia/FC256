@@ -257,32 +257,55 @@ class BasePDFExporter {
     // Calculate available space for table
     const availableHeight = this.pageHeight - this.currentY - this.footerHeight;
 
+    // Calculate column widths to prevent overlapping
+    const totalWidth = this.pageWidth - this.margin * 2;
+    const columnWidths = columns.map(col => {
+      if (col.width) return col.width;
+      return totalWidth / columns.length; // Equal distribution if no width specified
+    });
+
+    // Ensure total width doesn't exceed page width
+    const totalColumnWidth = columnWidths.reduce((sum, width) => sum + width, 0);
+    if (totalColumnWidth > totalWidth) {
+      const scaleFactor = totalWidth / totalColumnWidth;
+      columnWidths.forEach((width, index) => {
+        columnWidths[index] = width * scaleFactor;
+      });
+    }
+
     (this.doc as any).autoTable({
       head: [columns.map(col => col.header)],
       body: rows.map(row => columns.map(col => row[col.dataKey] || '')),
       startY: this.currentY,
       styles: { 
-        fontSize: FONTS.body, 
-        cellPadding: 4,
+        fontSize: FONTS.small, // Reduced font size to prevent overlapping
+        cellPadding: 3, // Reduced padding
         textColor: COLORS.darkGray,
         lineColor: '#e5e7eb',
         lineWidth: 0.5,
         fillColor: false,
+        overflow: 'linebreak', // Enable text wrapping
+        halign: 'left', // Left align text
+        valign: 'middle', // Vertically center text
       },
       headStyles: { 
         fillColor: headerColor,
         textColor: '#ffffff',
         fontStyle: 'bold',
-        fontSize: FONTS.body,
-        cellPadding: 6,
+        fontSize: FONTS.small, // Consistent font size
+        cellPadding: 4,
+        halign: 'center', // Center align headers
+        valign: 'middle',
       },
       alternateRowStyles: { 
         fillColor: '#f9fafb'
       },
-      columnStyles: columns.reduce((acc, col, index) => {
-        if (col.width) {
-          acc[index] = { cellWidth: col.width };
-        }
+      columnStyles: columnWidths.reduce((acc, width, index) => {
+        acc[index] = { 
+          cellWidth: width,
+          overflow: 'linebreak',
+          cellPadding: 3,
+        };
         return acc;
       }, {} as any),
       margin: { 
@@ -293,6 +316,17 @@ class BasePDFExporter {
       theme: 'grid',
       pageBreak: 'auto',
       showHead: 'everyPage',
+      tableWidth: 'wrap', // Auto-size table width
+      // Improved text handling
+      didParseCell: function(data: any) {
+        // Ensure text doesn't overflow
+        if (data.cell.text && data.cell.text.length > 0) {
+          const maxLength = Math.floor(data.cell.width / 3); // Approximate character limit
+          if (data.cell.text[0].length > maxLength) {
+            data.cell.text = [data.cell.text[0].substring(0, maxLength - 3) + '...'];
+          }
+        }
+      },
       // Ensure proper spacing from footer
       didDrawPage: (data: any) => {
         // Update currentY to account for table content
@@ -503,10 +537,10 @@ export class DashboardPDFExporter extends BasePDFExporter {
 
     this.addTable(
       [
-        { header: 'Financial Metric', dataKey: 'metric', width: 50 },
-        { header: 'Amount (UGX)', dataKey: 'amount', width: 35 },
-        { header: 'Status', dataKey: 'status', width: 25 },
-        { header: 'Category', dataKey: 'category', width: 25 },
+        { header: 'Financial Metric', dataKey: 'metric', width: 60 },
+        { header: 'Amount (UGX)', dataKey: 'amount', width: 45 },
+        { header: 'Status', dataKey: 'status', width: 30 },
+        { header: 'Category', dataKey: 'category', width: 35 },
       ],
       financialData,
       { headerColor: COLORS.success }
@@ -520,16 +554,15 @@ export class DashboardPDFExporter extends BasePDFExporter {
         time: event.time,
         location: event.location,
         status: 'Scheduled',
-        description: event.description || 'No description'
       }));
 
       this.addTable(
         [
-          { header: 'Date', dataKey: 'date', width: 25 },
-          { header: 'Event Type', dataKey: 'type', width: 40 },
-          { header: 'Time', dataKey: 'time', width: 20 },
-          { header: 'Location', dataKey: 'location', width: 30 },
-          { header: 'Status', dataKey: 'status', width: 20 },
+          { header: 'Date', dataKey: 'date', width: 35 },
+          { header: 'Event Type', dataKey: 'type', width: 55 },
+          { header: 'Time', dataKey: 'time', width: 25 },
+          { header: 'Location', dataKey: 'location', width: 45 },
+          { header: 'Status', dataKey: 'status', width: 25 },
         ],
         eventRows,
         { 
@@ -552,11 +585,11 @@ export class DashboardPDFExporter extends BasePDFExporter {
 
       this.addTable(
         [
-          { header: 'Date', dataKey: 'date', width: 22 },
-          { header: 'Type', dataKey: 'type', width: 20 },
-          { header: 'Description', dataKey: 'description', width: 45 },
-          { header: 'Amount', dataKey: 'amount', width: 25 },
-          { header: 'Status', dataKey: 'status', width: 18 },
+          { header: 'Date', dataKey: 'date', width: 30 },
+          { header: 'Type', dataKey: 'type', width: 25 },
+          { header: 'Description', dataKey: 'description', width: 60 },
+          { header: 'Amount', dataKey: 'amount', width: 35 },
+          { header: 'Status', dataKey: 'status', width: 25 },
         ],
         transactionRows,
         { 
@@ -579,12 +612,12 @@ export class DashboardPDFExporter extends BasePDFExporter {
 
       this.addTable(
         [
-          { header: 'Date', dataKey: 'date', width: 25 },
-          { header: 'Session Type', dataKey: 'session', width: 35 },
-          { header: 'Present', dataKey: 'present', width: 18 },
-          { header: 'Total', dataKey: 'total', width: 18 },
-          { header: 'Rate', dataKey: 'rate', width: 18 },
-          { header: 'Status', dataKey: 'status', width: 20 },
+          { header: 'Date', dataKey: 'date', width: 30 },
+          { header: 'Session Type', dataKey: 'session', width: 50 },
+          { header: 'Present', dataKey: 'present', width: 20 },
+          { header: 'Total', dataKey: 'total', width: 20 },
+          { header: 'Rate', dataKey: 'rate', width: 20 },
+          { header: 'Status', dataKey: 'status', width: 25 },
         ],
         attendanceRows,
         { 

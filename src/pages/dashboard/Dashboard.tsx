@@ -256,27 +256,27 @@ const Dashboard: React.FC = () => {
         AttendanceService.getAllAttendance(),
       ]);
 
-      const startDate = new Date(dateRange.startDate);
-      const endDate = new Date(dateRange.endDate);
-      endDate.setHours(23, 59, 59, 999); // Include the entire end date
+      // Create proper date objects and ensure timezone consistency
+      const startDate = new Date(dateRange.startDate + 'T00:00:00');
+      const endDate = new Date(dateRange.endDate + 'T23:59:59');
 
       console.log('Filtering data from', startDate, 'to', endDate);
 
       // Filter events by date range
       const filteredEvents = events.filter(event => {
-        const eventDate = new Date(event.date);
+        const eventDate = new Date(event.date.split('T')[0] + 'T00:00:00');
         return eventDate >= startDate && eventDate <= endDate;
       });
 
       // Filter contributions by date range
       const filteredContributions = contributions.filter(contribution => {
-        const contributionDate = new Date(contribution.date);
+        const contributionDate = new Date(contribution.date.split('T')[0] + 'T00:00:00');
         return contributionDate >= startDate && contributionDate <= endDate;
       });
 
       // Filter expenses by date range
       const filteredExpenses = expenses.filter(expense => {
-        const expenseDate = new Date(expense.date);
+        const expenseDate = new Date(expense.date.split('T')[0] + 'T00:00:00');
         return expenseDate >= startDate && expenseDate <= endDate;
       });
 
@@ -284,7 +284,7 @@ const Dashboard: React.FC = () => {
       const filteredAttendance = attendance.filter(attendanceRecord => {
         const event = events.find(e => e.id === attendanceRecord.eventId);
         if (!event) return false;
-        const eventDate = new Date(event.date);
+        const eventDate = new Date(event.date.split('T')[0] + 'T00:00:00');
         return eventDate >= startDate && eventDate <= endDate;
       });
 
@@ -559,6 +559,7 @@ const Dashboard: React.FC = () => {
               type="date"
               value={dateRange.startDate}
               onChange={(e) => setDateRange(prev => ({ ...prev, startDate: e.target.value }))}
+              max={dateRange.endDate || undefined}
               required
             />
             <Input
@@ -566,6 +567,7 @@ const Dashboard: React.FC = () => {
               type="date"
               value={dateRange.endDate}
               onChange={(e) => setDateRange(prev => ({ ...prev, endDate: e.target.value }))}
+              min={dateRange.startDate || undefined}
               required
             />
           </div>
@@ -576,12 +578,87 @@ const Dashboard: React.FC = () => {
                 Selected Date Range
               </h4>
               <p className="text-sm text-green-700 dark:text-green-300">
-                <strong>From:</strong> {new Date(dateRange.startDate).toLocaleDateString()} <br />
-                <strong>To:</strong> {new Date(dateRange.endDate).toLocaleDateString()} <br />
-                <strong>Duration:</strong> {Math.ceil((new Date(dateRange.endDate).getTime() - new Date(dateRange.startDate).getTime()) / (1000 * 60 * 60 * 24))} days
+                <strong>From:</strong> {formatDate(dateRange.startDate, 'MMM d, yyyy')} <br />
+                <strong>To:</strong> {formatDate(dateRange.endDate, 'MMM d, yyyy')} <br />
+                <strong>Duration:</strong> {Math.ceil((new Date(dateRange.endDate + 'T00:00:00').getTime() - new Date(dateRange.startDate + 'T00:00:00').getTime()) / (1000 * 60 * 60 * 24)) + 1} days
               </p>
             </div>
           )}
+
+          {/* Quick Date Range Buttons */}
+          <div className="space-y-3">
+            <h4 className="text-sm font-medium text-gray-900 dark:text-white">
+              Quick Select:
+            </h4>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const today = new Date();
+                  const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+                  const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+                  setDateRange({
+                    startDate: firstDay.toISOString().split('T')[0],
+                    endDate: lastDay.toISOString().split('T')[0],
+                  });
+                }}
+                className="text-xs"
+              >
+                This Month
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const today = new Date();
+                  const firstDay = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+                  const lastDay = new Date(today.getFullYear(), today.getMonth(), 0);
+                  setDateRange({
+                    startDate: firstDay.toISOString().split('T')[0],
+                    endDate: lastDay.toISOString().split('T')[0],
+                  });
+                }}
+                className="text-xs"
+              >
+                Last Month
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const today = new Date();
+                  const thirtyDaysAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+                  setDateRange({
+                    startDate: thirtyDaysAgo.toISOString().split('T')[0],
+                    endDate: today.toISOString().split('T')[0],
+                  });
+                }}
+                className="text-xs"
+              >
+                Last 30 Days
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const today = new Date();
+                  const firstDay = new Date(today.getFullYear(), 0, 1);
+                  setDateRange({
+                    startDate: firstDay.toISOString().split('T')[0],
+                    endDate: today.toISOString().split('T')[0],
+                  });
+                }}
+                className="text-xs"
+              >
+                This Year
+              </Button>
+            </div>
+          </div>
 
           <div className="flex flex-col sm:flex-row justify-end space-y-3 sm:space-y-0 sm:space-x-3 pt-6 border-t border-gray-200 dark:border-gray-700">
             <Button
