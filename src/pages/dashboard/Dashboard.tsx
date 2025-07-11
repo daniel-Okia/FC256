@@ -15,6 +15,7 @@ import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import Modal from '../../components/ui/Modal';
 import { formatUGX } from '../../utils/currency-utils';
+import { formatDate } from '../../utils/date-utils';
 import { DashboardPDFExporter } from '../../utils/pdf-export';
 import { canUserAccess, Permissions } from '../../utils/permissions';
 
