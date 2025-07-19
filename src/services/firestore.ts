@@ -56,6 +56,8 @@ export class FirestoreService {
         ...doc.data(),
       })) as T[];
 
+      console.log(`Fetched ${data.length} documents from ${collectionName}`);
+      
       // Apply automatic sorting based on collection type
       return this.applySorting(data, collectionName);
     } catch (error: any) {
@@ -64,7 +66,9 @@ export class FirestoreService {
         console.warn(`Permission denied for collection ${collectionName}. Returning empty array.`);
         return [];
       }
-      throw error;
+      // For other errors, still return empty array to prevent app crashes
+      console.warn(`Returning empty array due to error in ${collectionName}`);
+      return [];
     }
   }
 
