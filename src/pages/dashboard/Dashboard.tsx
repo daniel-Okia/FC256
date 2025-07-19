@@ -553,52 +553,30 @@ const Dashboard: React.FC = () => {
         isOpen={isFilterModalOpen}
         onClose={() => setIsFilterModalOpen(false)}
         title="Export Dashboard with Date Filter"
-        size="lg"
-      >
-        <div className="space-y-6">
-          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-            <div className="flex items-center">
-              <Filter size={20} className="text-blue-600 dark:text-blue-400 mr-2" />
-              <div>
-                <h4 className="text-sm font-medium text-blue-900 dark:text-blue-100">
-                  Date Range Export
-                </h4>
-                <p className="text-sm text-blue-700 dark:text-blue-300">
-                  Select a date range to filter the dashboard data for export. This will include transactions, events, and statistics within the specified period.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Input
-              label="Start Date"
-              type="date"
-              value={dateRange.startDate}
-              onChange={(e) => setDateRange(prev => ({ ...prev, startDate: e.target.value }))}
-              max={dateRange.endDate || undefined}
-              required
-            />
-            <Input
-              label="End Date"
-              type="date"
-              value={dateRange.endDate}
-              onChange={(e) => setDateRange(prev => ({ ...prev, endDate: e.target.value }))}
-              min={dateRange.startDate || undefined}
-              required
-            />
-          </div>
-
-          {dateRange.startDate && dateRange.endDate && (
-            <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
-              <h4 className="text-sm font-medium text-green-900 dark:text-green-100 mb-2">
-                Selected Date Range
-              </h4>
-              <p className="text-sm text-green-700 dark:text-green-300">
-                <strong>From:</strong> {formatDate(dateRange.startDate, 'MMM d, yyyy')} <br />
-                <strong>To:</strong> {formatDate(dateRange.endDate, 'MMM d, yyyy')} <br />
-                <strong>Duration:</strong> {Math.ceil((new Date(dateRange.endDate + 'T00:00:00').getTime() - new Date(dateRange.startDate + 'T00:00:00').getTime()) / (1000 * 60 * 60 * 24)) + 1} days
-              </p>
+      <DashboardCard
+        title="Total Contributions"
+        value={formatUGX(stats.totalContributions)}
+        description="All time monetary"
+        icon={<CreditCard className="h-6 w-6 text-green-600 dark:text-green-400" />}
+        link={{ text: 'View contributions', to: '/contributions' }}
+      />
+    <div className="mb-8">
+      <div className={`rounded-lg p-6 border ${
+        stats.remainingBalance >= 0 
+          ? 'bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-900/20 dark:to-blue-900/20 border-green-200 dark:border-green-800'
+          : 'bg-gradient-to-r from-red-50 to-orange-50 dark:from-red-900/20 dark:to-orange-900/20 border-red-200 dark:border-red-800'
+      }`}>
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+              Financial Summary
+            </h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Current balance after all contributions and expenses
+            </p>
+            <div className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+              <span className="font-medium">In:</span> {formatUGX(stats.totalContributions)} • 
+              <span className="font-medium ml-2">Out:</span> {formatUGX(stats.totalExpenses)}
             </div>
           )}
 
@@ -676,6 +654,22 @@ const Dashboard: React.FC = () => {
               </Button>
             </div>
           </div>
+          <div className="text-right">
+            <p className={`text-3xl font-bold ${
+              stats.remainingBalance >= 0 
+                ? 'text-green-600 dark:text-green-400' 
+                : 'text-red-600 dark:text-red-400'
+            }`}>
+              {formatUGX(Math.abs(stats.remainingBalance))}
+            </p>
+            <p className={`text-sm font-medium ${
+              stats.remainingBalance >= 0 
+                ? 'text-green-600 dark:text-green-400' 
+                : 'text-red-600 dark:text-red-400'
+            }`}>
+              {stats.remainingBalance >= 0 ? 'Available Balance' : 'Deficit'}
+            </p>
+          </div>
 
           <div className="flex flex-col sm:flex-row justify-end space-y-3 sm:space-y-0 sm:space-x-3 pt-6 border-t border-gray-200 dark:border-gray-700">
             <Button
@@ -708,3 +702,10 @@ const Dashboard: React.FC = () => {
 };
 
 export default Dashboard;
+      <FinancialChart />
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+      <UpcomingEvents />
+    </div>
+    <div className="mb-8">
+      <RecentTransactions />
+    </div>
