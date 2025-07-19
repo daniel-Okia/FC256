@@ -10,39 +10,38 @@ export const canUserAccess = (userRole: UserRole | undefined, allowedRoles: User
 
 /**
  * Define role-based permissions for different actions
- * Members now have VIEW access to everything, but only admins can perform CRUD operations
  */
 export const Permissions = {
   // Auth permissions
   LOGIN: ['admin', 'manager', 'member'] as UserRole[],
   
-  // Member permissions - Members can view all, only admins can modify
+  // Member permissions
   VIEW_MEMBERS: ['admin', 'manager', 'member'] as UserRole[],
-  CREATE_MEMBER: ['admin'] as UserRole[], // Only admin
-  EDIT_MEMBER: ['admin'] as UserRole[], // Only admin
-  DELETE_MEMBER: ['admin'] as UserRole[], // Only admin
+  CREATE_MEMBER: ['admin', 'manager'] as UserRole[],
+  EDIT_MEMBER: ['admin', 'manager'] as UserRole[],
+  DELETE_MEMBER: ['admin', 'manager'] as UserRole[],
   
-  // Event permissions - Members can view all, only admins can modify
-  VIEW_EVENTS: ['admin', 'manager', 'member'] as UserRole[],
-  CREATE_EVENT: ['admin'] as UserRole[], // Only admin
-  EDIT_EVENT: ['admin'] as UserRole[], // Only admin
-  DELETE_EVENT: ['admin'] as UserRole[], // Only admin
+  // Event permissions
+  VIEW_EVENTS: ['admin', 'manager', 'member'] as UserRole[], // Allow members to view events
+  CREATE_EVENT: ['admin', 'manager'] as UserRole[],
+  EDIT_EVENT: ['admin', 'manager'] as UserRole[],
+  DELETE_EVENT: ['admin', 'manager'] as UserRole[],
   
-  // Attendance permissions - Members can view all, only admins can modify
-  VIEW_ATTENDANCE: ['admin', 'manager', 'member'] as UserRole[],
-  MARK_ATTENDANCE: ['admin'] as UserRole[], // Only admin
+  // Attendance permissions
+  VIEW_ATTENDANCE: ['admin', 'manager', 'member'] as UserRole[], // Allow members to view attendance
+  MARK_ATTENDANCE: ['admin', 'manager'] as UserRole[],
   
-  // Leadership permissions - Members can view all, only admins can modify
+  // Leadership permissions
   VIEW_LEADERSHIP: ['admin', 'manager', 'member'] as UserRole[],
-  MANAGE_LEADERSHIP: ['admin'] as UserRole[], // Only admin
+  MANAGE_LEADERSHIP: ['admin', 'manager'] as UserRole[],
   
-  // Contribution and Expense permissions - Members can view all, only admins can modify
-  VIEW_CONTRIBUTIONS: ['admin', 'manager', 'member'] as UserRole[],
-  CREATE_CONTRIBUTION: ['admin'] as UserRole[], // Only admin
-  EDIT_CONTRIBUTION: ['admin'] as UserRole[], // Only admin
-  DELETE_CONTRIBUTION: ['admin'] as UserRole[], // Only admin
+  // Contribution and Expense permissions
+  VIEW_CONTRIBUTIONS: ['admin', 'manager', 'member'] as UserRole[], // Allow members to view contributions
+  CREATE_CONTRIBUTION: ['admin', 'manager'] as UserRole[],
+  EDIT_CONTRIBUTION: ['admin', 'manager'] as UserRole[],
+  DELETE_CONTRIBUTION: ['admin', 'manager'] as UserRole[],
   
-  // Dashboard permissions - All can view, only admins can export
+  // Dashboard permissions
   VIEW_DASHBOARD: ['admin', 'manager', 'member'] as UserRole[],
-  EXPORT_REPORTS: ['admin'] as UserRole[], // Only admin
+  EXPORT_REPORTS: ['admin', 'manager'] as UserRole[],
 };

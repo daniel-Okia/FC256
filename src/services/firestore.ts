@@ -45,7 +45,7 @@ export class FirestoreService {
   // Read all documents with automatic sorting
   static async getAll<T>(collectionName: string): Promise<T[]> {
     if (!db) {
-      console.error('Firestore is not initialized. Returning empty array.');
+      console.warn('Firestore is not initialized. Returning empty array.');
       return [];
     }
 
@@ -63,12 +63,11 @@ export class FirestoreService {
     } catch (error: any) {
       console.error(`Error fetching documents from ${collectionName}:`, error);
       if (error.code === 'permission-denied') {
-        console.error(`Permission denied for collection ${collectionName}. This indicates a Firestore security rules issue.`);
-        console.error('Please update your Firestore security rules to allow read access for authenticated users.');
+        console.warn(`Permission denied for collection ${collectionName}. Returning empty array.`);
         return [];
       }
       // For other errors, still return empty array to prevent app crashes
-      console.error(`Returning empty array due to error in ${collectionName}:`, error.message);
+      console.warn(`Returning empty array due to error in ${collectionName}`);
       return [];
     }
   }
@@ -76,7 +75,7 @@ export class FirestoreService {
   // Read single document
   static async getById<T>(collectionName: string, id: string): Promise<T | null> {
     if (!db) {
-      console.error('Firestore is not initialized. Returning null.');
+      console.warn('Firestore is not initialized. Returning null.');
       return null;
     }
 
@@ -94,7 +93,7 @@ export class FirestoreService {
     } catch (error: any) {
       console.error(`Error fetching document ${id} from ${collectionName}:`, error);
       if (error.code === 'permission-denied') {
-        console.error(`Permission denied for document ${id} in ${collectionName}. Check Firestore security rules.`);
+        console.warn(`Permission denied for document ${id} in ${collectionName}.`);
         return null;
       }
       throw error;
@@ -148,7 +147,7 @@ export class FirestoreService {
     orderDirection: 'asc' | 'desc' = 'asc'
   ): Promise<T[]> {
     if (!db) {
-      console.error('Firestore is not initialized. Returning empty array.');
+      console.warn('Firestore is not initialized. Returning empty array.');
       return [];
     }
 
@@ -180,7 +179,7 @@ export class FirestoreService {
     } catch (error: any) {
       console.error(`Error querying ${collectionName}:`, error);
       if (error.code === 'permission-denied') {
-        console.error(`Permission denied for querying ${collectionName}. Check Firestore security rules for read access.`);
+        console.warn(`Permission denied for querying ${collectionName}. Returning empty array.`);
         return [];
       }
       throw error;
@@ -250,7 +249,7 @@ export class FirestoreService {
     conditions: { field: string; operator: any; value: any }[] = []
   ): () => void {
     if (!db) {
-      console.error('Firestore is not initialized. Subscription will not work.');
+      console.warn('Firestore is not initialized. Subscription will not work.');
       callback([]);
       return () => {};
     }
@@ -276,7 +275,7 @@ export class FirestoreService {
         (error) => {
           console.error(`Error in subscription to ${collectionName}:`, error);
           if (error.code === 'permission-denied') {
-            console.error(`Permission denied for subscription to ${collectionName}. Check Firestore security rules.`);
+            console.warn(`Permission denied for subscription to ${collectionName}.`);
           }
           callback([]);
         }
