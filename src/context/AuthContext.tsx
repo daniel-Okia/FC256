@@ -38,11 +38,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       throw new Error('Firestore is not initialized. Please check your Firebase configuration.');
     }
 
+    // Try to find matching member data first
+    let memberData = null;
+    try {
+      const { MemberService } = await import('../services/firestore');
+      const members = await MemberService.getAllMembers();
+      memberData = members.find(member => 
+        member.email.toLowerCase().trim() === (firebaseUser.email || '').toLowerCase().trim()
+      );
+      console.log('Found member data for user:', memberData ? memberData.name : 'No member data found');
+    } catch (error) {
+      console.warn('Could not fetch member data during user creation:', error);
+    }
+
     const defaultUserData = {
-      name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User',
+      name: memberData ? memberData.name : (firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User'),
       email: firebaseUser.email || '',
       role: 'member' as UserRole,
-      phone: '',
+      phone: memberData ? (memberData.phone || '') : '',
       dateJoined: new Date().toISOString(),
       avatarUrl: firebaseUser.photoURL || '',
     };

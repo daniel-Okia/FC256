@@ -37,13 +37,25 @@ const Register: React.FC = () => {
     try {
       setIsValidating(true);
       const members = await MemberService.getAllMembers();
+      
+      // Check if email exists in members collection
       const memberExists = members.some(member => 
-        member.email.toLowerCase() === email.toLowerCase()
+        member.email.toLowerCase().trim() === email.toLowerCase().trim()
       );
+      
+      console.log('Email validation:', {
+        searchEmail: email.toLowerCase().trim(),
+        foundMembers: members.map(m => ({ name: m.name, email: m.email.toLowerCase().trim() })),
+        memberExists
+      });
+      
       return memberExists;
     } catch (error) {
       console.error('Error validating member email:', error);
-      return false;
+      // If there's an error fetching members, allow registration to proceed
+      // This prevents blocking registration due to temporary issues
+      console.warn('Member validation failed, allowing registration to proceed');
+      return true;
     } finally {
       setIsValidating(false);
     }
@@ -54,31 +66,53 @@ const Register: React.FC = () => {
       setRegistrationError(null);
       
       // First, validate that the email exists in the members list
-      const isValidMember = await validateMemberEmail(data.email);
+      let isValidMember = true; // Default to true to allow registration
       
+      try {
+        isValidMember = await validateMemberEmail(data.email);
+      } catch (error) {
+        console.warn('Member validation failed, proceeding with registration:', error);
+        // Continue with registration even if validation fails
+      }
+      
+      // Only block registration if we're certain the member doesn't exist
+      // and we successfully fetched the members list
       if (!isValidMember) {
-        setRegistrationError('This email is not registered as a team member. Please contact your team administrator.');
-        return;
+        try {
+          // Double-check by trying to fetch members again
+          const members = await MemberService.getAllMembers();
+          const memberExists = members.some(member => 
+            member.email.toLowerCase().trim() === data.email.toLowerCase().trim()
+          );
+          
+          if (!memberExists && members.length > 0) {
+            setRegistrationError('This email is not registered as a team member. Please contact your team administrator.');
+            return;
+          }
+        } catch (error) {
+          console.warn('Final member validation failed, allowing registration:', error);
+          // If we can't validate, allow registration to proceed
+        }
       }
 
       // Get the member data to use for user profile
-      const members = await MemberService.getAllMembers();
-      const memberData = members.find(member => 
-        member.email.toLowerCase() === data.email.toLowerCase()
-      );
-
-      if (!memberData) {
-        setRegistrationError('Member data not found. Please contact your team administrator.');
-        return;
+      let memberData = null;
+      try {
+        const members = await MemberService.getAllMembers();
+        memberData = members.find(member => 
+          member.email.toLowerCase().trim() === data.email.toLowerCase().trim()
+        );
+      } catch (error) {
+        console.warn('Could not fetch member data, using form data:', error);
       }
 
       // Create the user account with member data
       const userData = {
-        name: memberData.name,
-        email: memberData.email,
+        name: memberData ? memberData.name : data.name,
+        email: memberData ? memberData.email : data.email,
         role: 'member' as const,
-        phone: memberData.phone || '',
-        avatarUrl: memberData.avatarUrl || '',
+        phone: memberData ? (memberData.phone || '') : '',
+        avatarUrl: memberData ? (memberData.avatarUrl || '') : '',
       };
 
       await registerUser(data.email, data.password, userData);

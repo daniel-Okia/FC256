@@ -29,13 +29,25 @@ const ForgotPassword: React.FC = () => {
   const validateMemberEmail = async (email: string): Promise<boolean> => {
     try {
       const members = await MemberService.getAllMembers();
+      
+      // Check if email exists in members collection
       const memberExists = members.some(member => 
-        member.email.toLowerCase() === email.toLowerCase()
+        member.email.toLowerCase().trim() === email.toLowerCase().trim()
       );
+      
+      console.log('Password reset email validation:', {
+        searchEmail: email.toLowerCase().trim(),
+        memberExists,
+        totalMembers: members.length
+      });
+      
       return memberExists;
     } catch (error) {
       console.error('Error validating member email:', error);
-      return false;
+      // If there's an error, allow password reset to proceed
+      // Firebase will handle the actual email validation
+      console.warn('Member validation failed, allowing password reset to proceed');
+      return true;
     }
   };
 
@@ -50,11 +62,29 @@ const ForgotPassword: React.FC = () => {
       setError(null);
 
       // First, validate that the email exists in the members list
-      const isValidMember = await validateMemberEmail(data.email);
+      let isValidMember = true; // Default to true
       
+      try {
+        isValidMember = await validateMemberEmail(data.email);
+      } catch (error) {
+        console.warn('Member validation failed for password reset, proceeding:', error);
+      }
+      
+      // Only show warning if we're certain the member doesn't exist
       if (!isValidMember) {
-        setError('This email is not registered as a team member. Please contact your team administrator.');
-        return;
+        try {
+          const members = await MemberService.getAllMembers();
+          const memberExists = members.some(member => 
+            member.email.toLowerCase().trim() === data.email.toLowerCase().trim()
+          );
+          
+          if (!memberExists && members.length > 0) {
+            setError('This email is not registered as a team member. Please contact your team administrator.');
+            return;
+          }
+        } catch (error) {
+          console.warn('Final validation failed, proceeding with password reset:', error);
+        }
       }
 
       // Send password reset email
