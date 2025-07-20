@@ -367,7 +367,21 @@ export class DashboardPDFExporter extends BasePDFExporter {
     };
     upcomingEvents: Event[];
     recentTransactions: any[];
-    attendanceTrends?: any[];
+    attendanceTrends: any[];
+    recentMatchResults: Event[];
+    attendanceBreakdown: {
+      totalSessions: number;
+      averageAttendance: number;
+      attendanceRate: number;
+      highestAttendance: number;
+      lowestAttendance: number;
+      monthlyBreakdown: {
+        month: string;
+        sessions: number;
+        averageAttendance: number;
+        attendanceRate: number;
+      }[];
+    };
     dateRange?: { startDate: string; endDate: string };
   }): void {
     console.log('Exporting dashboard with data:', data);
@@ -404,6 +418,33 @@ export class DashboardPDFExporter extends BasePDFExporter {
         color: data.stats.remainingBalance >= 0 ? COLORS.success : COLORS.danger,
       },
     ]);
+
+    // Training Attendance Overview
+    if (data.attendanceBreakdown && data.attendanceBreakdown.totalSessions > 0) {
+      this.addStatsSection([
+        { 
+          label: 'Training Sessions', 
+          value: data.attendanceBreakdown.totalSessions.toString(),
+          color: COLORS.primary,
+        },
+        { 
+          label: 'Avg Attendance', 
+          value: data.attendanceBreakdown.averageAttendance.toString(),
+          color: COLORS.success,
+        },
+        { 
+          label: 'Attendance Rate', 
+          value: `${data.attendanceBreakdown.attendanceRate}%`,
+          color: data.attendanceBreakdown.attendanceRate >= 70 ? COLORS.success : 
+                 data.attendanceBreakdown.attendanceRate >= 50 ? COLORS.warning : COLORS.danger,
+        },
+        { 
+          label: 'Best Session', 
+          value: data.attendanceBreakdown.highestAttendance.toString(),
+          color: COLORS.info,
+        },
+      ]);
+    }
 
     // Financial Summary
     const financialData = [
@@ -443,6 +484,104 @@ export class DashboardPDFExporter extends BasePDFExporter {
       }
     );
 
+    // Recent Match Results
+    if (data.recentMatchResults && data.recentMatchResults.length > 0) {
+      const matchRows = data.recentMatchResults.slice(0, 10).map(match => {
+        const matchDetails = match.matchDetails;
+        if (!matchDetails) return null;
+        
+        return {
+          date: formatDate(match.date, 'MMM d, yyyy'),
+          opponent: match.opponent || 'Unknown',
+          score: `${matchDetails.fc256Score || 0} - ${matchDetails.opponentScore || 0}`,
+          result: matchDetails.result === 'win' ? 'Victory' : 
+                  matchDetails.result === 'draw' ? 'Draw' : 'Defeat',
+          venue: matchDetails.venue === 'home' ? 'Home' : 
+                 matchDetails.venue === 'away' ? 'Away' : 'Neutral',
+          composition: `${matchDetails.fc256Players || 11}v${matchDetails.opponentPlayers || 11}`,
+          goals: matchDetails.goalScorers ? matchDetails.goalScorers.length.toString() : '0',
+          cards: `${(matchDetails.yellowCards?.length || 0) + (matchDetails.redCards?.length || 0)}`,
+        };
+      }).filter(Boolean);
+
+      if (matchRows.length > 0) {
+        this.addTable(
+          [
+            { header: 'Date', dataKey: 'date' },
+            { header: 'Opponent', dataKey: 'opponent' },
+            { header: 'Score (FC256)', dataKey: 'score' },
+            { header: 'Result', dataKey: 'result' },
+            { header: 'Venue', dataKey: 'venue' },
+            { header: 'Formation', dataKey: 'composition' },
+            { header: 'Goals', dataKey: 'goals' },
+            { header: 'Cards', dataKey: 'cards' },
+          ],
+          matchRows,
+          { 
+            title: data.dateRange ? 'MATCH RESULTS (FILTERED PERIOD)' : 'RECENT MATCH RESULTS', 
+            headerColor: COLORS.warning 
+          }
+        );
+      }
+    }
+
+    // Training Attendance Breakdown
+    if (data.attendanceTrends && data.attendanceTrends.length > 0) {
+      const attendanceRows = data.attendanceTrends.slice(0, 15).map(trend => ({
+        date: formatDate(trend.date, 'MMM d, yyyy'),
+        type: trend.type === 'training' ? 'Training Session' : `Friendly vs ${trend.opponent || 'TBD'}`,
+        present: trend.presentCount?.toString() || '0',
+        total: trend.totalMembers?.toString() || '0',
+        rate: `${Math.round(trend.attendanceRate || 0)}%`,
+        status: (trend.attendanceRate || 0) >= 80 ? 'Excellent' :
+                (trend.attendanceRate || 0) >= 60 ? 'Good' :
+                (trend.attendanceRate || 0) >= 40 ? 'Fair' : 'Poor',
+      }));
+
+      this.addTable(
+        [
+          { header: 'Date', dataKey: 'date' },
+          { header: 'Session Type', dataKey: 'type' },
+          { header: 'Present', dataKey: 'present' },
+          { header: 'Total Members', dataKey: 'total' },
+          { header: 'Attendance Rate', dataKey: 'rate' },
+          { header: 'Performance', dataKey: 'status' },
+        ],
+        attendanceRows,
+        { 
+          title: data.dateRange ? 'ATTENDANCE TRENDS (FILTERED PERIOD)' : 'TRAINING ATTENDANCE TRENDS', 
+          headerColor: COLORS.info 
+        }
+      );
+    }
+
+    // Monthly Attendance Breakdown
+    if (data.attendanceBreakdown && data.attendanceBreakdown.monthlyBreakdown && data.attendanceBreakdown.monthlyBreakdown.length > 0) {
+      const monthlyRows = data.attendanceBreakdown.monthlyBreakdown.map(month => ({
+        month: month.month,
+        sessions: month.sessions.toString(),
+        avgAttendance: month.averageAttendance.toString(),
+        attendanceRate: `${month.attendanceRate}%`,
+        performance: month.attendanceRate >= 80 ? 'Excellent' :
+                    month.attendanceRate >= 60 ? 'Good' :
+                    month.attendanceRate >= 40 ? 'Fair' : 'Needs Improvement',
+      }));
+
+      this.addTable(
+        [
+          { header: 'Month', dataKey: 'month' },
+          { header: 'Sessions', dataKey: 'sessions' },
+          { header: 'Avg Attendance', dataKey: 'avgAttendance' },
+          { header: 'Attendance Rate', dataKey: 'attendanceRate' },
+          { header: 'Performance', dataKey: 'performance' },
+        ],
+        monthlyRows,
+        { 
+          title: 'MONTHLY ATTENDANCE ANALYSIS', 
+          headerColor: COLORS.primary 
+        }
+      );
+    }
     // Upcoming Events
     if (data.upcomingEvents && data.upcomingEvents.length > 0) {
       const eventRows = data.upcomingEvents.slice(0, 8).map(event => ({
