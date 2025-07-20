@@ -48,16 +48,6 @@ const Dashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [upcomingEvents, setUpcomingEvents] = useState<any[]>([]);
   const [recentTransactions, setRecentTransactions] = useState<any[]>([]);
-  const [attendanceTrends, setAttendanceTrends] = useState<any[]>([]);
-  const [recentMatchResults, setRecentMatchResults] = useState<any[]>([]);
-  const [attendanceBreakdown, setAttendanceBreakdown] = useState<any>({
-    totalSessions: 0,
-    averageAttendance: 0,
-    attendanceRate: 0,
-    highestAttendance: 0,
-    lowestAttendance: 0,
-    monthlyBreakdown: [],
-  });
   const [exporting, setExporting] = useState(false);
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
   const [dateRange, setDateRange] = useState<DateRange>({
@@ -171,132 +161,6 @@ const Dashboard: React.FC = () => {
           .slice(0, 10);
         setRecentTransactions(recent);
 
-        // Calculate attendance trends and breakdown for the last 30 days
-        const recentTrainingEvents = events.filter(event => {
-          const eventDate = new Date(event.date);
-        // Calculate attendance trends and breakdown for filtered events
-        });
-
-        const attendanceTrendsData = recentTrainingEvents.map(event => {
-          const eventAttendance = attendance.filter(a => 
-            a.eventId === event.id && a.status === 'present'
-          );
-          
-          return {
-            date: event.date,
-            type: event.type,
-            opponent: event.opponent,
-            presentCount: eventAttendance.length,
-            totalMembers: activeMembers,
-            attendanceRate: activeMembers > 0 ? (eventAttendance.length / activeMembers) * 100 : 0,
-          };
-        });
-
-        // Calculate filtered attendance breakdown
-        let filteredAttendanceBreakdown = {
-          totalSessions: 0,
-          averageAttendance: 0,
-          attendanceRate: 0,
-          highestAttendance: 0,
-          lowestAttendance: 0,
-          monthlyBreakdown: [],
-        };
-        
-        if (filteredTrainingEvents.length > 0) {
-          const attendanceCounts = filteredAttendanceTrends.map(t => t.presentCount);
-          const attendanceRates = filteredAttendanceTrends.map(t => t.attendanceRate);
-          
-          const avgAttendance = attendanceCounts.reduce((sum, count) => sum + count, 0) / attendanceCounts.length;
-          const avgRate = attendanceRates.reduce((sum, rate) => sum + rate, 0) / attendanceRates.length;
-          
-          filteredAttendanceBreakdown = {
-            totalSessions: filteredTrainingEvents.length,
-            averageAttendance: Math.round(avgAttendance),
-            attendanceRate: Math.round(avgRate),
-            highestAttendance: Math.max(...attendanceCounts),
-            lowestAttendance: Math.min(...attendanceCounts),
-            monthlyBreakdown: [], // Could be calculated if needed for filtered data
-          };
-        }
-
-        // Get filtered recent match results
-        const filteredMatchResults = filteredEvents
-          .filter(event => 
-            event.type === 'friendly' && 
-            event.isCompleted && 
-            event.matchDetails
-          )
-          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-          .slice(0, 10);
-        setAttendanceTrends(attendanceTrendsData);
-
-        // Calculate comprehensive attendance breakdown
-        if (recentTrainingEvents.length > 0) {
-          const attendanceCounts = attendanceTrendsData.map(t => t.presentCount);
-          const attendanceRates = attendanceTrendsData.map(t => t.attendanceRate);
-          
-          const avgAttendance = attendanceCounts.reduce((sum, count) => sum + count, 0) / attendanceCounts.length;
-          const avgRate = attendanceRates.reduce((sum, rate) => sum + rate, 0) / attendanceRates.length;
-          
-          // Calculate monthly breakdown for the last 6 months
-          const monthlyBreakdown = [];
-          for (let i = 5; i >= 0; i--) {
-            const monthDate = new Date();
-            monthDate.setMonth(monthDate.getMonth() - i);
-            const monthKey = monthDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-            
-            const monthEvents = events.filter(event => {
-              const eventDate = new Date(event.date);
-              return event.type === 'training' && 
-                     eventDate.getMonth() === monthDate.getMonth() && 
-                     eventDate.getFullYear() === monthDate.getFullYear();
-            });
-            
-            if (monthEvents.length > 0) {
-              const monthAttendanceData = monthEvents.map(event => {
-                const eventAttendance = attendance.filter(a => 
-                  a.eventId === event.id && a.status === 'present'
-                );
-                return {
-                  presentCount: eventAttendance.length,
-                  attendanceRate: activeMembers > 0 ? (eventAttendance.length / activeMembers) * 100 : 0,
-                };
-              });
-              
-              const monthAvgAttendance = monthAttendanceData.reduce((sum, data) => sum + data.presentCount, 0) / monthAttendanceData.length;
-              const monthAvgRate = monthAttendanceData.reduce((sum, data) => sum + data.attendanceRate, 0) / monthAttendanceData.length;
-              
-              monthlyBreakdown.push({
-                month: monthKey,
-                sessions: monthEvents.length,
-                averageAttendance: Math.round(monthAvgAttendance),
-                attendanceRate: Math.round(monthAvgRate),
-              });
-            }
-          }
-          
-          setAttendanceBreakdown({
-            totalSessions: recentTrainingEvents.length,
-            averageAttendance: Math.round(avgAttendance),
-            attendanceRate: Math.round(avgRate),
-            highestAttendance: Math.max(...attendanceCounts),
-            lowestAttendance: Math.min(...attendanceCounts),
-            monthlyBreakdown,
-          });
-        }
-
-        // Get recent match results
-        const completedFriendlies = events
-          .filter(event => 
-            event.type === 'friendly' && 
-            event.isCompleted && 
-            event.matchDetails &&
-            new Date(event.date) <= now
-          )
-          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-          .slice(0, 10);
-        
-        setRecentMatchResults(completedFriendlies);
         setStats({
           totalMembers: members.length,
           activeMembers,
@@ -309,8 +173,6 @@ const Dashboard: React.FC = () => {
       } catch (error) {
         console.error('Error loading dashboard data:', error);
       } finally {
-          recentMatchResults,
-          attendanceBreakdown,
         setLoading(false);
       }
     };
@@ -345,7 +207,6 @@ const Dashboard: React.FC = () => {
         stats,
         upcomingEvents,
         recentTransactions,
-        attendanceTrends,
       };
 
       if (dateRange.startDate && dateRange.endDate) {
@@ -356,8 +217,6 @@ const Dashboard: React.FC = () => {
       console.log('Exporting dashboard data:', filteredData);
       exporter.exportDashboard({
         ...filteredData,
-        recentMatchResults,
-        attendanceBreakdown,
         dateRange: dateRange.startDate && dateRange.endDate ? dateRange : undefined,
       });
     } catch (error) {
@@ -488,7 +347,6 @@ const Dashboard: React.FC = () => {
         stats: filteredStats,
         upcomingEvents: filteredUpcomingEvents,
         recentTransactions: filteredRecentTransactions,
-        attendanceTrends: filteredAttendanceTrends,
       };
     } catch (error) {
       console.error('Error filtering dashboard data:', error);
@@ -497,7 +355,6 @@ const Dashboard: React.FC = () => {
         stats,
         upcomingEvents,
         recentTransactions,
-        attendanceTrends,
       };
     }
   };
