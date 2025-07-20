@@ -339,6 +339,7 @@ VITE_FIREBASE_MEASUREMENT_ID=production_measurement_id
 **Team Manager**: Pius Paul
 - Email: piuspaul392@gmail.com
 - Phone: +256 700 654 321
+ Phone: +256782633089
 - Role: Team Manager
 
 **Technical Administrator**: Daniel Okia

@@ -7,15 +7,23 @@
  */
 export const formatUGX = (amount: number | undefined): string => {
   if (amount === undefined || amount === null || isNaN(amount)) {
+    console.warn('Invalid amount for UGX formatting:', amount);
     return 'UGX 0';
   }
   
-  return new Intl.NumberFormat('en-UG', {
-    style: 'currency',
-    currency: 'UGX',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(amount);
+  try {
+    return new Intl.NumberFormat('en-UG', {
+      style: 'currency',
+      currency: 'UGX',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amount);
+  } catch (error) {
+    console.error('Error formatting UGX:', error);
+    // Fallback formatting
+    const formatted = Math.round(amount).toLocaleString('en-UG');
+    return `UGX ${formatted}`;
+  }
 };
 
 /**

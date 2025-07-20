@@ -24,7 +24,7 @@ export const MANAGER_CREDENTIALS = {
     name: 'Pius Paul',
     email: 'piuspaul392@gmail.com',
     role: 'manager' as const,
-    phone: '+256 700 654 321',
+    phone: '+256782633089',
     dateJoined: new Date().toISOString(),
     avatarUrl: '',
   }

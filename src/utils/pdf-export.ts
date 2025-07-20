@@ -107,7 +107,7 @@ class BasePDFExporter {
     
     this.doc.text('Email: piuspaul392@gmail.com', textX, textY);
     textY += 4;
-    this.doc.text('Phone: +256 700 654 321', textX, textY);
+    this.doc.text('Phone: +256782633089', textX, textY);
     textY += 4;
     this.doc.text('Position: Team Manager', textX, textY);
     
@@ -244,6 +244,14 @@ class BasePDFExporter {
     rows: any[],
     options: { title?: string; headerColor?: string } = {}
   ): void {
+    // Debug logging
+    console.log('Adding table with data:', {
+      columns: columns.length,
+      rows: rows.length,
+      sampleRow: rows[0],
+      title: options.title
+    });
+
     // Ensure we have enough space for at least the title and a few rows
     const estimatedTableHeight = 60 + (Math.min(rows.length, 5) * 8); // Rough estimate
     this.checkPageBreak(estimatedTableHeight);
@@ -252,6 +260,19 @@ class BasePDFExporter {
       this.addSectionHeading(options.title, options.headerColor);
     }
 
+    // If no data, show empty message
+    if (rows.length === 0) {
+      this.doc.setFontSize(FONTS.body);
+      this.doc.setTextColor('#6b7280');
+      this.doc.setFont('helvetica', 'italic');
+      this.doc.text(
+        'No data available for this section.',
+        this.margin,
+        this.currentY
+      );
+      this.currentY += 20;
+      return;
+    }
     const headerColor = options.headerColor || COLORS.primary;
 
     // Calculate available space for table
@@ -273,9 +294,28 @@ class BasePDFExporter {
       });
     }
 
+    // Process table data to ensure proper formatting
+    const processedRows = rows.map(row => 
+      columns.map(col => {
+        const value = row[col.dataKey];
+        if (value === undefined || value === null) {
+          return '';
+        }
+        if (typeof value === 'object') {
+          return JSON.stringify(value);
+        }
+        return String(value);
+      })
+    );
+
+    console.log('Processed table data:', {
+      headers: columns.map(col => col.header),
+      processedRows: processedRows.slice(0, 3), // First 3 rows for debugging
+      totalRows: processedRows.length
+    });
     (this.doc as any).autoTable({
       head: [columns.map(col => col.header)],
-      body: rows.map(row => columns.map(col => row[col.dataKey] || '')),
+      body: processedRows,
       startY: this.currentY,
       styles: { 
         fontSize: FONTS.small, // Reduced font size to prevent overlapping
@@ -445,6 +485,13 @@ export class DashboardPDFExporter extends BasePDFExporter {
     contributionTrends?: any[];
     dateRange?: { startDate: string; endDate: string };
   }): void {
+    console.log('Exporting dashboard with data:', {
+      stats: data.stats,
+      upcomingEventsCount: data.upcomingEvents.length,
+      recentTransactionsCount: data.recentTransactions.length,
+      attendanceTrendsCount: data.attendanceTrends?.length || 0
+    });
+
     const dateRangeText = data.dateRange 
       ? `Filtered: ${formatDate(data.dateRange.startDate)} to ${formatDate(data.dateRange.endDate)}`
       : `Generated: ${formatDate(new Date().toISOString())}`;
@@ -535,6 +582,7 @@ export class DashboardPDFExporter extends BasePDFExporter {
       },
     ];
 
+    console.log('Financial data for export:', financialData);
     this.addTable(
       [
         { header: 'Financial Metric', dataKey: 'metric', width: 60 },
@@ -556,6 +604,7 @@ export class DashboardPDFExporter extends BasePDFExporter {
         status: 'Scheduled',
       }));
 
+      console.log('Event rows for export:', eventRows);
       this.addTable(
         [
           { header: 'Date', dataKey: 'date', width: 35 },
@@ -583,6 +632,7 @@ export class DashboardPDFExporter extends BasePDFExporter {
         category: transaction.category || 'General'
       }));
 
+      console.log('Transaction rows for export:', transactionRows.slice(0, 3));
       this.addTable(
         [
           { header: 'Date', dataKey: 'date', width: 30 },
@@ -610,6 +660,7 @@ export class DashboardPDFExporter extends BasePDFExporter {
         status: trend.attendanceRate >= 80 ? 'Excellent' : trend.attendanceRate >= 60 ? 'Good' : 'Poor'
       }));
 
+      console.log('Attendance rows for export:', attendanceRows);
       this.addTable(
         [
           { header: 'Date', dataKey: 'date', width: 30 },
@@ -685,6 +736,8 @@ export class DashboardPDFExporter extends BasePDFExporter {
  */
 export class MembersPDFExporter extends BasePDFExporter {
   exportMembers(members: Member[]): void {
+    console.log('Exporting members:', members.length);
+    
     this.addHeader(
       'TEAM MEMBERS DIRECTORY', 
       `Complete roster with ${members.length} registered members`
@@ -734,6 +787,7 @@ export class MembersPDFExporter extends BasePDFExporter {
         status: count >= 3 ? 'Well Covered' : count >= 2 ? 'Adequate' : 'Needs Attention'
       }));
 
+    console.log('Position data for export:', positionData);
     this.addTable(
       [
         { header: 'Position', dataKey: 'position', width: 40 },
@@ -758,6 +812,7 @@ export class MembersPDFExporter extends BasePDFExporter {
         joined: formatDate(member.dateJoined, 'MMM d, yyyy'),
       }));
 
+    console.log('Member rows for export:', memberRows.slice(0, 3)); // First 3 for debugging
     this.addTable(
       [
         { header: 'Jersey', dataKey: 'jersey', width: 15 },

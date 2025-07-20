@@ -421,6 +421,7 @@ const Contributions: React.FC = () => {
   const handleExport = async () => {
     try {
       setExporting(true);
+      console.log('Starting contributions export...');
       
       // Calculate totals with proper number handling
       const totalContributions = contributions
@@ -439,6 +440,14 @@ const Contributions: React.FC = () => {
       
       const remainingBalance = totalContributions - totalExpenses;
 
+      console.log('Export data:', {
+        contributions: contributions.length,
+        expenses: expenses.length,
+        members: members.length,
+        totalContributions,
+        totalExpenses,
+        remainingBalance
+      });
       const exporter = new ContributionsPDFExporter();
       exporter.exportContributions({
         contributions,
@@ -450,6 +459,7 @@ const Contributions: React.FC = () => {
       });
     } catch (error) {
       console.error('Error exporting contributions:', error);
+      alert('Failed to export contributions PDF. Please check the console for details.');
     } finally {
       setExporting(false);
     }

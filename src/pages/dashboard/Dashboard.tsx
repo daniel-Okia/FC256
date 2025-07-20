@@ -223,6 +223,7 @@ const Dashboard: React.FC = () => {
   const handleExportDashboard = async () => {
     try {
       setExporting(true);
+      console.log('Starting dashboard export...');
       const exporter = new DashboardPDFExporter();
       
       // Filter data by date range if specified
@@ -234,15 +235,18 @@ const Dashboard: React.FC = () => {
       };
 
       if (dateRange.startDate && dateRange.endDate) {
+        console.log('Applying date filter:', dateRange);
         filteredData = await getFilteredDashboardData(dateRange);
       }
       
+      console.log('Exporting dashboard data:', filteredData);
       exporter.exportDashboard({
         ...filteredData,
         dateRange: dateRange.startDate && dateRange.endDate ? dateRange : undefined,
       });
     } catch (error) {
       console.error('Error exporting dashboard:', error);
+      alert('Failed to export dashboard PDF. Please check the console for details.');
     } finally {
       setExporting(false);
     }

@@ -311,10 +311,12 @@ const Members: React.FC = () => {
   const handleExport = async () => {
     try {
       setExporting(true);
+      console.log('Starting member export with data:', members.length);
       const exporter = new MembersPDFExporter();
       exporter.exportMembers(members);
     } catch (error) {
       console.error('Error exporting members:', error);
+      alert('Failed to export PDF. Please check the console for details.');
     } finally {
       setExporting(false);
     }

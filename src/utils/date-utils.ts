@@ -5,8 +5,13 @@ import { format, parseISO, isValid, isToday, isYesterday, getDay } from 'date-fn
  */
 export const formatDate = (dateString: string, formatStr: string = 'MMM d, yyyy'): string => {
   try {
+    if (!dateString) {
+      return 'No date';
+    }
+    
     const date = parseISO(dateString);
     if (!isValid(date)) {
+      console.warn('Invalid date string:', dateString);
       return 'Invalid date';
     }
     return format(date, formatStr);
