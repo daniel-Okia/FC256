@@ -9,14 +9,19 @@ export const formatDate = (dateString: string, formatStr: string = 'MMM d, yyyy'
       return 'No date';
     }
     
-    const date = parseISO(dateString);
+    // Handle both ISO strings and date objects
+    let date;
+    if (typeof dateString === 'string') {
+      date = parseISO(dateString);
+    } else {
+      date = new Date(dateString);
+    }
+    
     if (!isValid(date)) {
-      console.warn('Invalid date string:', dateString);
       return 'Invalid date';
     }
     return format(date, formatStr);
   } catch (error) {
-    console.error('Error formatting date:', error);
     return 'Invalid date';
   }
 };
