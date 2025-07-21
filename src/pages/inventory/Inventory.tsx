@@ -27,11 +27,7 @@ interface InventoryFormData {
   maxQuantity: number;
   condition: InventoryCondition;
   location: string;
-  purchaseDate: string;
-  purchasePrice: number;
-  supplier: string;
-  warrantyExpiry: string;
-  notes: string;
+  membersInCharge: string[];
 }
 
 const Inventory: React.FC = () => {
@@ -242,10 +238,10 @@ const Inventory: React.FC = () => {
       render: (item: InventoryItem) => (
         <div>
           <div className="font-medium text-gray-900 dark:text-white">
-            {item.quantity} / {item.maxQuantity}
+            {item.quantity} / {item.maxQuantity} {item.category === 'uniforms' ? 'sets' : 'units'}
           </div>
           <div className="text-sm text-gray-500 dark:text-gray-400">
-            Min: {item.minQuantity}
+            Min: {item.minQuantity} {item.category === 'uniforms' ? 'sets' : 'units'}
           </div>
         </div>
       ),
@@ -287,9 +283,16 @@ const Inventory: React.FC = () => {
       key: 'lastChecked',
       title: 'Last Checked',
       render: (item: InventoryItem) => (
-        <span className="text-sm text-gray-500 dark:text-gray-400">
-          {formatDate(item.lastChecked)}
-        </span>
+        <div>
+          <div className="text-sm text-gray-500 dark:text-gray-400">
+            {formatDate(item.lastChecked)}
+          </div>
+          {item.membersInCharge && item.membersInCharge.filter(id => id).length > 0 && (
+            <div className="text-xs text-gray-400 dark:text-gray-500">
+              {item.membersInCharge.filter(id => id).length} member{item.membersInCharge.filter(id => id).length > 1 ? 's' : ''} assigned
+            </div>
+          )}
+        </div>
       ),
     },
     {
@@ -350,11 +353,7 @@ const Inventory: React.FC = () => {
       maxQuantity: 10,
       condition: 'good',
       location: '',
-      purchaseDate: '',
-      purchasePrice: 0,
-      supplier: '',
-      warrantyExpiry: '',
-      notes: '',
+      membersInCharge: [],
     });
     setIsModalOpen(true);
   };
@@ -369,11 +368,7 @@ const Inventory: React.FC = () => {
     setValue('maxQuantity', item.maxQuantity);
     setValue('condition', item.condition);
     setValue('location', item.location);
-    setValue('purchaseDate', item.purchaseDate?.split('T')[0] || '');
-    setValue('purchasePrice', item.purchasePrice || 0);
-    setValue('supplier', item.supplier || '');
-    setValue('warrantyExpiry', item.warrantyExpiry?.split('T')[0] || '');
-    setValue('notes', item.notes || '');
+    setValue('membersInCharge', item.membersInCharge || []);
     setIsModalOpen(true);
   };
 
@@ -409,8 +404,6 @@ const Inventory: React.FC = () => {
       const itemData = {
         ...data,
         status,
-        purchaseDate: data.purchaseDate ? new Date(data.purchaseDate).toISOString() : undefined,
-        warrantyExpiry: data.warrantyExpiry ? new Date(data.warrantyExpiry).toISOString() : undefined,
         lastChecked: new Date().toISOString(),
         checkedBy: user?.id || '',
       };
@@ -430,20 +423,19 @@ const Inventory: React.FC = () => {
     }
   };
 
+  // Get unit label based on category
+  const getUnitLabel = (category: InventoryCategory): string => {
+    if (category === 'uniforms') {
+      return 'sets';
+    }
+    return 'units';
+  };
+
+  const watchCategory = watch('category');
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-64">
-        <LoadingSpinner size="lg" />
-      </div>
-    );
-  }
-
-  return (
-    <div className="w-full max-w-full overflow-hidden">
-      <PageHeader
-        title="Equipment Inventory"
-        description={`Track team equipment, supplies, and their availability (${filteredItems.length} items)`}
-        actions={
           <div className="flex flex-col sm:flex-row gap-2">
             {canManageInventory && (
               <Button
@@ -724,8 +716,8 @@ const Inventory: React.FC = () => {
                 </div>
               </div>
             </div>
-
-            {viewingItem.notes && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="space-y-3">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Notes
@@ -737,7 +729,7 @@ const Inventory: React.FC = () => {
             )}
             
             <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200 dark:border-gray-700">
-              {canManageInventory && (
+                  Current Stock ({viewingItem.category === 'uniforms' ? 'sets' : 'units'})
                 <Button
                   onClick={() => {
                     setIsViewModalOpen(false);
@@ -796,7 +788,7 @@ const Inventory: React.FC = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <Input
-              label="Current Quantity"
+              label={`Current Quantity (${getUnitLabel(watchCategory || 'playing_equipment')})`}
               type="number"
               min="0"
               error={errors.quantity?.message}
@@ -809,12 +801,12 @@ const Inventory: React.FC = () => {
             />
 
             <Input
-              label="Minimum Stock Level"
+              label={`Minimum Stock Level (${getUnitLabel(watchCategory || 'playing_equipment')})`}
               type="number"
               min="0"
               error={errors.minQuantity?.message}
               required
-              helperText="Alert when stock falls below this level"
+              helperText={`Alert when ${getUnitLabel(watchCategory || 'playing_equipment')} fall below this level`}
               {...register('minQuantity', { 
                 required: 'Minimum quantity is required',
                 min: { value: 0, message: 'Minimum quantity cannot be negative' },
@@ -823,12 +815,12 @@ const Inventory: React.FC = () => {
             />
 
             <Input
-              label="Maximum Stock Level"
+              label={`Maximum Stock Level (${getUnitLabel(watchCategory || 'playing_equipment')})`}
               type="number"
               min="1"
               error={errors.maxQuantity?.message}
               required
-              helperText="Target maximum stock level"
+              helperText={`Target maximum ${getUnitLabel(watchCategory || 'playing_equipment')}`}
               {...register('maxQuantity', { 
                 required: 'Maximum quantity is required',
                 min: { value: 1, message: 'Maximum quantity must be at least 1' },
@@ -848,8 +840,8 @@ const Inventory: React.FC = () => {
               <div className="flex items-center space-x-4">
                 <div className="flex-1">
                   <div className="flex justify-between text-sm mb-1">
-                    <span>Current: {watchQuantity}</span>
-                    <span>Min: {watchMinQuantity}</span>
+                    <span>Current: {watchQuantity} {getUnitLabel(watchCategory || 'playing_equipment')}</span>
+                  {viewingItem.quantity} {viewingItem.category === 'uniforms' ? 'sets' : 'units'}
                   </div>
                   <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2">
                     <div
@@ -861,6 +853,17 @@ const Inventory: React.FC = () => {
                           : 'bg-green-500'
                       }`}
                       style={{ 
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Location
+                </label>
+                <p className="text-gray-900 dark:text-white">
+                  {viewingItem.location}
+                </p>
+              </div>
                         width: `${Math.min((watchQuantity / (watchMinQuantity * 2)) * 100, 100)}%` 
                       }}
                     />
@@ -879,75 +882,34 @@ const Inventory: React.FC = () => {
                 </Badge>
               </div>
             </div>
-          )}
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Select
-              label="Condition"
-              options={conditionOptions}
-              placeholder="Select condition"
-              error={errors.condition?.message}
-              required
-              {...register('condition', { required: 'Condition is required' })}
-            />
-
-            <Input
-              label="Storage Location"
-              placeholder="e.g., Equipment Room, Coach Office"
-              error={errors.location?.message}
-              required
-              {...register('location', { required: 'Location is required' })}
-            />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Input
-              label="Purchase Date (Optional)"
-              type="date"
-              error={errors.purchaseDate?.message}
-              {...register('purchaseDate')}
-            />
-
-            <Input
-              label="Purchase Price per Unit (UGX)"
-              type="number"
-              min="0"
-              step="1"
-              placeholder="e.g., 25000"
-              error={errors.purchasePrice?.message}
-              {...register('purchasePrice', { 
-                min: { value: 0, message: 'Price cannot be negative' },
-                valueAsNumber: true
-              })}
-            />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Input
-              label="Supplier (Optional)"
-              placeholder="e.g., Sports World, Local Supplier"
-              error={errors.supplier?.message}
-              {...register('supplier')}
-            />
-
-            <Input
-              label="Warranty Expiry (Optional)"
-              type="date"
-              error={errors.warrantyExpiry?.message}
-              {...register('warrantyExpiry')}
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Notes (Optional)
-            </label>
-            <textarea
-              rows={3}
-              className="block w-full rounded-lg shadow-sm border transition-colors duration-200 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 text-sm border-gray-300 dark:border-gray-600 dark:bg-neutral-700 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 hover:border-gray-400 dark:hover:border-gray-500 px-3 py-2.5"
-              placeholder="Additional notes about the item..."
-              {...register('notes')}
-            />
+              {viewingItem.membersInCharge && viewingItem.membersInCharge.length > 0 && (
+                <div className="col-span-full">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Members in Charge
+                  </label>
+                  <div className="space-y-2">
+                    {viewingItem.membersInCharge
+                      .filter(memberId => memberId) // Filter out empty strings
+                      .map((memberId, index) => {
+                        const member = members.find(m => m.id === memberId);
+                        return member ? (
+                          <div key={index} className="flex items-center space-x-2 p-2 bg-gray-50 dark:bg-neutral-700 rounded-lg">
+                            <span className="text-sm font-medium text-gray-900 dark:text-white">
+                              {member.name}
+                            </span>
+                            <span className="text-xs text-gray-500 dark:text-gray-400">
+                              #{member.jerseyNumber} • {member.position}
+                            </span>
+                          </div>
+                        ) : null;
+                      })}
+                  </div>
+                </div>
+              )}
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                Assign up to 3 members responsible for this equipment
+              </p>
+            </div>
           </div>
 
           <div className="flex flex-col sm:flex-row justify-end space-y-3 sm:space-y-0 sm:space-x-3 pt-6 border-t border-gray-200 dark:border-gray-700">

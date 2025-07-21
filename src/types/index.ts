@@ -282,13 +282,9 @@ export interface InventoryItem {
   status: InventoryStatus;
   condition: InventoryCondition;
   location: string; // Where the item is stored
-  purchaseDate?: string;
-  purchasePrice?: number; // Price in UGX
-  supplier?: string;
-  warrantyExpiry?: string;
+  membersInCharge?: string[]; // Member IDs responsible for this equipment
   lastChecked: string;
   checkedBy: string;
-  notes?: string;
   createdAt: string;
   updatedAt: string;
 }
