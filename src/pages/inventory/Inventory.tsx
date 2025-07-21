@@ -109,10 +109,7 @@ const Inventory: React.FC = () => {
         setInventoryItems(items);
       } catch (error) {
         console.error('Error loading inventory items:', error);
-        purchaseDate: '',
-        purchasePrice: undefined,
-        supplier: '',
-        notes: '',
+      } finally {
         setLoading(false);
       }
     };
