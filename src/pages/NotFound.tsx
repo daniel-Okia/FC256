@@ -37,9 +37,9 @@ const NotFound: React.FC = () => {
 
         {/* Error Code */}
         <h1 className="text-6xl font-bold mb-4">
-          <span className="text-blue-600 dark:text-blue-400">4</span>
+          <span className="text-blue-800 dark:text-blue-300">4</span>
           <span className="text-yellow-500 dark:text-yellow-400">0</span>
-          <span className="text-red-500 dark:text-red-400">4</span>
+          <span className="text-white dark:text-white">4</span>
         </h1>
         
         {/* Error Message */}

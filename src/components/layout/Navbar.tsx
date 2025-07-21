@@ -51,11 +51,11 @@ const Navbar: React.FC<NavbarProps> = ({ onMenuClick }) => {
               />
               {/* Updated text with better color matching */}
               <span className="text-xl font-bold">
-                <span className="text-blue-600 dark:text-blue-400">F</span>
-                <span className="text-blue-600 dark:text-blue-400">C</span>
+                <span className="text-blue-800 dark:text-blue-300">F</span>
+                <span className="text-blue-800 dark:text-blue-300">C</span>
                 <span className="text-yellow-500 dark:text-yellow-400">2</span>
                 <span className="text-yellow-500 dark:text-yellow-400">5</span>
-                <span className="text-red-500 dark:text-red-400">6</span>
+                <span className="text-white dark:text-white">6</span>
               </span>
             </Link>
           </div>
