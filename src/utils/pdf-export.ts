@@ -1,6 +1,7 @@
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { Attendance, Contribution, Event, Member, Expense, Leadership } from '../types';
+import type { InventoryItem } from '../types';
 import { formatDate } from './date-utils';
 import { formatUGX } from './currency-utils';
 

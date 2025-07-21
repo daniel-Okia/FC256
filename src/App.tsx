@@ -16,6 +16,7 @@ import Leadership from './pages/leadership/Leadership';
 import Contributions from './pages/contributions/Contributions';
 import Attendance from './pages/attendance/Attendance';
 import Profile from './pages/profile/Profile';
+import Inventory from './pages/inventory/Inventory';
 import NotFound from './pages/NotFound';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 
@@ -110,6 +111,15 @@ function App() {
               element={
                 <ProtectedRoute>
                   <Attendance />
+                </ProtectedRoute>
+              } 
+            />
+            
+            <Route 
+              path="/inventory" 
+              element={
+                <ProtectedRoute>
+                  <Inventory />
                 </ProtectedRoute>
               } 
             />

@@ -44,4 +44,8 @@ export const Permissions = {
   // Dashboard permissions
   VIEW_DASHBOARD: ['admin', 'manager', 'member'] as UserRole[],
   EXPORT_REPORTS: ['admin', 'manager'] as UserRole[],
+  
+  // Inventory permissions
+  VIEW_INVENTORY: ['admin', 'manager', 'member'] as UserRole[],
+  MANAGE_INVENTORY: ['admin', 'manager'] as UserRole[],
 };

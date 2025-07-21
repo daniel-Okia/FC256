@@ -257,3 +257,38 @@ export interface FinancialTrend {
   expenses: number;
   net: number;
 }
+
+// Inventory Types
+export type InventoryCategory = 
+  | 'playing_equipment'
+  | 'training_equipment' 
+  | 'medical_supplies'
+  | 'uniforms'
+  | 'accessories'
+  | 'maintenance'
+  | 'other';
+
+export type InventoryStatus = 'fully_stocked' | 'low_stock' | 'out_of_stock' | 'needs_replacement';
+export type InventoryCondition = 'excellent' | 'good' | 'fair' | 'poor' | 'damaged';
+
+export interface InventoryItem {
+  id: string;
+  name: string;
+  category: InventoryCategory;
+  description?: string;
+  quantity: number;
+  minQuantity: number; // Minimum stock level
+  maxQuantity: number; // Maximum stock level
+  status: InventoryStatus;
+  condition: InventoryCondition;
+  location: string; // Where the item is stored
+  purchaseDate?: string;
+  purchasePrice?: number; // Price in UGX
+  supplier?: string;
+  warrantyExpiry?: string;
+  lastChecked: string;
+  checkedBy: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}

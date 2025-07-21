@@ -17,6 +17,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { Member, Event, Contribution, Leadership, Attendance, Expense } from '../types';
+import type { InventoryItem } from '../types';
 
 // Generic CRUD operations
 export class FirestoreService {
@@ -578,5 +579,50 @@ export class AttendanceService {
 
   static subscribeToAttendance(callback: (attendance: Attendance[]) => void): () => void {
     return FirestoreService.subscribeToCollection<Attendance>(this.collection, callback);
+  }
+}
+
+export class InventoryService {
+  private static collection = 'inventory';
+
+  static async createInventoryItem(itemData: Omit<InventoryItem, 'id'>): Promise<string> {
+    return FirestoreService.create<InventoryItem>(this.collection, itemData);
+  }
+
+  static async getAllInventoryItems(): Promise<InventoryItem[]> {
+    return FirestoreService.getAll<InventoryItem>(this.collection);
+  }
+
+  static async getInventoryItemById(id: string): Promise<InventoryItem | null> {
+    return FirestoreService.getById<InventoryItem>(this.collection, id);
+  }
+
+  static async updateInventoryItem(id: string, itemData: Partial<InventoryItem>): Promise<void> {
+    return FirestoreService.update<InventoryItem>(this.collection, id, itemData);
+  }
+
+  static async deleteInventoryItem(id: string): Promise<void> {
+    return FirestoreService.delete(this.collection, id);
+  }
+
+  static async getInventoryByCategory(category: string): Promise<InventoryItem[]> {
+    const items = await FirestoreService.query<InventoryItem>(this.collection, [
+      { field: 'category', operator: '==', value: category }
+    ]);
+    // Sort by name alphabetically
+    return items.sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
+  }
+
+  static async getLowStockItems(): Promise<InventoryItem[]> {
+    const items = await FirestoreService.getAll<InventoryItem>(this.collection);
+    return items.filter(item => 
+      item.status === 'low_stock' || 
+      item.status === 'out_of_stock' ||
+      item.quantity <= item.minQuantity
+    );
+  }
+
+  static subscribeToInventory(callback: (items: InventoryItem[]) => void): () => void {
+    return FirestoreService.subscribeToCollection<InventoryItem>(this.collection, callback);
   }
 }
