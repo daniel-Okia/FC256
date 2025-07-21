@@ -22,6 +22,7 @@ interface MemberFormData {
   email: string;
   phone: string;
   status: MemberStatus;
+  jerseyNumber: number;
 }
 
 const Members: React.FC = () => {
@@ -246,6 +247,7 @@ const Members: React.FC = () => {
       email: '',
       phone: '',
       status: 'active',
+      jerseyNumber: 1,
     });
     setIsModalOpen(true);
   };
@@ -257,6 +259,7 @@ const Members: React.FC = () => {
     setValue('email', member.email);
     setValue('phone', member.phone);
     setValue('status', member.status);
+    setValue('jerseyNumber', member.jerseyNumber);
     setIsModalOpen(true);
   };
 
@@ -281,15 +284,19 @@ const Members: React.FC = () => {
     try {
       setSubmitting(true);
       
-      // Generate a jersey number automatically (simple incrementing logic)
-      const maxJerseyNumber = members.reduce((max, member) => 
-        Math.max(max, member.jerseyNumber || 0), 0
+      // Check for jersey number conflicts (only for new members or when changing jersey number)
+      const isJerseyTaken = members.some(member => 
+        member.jerseyNumber === data.jerseyNumber && 
+        member.id !== editingMember?.id
       );
-      const newJerseyNumber = maxJerseyNumber + 1;
+      
+      if (isJerseyTaken) {
+        alert(`Jersey number ${data.jerseyNumber} is already taken by another member.`);
+        return;
+      }
       
       const memberData = {
         ...data,
-        jerseyNumber: editingMember ? editingMember.jerseyNumber : newJerseyNumber,
         dateJoined: editingMember ? editingMember.dateJoined : new Date().toISOString().split('T')[0],
       };
       
@@ -556,13 +563,28 @@ const Members: React.FC = () => {
             {...register('phone', { required: 'Phone is required' })}
           />
 
-          {!editingMember && (
-            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-              <p className="text-sm text-blue-700 dark:text-blue-300">
-                <strong>Note:</strong> Jersey number will be assigned automatically when the member is created.
-              </p>
-            </div>
-          )}
+          <Input
+            label="Jersey Number"
+            type="number"
+            min="1"
+            max="99"
+            placeholder="e.g., 10"
+            error={errors.jerseyNumber?.message}
+            required
+            helperText="Choose a unique jersey number (1-99)"
+            {...register('jerseyNumber', { 
+              required: 'Jersey number is required',
+              min: { value: 1, message: 'Jersey number must be at least 1' },
+              max: { value: 99, message: 'Jersey number cannot exceed 99' },
+              valueAsNumber: true
+            })}
+          />
+
+          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+            <p className="text-sm text-blue-700 dark:text-blue-300">
+              <strong>Note:</strong> Jersey numbers must be unique. The system will check for conflicts before saving.
+            </p>
+          </div>
 
           <div className="flex flex-col sm:flex-row justify-end space-y-3 sm:space-y-0 sm:space-x-3 pt-6 border-t border-gray-200 dark:border-gray-700">
             <Button
