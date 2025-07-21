@@ -238,6 +238,13 @@ export class FirestoreService {
           return roleA.localeCompare(roleB);
         });
 
+      case 'inventory':
+        // Sort inventory by name alphabetically
+        return data.sort((a: any, b: any) => {
+          const nameA = a.name?.toLowerCase() || '';
+          const nameB = b.name?.toLowerCase() || '';
+          return nameA.localeCompare(nameB);
+        });
       default:
         return data;
     }
@@ -586,7 +593,15 @@ export class InventoryService {
   private static collection = 'inventory';
 
   static async createInventoryItem(itemData: Omit<InventoryItem, 'id'>): Promise<string> {
-    return FirestoreService.create<InventoryItem>(this.collection, itemData);
+    console.log('Creating inventory item with data:', itemData);
+    try {
+      const id = await FirestoreService.create<InventoryItem>(this.collection, itemData);
+      console.log('Successfully created inventory item with ID:', id);
+      return id;
+    } catch (error) {
+      console.error('Error in InventoryService.createInventoryItem:', error);
+      throw error;
+    }
   }
 
   static async getAllInventoryItems(): Promise<InventoryItem[]> {
@@ -598,7 +613,14 @@ export class InventoryService {
   }
 
   static async updateInventoryItem(id: string, itemData: Partial<InventoryItem>): Promise<void> {
-    return FirestoreService.update<InventoryItem>(this.collection, id, itemData);
+    console.log('Updating inventory item:', id, itemData);
+    try {
+      await FirestoreService.update<InventoryItem>(this.collection, id, itemData);
+      console.log('Successfully updated inventory item:', id);
+    } catch (error) {
+      console.error('Error in InventoryService.updateInventoryItem:', error);
+      throw error;
+    }
   }
 
   static async deleteInventoryItem(id: string): Promise<void> {

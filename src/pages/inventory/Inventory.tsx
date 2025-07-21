@@ -27,7 +27,11 @@ interface InventoryFormData {
   maxQuantity: number;
   condition: InventoryCondition;
   location: string;
-  membersInCharge: string[];
+  membersInCharge?: string[];
+  purchaseDate?: string;
+  purchasePrice?: number;
+  supplier?: string;
+  notes?: string;
 }
 
 const Inventory: React.FC = () => {
@@ -105,7 +109,10 @@ const Inventory: React.FC = () => {
         setInventoryItems(items);
       } catch (error) {
         console.error('Error loading inventory items:', error);
-      } finally {
+        purchaseDate: '',
+        purchasePrice: undefined,
+        supplier: '',
+        notes: '',
         setLoading(false);
       }
     };
@@ -368,7 +375,10 @@ const Inventory: React.FC = () => {
     setValue('maxQuantity', item.maxQuantity);
     setValue('condition', item.condition);
     setValue('location', item.location);
-    setValue('membersInCharge', item.membersInCharge || []);
+    if (item.purchaseDate) setValue('purchaseDate', item.purchaseDate.split('T')[0]);
+    if (item.purchasePrice) setValue('purchasePrice', item.purchasePrice);
+    if (item.supplier) setValue('supplier', item.supplier);
+    if (item.notes) setValue('notes', item.notes);
     setIsModalOpen(true);
   };
 
@@ -402,11 +412,24 @@ const Inventory: React.FC = () => {
       const status = calculateStatus(data.quantity, data.minQuantity);
       
       const itemData = {
-        ...data,
+        name: data.name,
+        category: data.category,
+        description: data.description || '',
+        quantity: data.quantity,
+        minQuantity: data.minQuantity,
+        maxQuantity: data.maxQuantity,
+        condition: data.condition,
+        location: data.location,
+        purchaseDate: data.purchaseDate || undefined,
+        purchasePrice: data.purchasePrice || undefined,
+        supplier: data.supplier || undefined,
+        notes: data.notes || undefined,
         status,
         lastChecked: new Date().toISOString(),
         checkedBy: user?.id || '',
       };
+
+      console.log('Submitting inventory item:', itemData);
 
       if (editingItem) {
         await InventoryService.updateInventoryItem(editingItem.id, itemData);
@@ -416,8 +439,10 @@ const Inventory: React.FC = () => {
 
       setIsModalOpen(false);
       reset();
+      setEditingItem(null);
     } catch (error) {
       console.error('Error saving inventory item:', error);
+      alert('Failed to save inventory item. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -902,6 +927,48 @@ const Inventory: React.FC = () => {
               error={errors.location?.message}
               required
               {...register('location', { required: 'Location is required' })}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Input
+              label="Purchase Date (Optional)"
+              type="date"
+              error={errors.purchaseDate?.message}
+              {...register('purchaseDate')}
+            />
+
+            <Input
+              label="Purchase Price per Unit (Optional)"
+              type="number"
+              step="1"
+              min="0"
+              placeholder="e.g., 25000"
+              error={errors.purchasePrice?.message}
+              helperText="Price in UGX per unit"
+              {...register('purchasePrice', { 
+                min: { value: 0, message: 'Price cannot be negative' },
+                valueAsNumber: true
+              })}
+            />
+          </div>
+
+          <Input
+            label="Supplier (Optional)"
+            placeholder="e.g., Sports World, Equipment Plus"
+            error={errors.supplier?.message}
+            {...register('supplier')}
+          />
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Notes (Optional)
+            </label>
+            <textarea
+              rows={3}
+              className="block w-full rounded-lg shadow-sm border transition-colors duration-200 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 text-sm border-gray-300 dark:border-gray-600 dark:bg-neutral-700 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 hover:border-gray-400 dark:hover:border-gray-500 px-3 py-2.5"
+              placeholder="Additional notes about the item..."
+              {...register('notes')}
             />
           </div>
 
