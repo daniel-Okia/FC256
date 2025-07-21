@@ -955,3 +955,137 @@ export class LeadershipPDFExporter extends BasePDFExporter {
     }
   }
 }
+
+/**
+ * Inventory PDF Export
+ */
+export class InventoryPDFExporter extends BasePDFExporter {
+  exportInventory(data: {
+    inventoryItems: InventoryItem[];
+    stats: {
+      totalItems: number;
+      lowStockItems: number;
+      fullyStockedItems: number;
+      needsReplacement: number;
+      totalValue: number;
+    };
+  }): void {
+    console.log('Exporting inventory with data:', data);
+    
+    this.addHeader(
+      'EQUIPMENT INVENTORY REPORT', 
+      `Complete equipment tracking with ${data.inventoryItems.length} items`
+    );
+
+    // Inventory statistics
+    this.addStatsSection([
+      { 
+        label: 'Total Items', 
+        value: data.stats.totalItems.toString(),
+        color: COLORS.primary,
+      },
+      { 
+        label: 'Fully Stocked', 
+        value: data.stats.fullyStockedItems.toString(),
+        color: COLORS.success,
+      },
+      { 
+        label: 'Low Stock Alert', 
+        value: data.stats.lowStockItems.toString(),
+        color: COLORS.warning,
+      },
+      { 
+        label: 'Total Value', 
+        value: formatUGX(data.stats.totalValue),
+        color: COLORS.info,
+      },
+    ]);
+
+    // Category breakdown
+    const categoryBreakdown = data.inventoryItems.reduce((acc, item) => {
+      const category = item.category.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
+      acc[category] = (acc[category] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    const categoryData = Object.entries(categoryBreakdown)
+      .sort(([,a], [,b]) => b - a)
+      .map(([category, count]) => ({
+        category,
+        count: count.toString(),
+        percentage: `${Math.round((count / data.inventoryItems.length) * 100)}%`,
+        status: count >= 5 ? 'Well Stocked' : count >= 3 ? 'Adequate' : 'Limited'
+      }));
+
+    this.addTable(
+      [
+        { header: 'Category', dataKey: 'category' },
+        { header: 'Item Count', dataKey: 'count' },
+        { header: 'Percentage', dataKey: 'percentage' },
+        { header: 'Status', dataKey: 'status' },
+      ],
+      categoryData,
+      { title: 'INVENTORY BY CATEGORY', headerColor: COLORS.info }
+    );
+
+    // Low stock items (priority section)
+    const lowStockItems = data.inventoryItems
+      .filter(item => item.status === 'low_stock' || item.status === 'out_of_stock' || item.status === 'needs_replacement')
+      .map(item => ({
+        name: item.name,
+        category: item.category.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()),
+        current: item.quantity.toString(),
+        minimum: item.minQuantity.toString(),
+        status: item.status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()),
+        location: item.location,
+        priority: item.status === 'out_of_stock' ? 'URGENT' : item.status === 'needs_replacement' ? 'HIGH' : 'MEDIUM'
+      }));
+
+    if (lowStockItems.length > 0) {
+      this.addTable(
+        [
+          { header: 'Item Name', dataKey: 'name' },
+          { header: 'Category', dataKey: 'category' },
+          { header: 'Current', dataKey: 'current' },
+          { header: 'Minimum', dataKey: 'minimum' },
+          { header: 'Status', dataKey: 'status' },
+          { header: 'Location', dataKey: 'location' },
+          { header: 'Priority', dataKey: 'priority' },
+        ],
+        lowStockItems,
+        { title: 'LOW STOCK ALERTS - IMMEDIATE ATTENTION REQUIRED', headerColor: COLORS.warning }
+      );
+    }
+
+    // Complete inventory listing
+    const inventoryRows = data.inventoryItems
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map(item => ({
+        name: item.name,
+        category: item.category.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()),
+        quantity: `${item.quantity}/${item.maxQuantity}`,
+        condition: item.condition.replace(/\b\w/g, l => l.toUpperCase()),
+        status: item.status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()),
+        location: item.location,
+        value: item.purchasePrice ? formatUGX(item.purchasePrice * item.quantity) : 'N/A',
+        lastChecked: formatDate(item.lastChecked, 'MMM d, yyyy'),
+      }));
+
+    this.addTable(
+      [
+        { header: 'Item Name', dataKey: 'name' },
+        { header: 'Category', dataKey: 'category' },
+        { header: 'Stock Level', dataKey: 'quantity' },
+        { header: 'Condition', dataKey: 'condition' },
+        { header: 'Status', dataKey: 'status' },
+        { header: 'Location', dataKey: 'location' },
+        { header: 'Total Value', dataKey: 'value' },
+        { header: 'Last Checked', dataKey: 'lastChecked' },
+      ],
+      inventoryRows,
+      { title: 'COMPLETE INVENTORY LISTING', headerColor: COLORS.primary }
+    );
+
+    this.save('fc256-inventory');
+  }
+}
