@@ -436,6 +436,17 @@ const Inventory: React.FC = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-64">
+        <LoadingSpinner />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        title="Inventory Management"
+        description="Track and manage team equipment and supplies"
+        actions={
           <div className="flex flex-col sm:flex-row gap-2">
             {canManageInventory && (
               <Button
@@ -716,20 +727,22 @@ const Inventory: React.FC = () => {
                 </div>
               </div>
             </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Notes
-                </label>
-                <p className="text-gray-900 dark:text-white bg-gray-50 dark:bg-neutral-700 p-3 rounded-lg">
-                  {viewingItem.notes}
-                </p>
+
+            {viewingItem.notes && (
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Notes
+                  </label>
+                  <p className="text-gray-900 dark:text-white bg-gray-50 dark:bg-neutral-700 p-3 rounded-lg">
+                    {viewingItem.notes}
+                  </p>
+                </div>
               </div>
             )}
             
             <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200 dark:border-gray-700">
-                  Current Stock ({viewingItem.category === 'uniforms' ? 'sets' : 'units'})
+              {canManageInventory && (
                 <Button
                   onClick={() => {
                     setIsViewModalOpen(false);
@@ -841,7 +854,7 @@ const Inventory: React.FC = () => {
                 <div className="flex-1">
                   <div className="flex justify-between text-sm mb-1">
                     <span>Current: {watchQuantity} {getUnitLabel(watchCategory || 'playing_equipment')}</span>
-                  {viewingItem.quantity} {viewingItem.category === 'uniforms' ? 'sets' : 'units'}
+                    <span>Min: {watchMinQuantity}</span>
                   </div>
                   <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2">
                     <div
@@ -853,17 +866,6 @@ const Inventory: React.FC = () => {
                           : 'bg-green-500'
                       }`}
                       style={{ 
-            </div>
-
-            <div className="space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Location
-                </label>
-                <p className="text-gray-900 dark:text-white">
-                  {viewingItem.location}
-                </p>
-              </div>
                         width: `${Math.min((watchQuantity / (watchMinQuantity * 2)) * 100, 100)}%` 
                       }}
                     />
@@ -882,34 +884,25 @@ const Inventory: React.FC = () => {
                 </Badge>
               </div>
             </div>
-              {viewingItem.membersInCharge && viewingItem.membersInCharge.length > 0 && (
-                <div className="col-span-full">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Members in Charge
-                  </label>
-                  <div className="space-y-2">
-                    {viewingItem.membersInCharge
-                      .filter(memberId => memberId) // Filter out empty strings
-                      .map((memberId, index) => {
-                        const member = members.find(m => m.id === memberId);
-                        return member ? (
-                          <div key={index} className="flex items-center space-x-2 p-2 bg-gray-50 dark:bg-neutral-700 rounded-lg">
-                            <span className="text-sm font-medium text-gray-900 dark:text-white">
-                              {member.name}
-                            </span>
-                            <span className="text-xs text-gray-500 dark:text-gray-400">
-                              #{member.jerseyNumber} • {member.position}
-                            </span>
-                          </div>
-                        ) : null;
-                      })}
-                  </div>
-                </div>
-              )}
-              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                Assign up to 3 members responsible for this equipment
-              </p>
-            </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Select
+              label="Condition"
+              options={conditionOptions}
+              placeholder="Select condition"
+              error={errors.condition?.message}
+              required
+              {...register('condition', { required: 'Condition is required' })}
+            />
+
+            <Input
+              label="Location"
+              placeholder="e.g., Equipment Room, Field Storage"
+              error={errors.location?.message}
+              required
+              {...register('location', { required: 'Location is required' })}
+            />
           </div>
 
           <div className="flex flex-col sm:flex-row justify-end space-y-3 sm:space-y-0 sm:space-x-3 pt-6 border-t border-gray-200 dark:border-gray-700">
