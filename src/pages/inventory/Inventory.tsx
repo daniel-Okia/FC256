@@ -1,524 +1,754 @@
 import React, { useState, useEffect } from 'react';
-import { collection, addDoc, getDocs, updateDoc, deleteDoc, doc } from 'firebase/firestore';
-import { db } from '../../config/firebase';
+import { Package, Plus, Edit, Trash2, Eye, AlertTriangle, Download } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import Layout from '../../components/layout/Layout';
+import { InventoryService } from '../../services/firestore';
 import PageHeader from '../../components/layout/PageHeader';
-import Button from '../../components/ui/Button';
+import Card from '../../components/ui/Card';
+import Table from '../../components/ui/Table';
+import Modal from '../../components/ui/Modal';
 import Input from '../../components/ui/Input';
 import Select from '../../components/ui/Select';
-import Modal from '../../components/ui/Modal';
-import Table from '../../components/ui/Table';
-import Card from '../../components/ui/Card';
 import Badge from '../../components/ui/Badge';
-import LoadingSpinner from '../../components/common/LoadingSpinner';
+import Button from '../../components/ui/Button';
 import EmptyState from '../../components/common/EmptyState';
-import { Package, Plus, Edit, Trash2, Eye, AlertTriangle, CheckCircle } from 'lucide-react';
-
-interface InventoryItem {
-  id: string;
-  name: string;
-  category: string;
-  description: string;
-  currentStock: number;
-  minStock: number;
-  maxStock: number;
-  condition: 'excellent' | 'good' | 'fair' | 'poor' | 'needs_replacement';
-  location: string;
-  status: 'in_stock' | 'low_stock' | 'out_of_stock' | 'overstocked';
-  createdAt: Date;
-  updatedAt: Date;
-}
+import LoadingSpinner from '../../components/common/LoadingSpinner';
+import type { InventoryItem, InventoryCategory, InventoryCondition } from '../../types';
+import { canUserAccess, Permissions } from '../../utils/permissions';
+import { InventoryPDFExporter } from '../../utils/pdf-export';
+import { useForm } from 'react-hook-form';
 
 interface InventoryFormData {
   name: string;
-  category: string;
-  description: string;
-  currentStock: number;
-  minStock: number;
-  maxStock: number;
-  condition: 'excellent' | 'good' | 'fair' | 'poor' | 'needs_replacement';
+  category: InventoryCategory;
+  description?: string;
+  quantity: number;
+  minQuantity: number;
+  maxQuantity: number;
+  condition: InventoryCondition;
   location: string;
 }
-
-const CATEGORIES = [
-  'Training Equipment',
-  'Match Equipment',
-  'Safety Gear',
-  'Maintenance Tools',
-  'Office Supplies',
-  'Medical Supplies',
-  'Other'
-];
-
-const CONDITIONS = [
-  { value: 'excellent', label: 'Excellent' },
-  { value: 'good', label: 'Good' },
-  { value: 'fair', label: 'Fair' },
-  { value: 'poor', label: 'Poor' },
-  { value: 'needs_replacement', label: 'Needs Replacement' }
-];
 
 const Inventory: React.FC = () => {
   const { user } = useAuth();
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
-  const [showViewModal, setShowViewModal] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
   const [viewingItem, setViewingItem] = useState<InventoryItem | null>(null);
-  const [formData, setFormData] = useState<InventoryFormData>({
-    name: '',
-    category: '',
-    description: '',
-    currentStock: 0,
-    minStock: 0,
-    maxStock: 0,
-    condition: 'good',
-    location: ''
-  });
+  const [itemToDelete, setItemToDelete] = useState<InventoryItem | null>(null);
+
+  const canManageInventory = user && canUserAccess(user.role, Permissions.MANAGE_INVENTORY);
+  const canExport = user && canUserAccess(user.role, Permissions.EXPORT_REPORTS);
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    setValue,
+    watch,
+    formState: { errors },
+  } = useForm<InventoryFormData>();
+
+  const watchQuantity = watch('quantity');
+  const watchMinQuantity = watch('minQuantity');
+  const watchMaxQuantity = watch('maxQuantity');
+
+  const categoryOptions = [
+    { value: 'playing_equipment', label: 'Playing Equipment' },
+    { value: 'training_equipment', label: 'Training Equipment' },
+    { value: 'medical_supplies', label: 'Medical Supplies' },
+    { value: 'uniforms', label: 'Uniforms' },
+    { value: 'accessories', label: 'Accessories' },
+    { value: 'maintenance', label: 'Maintenance' },
+    { value: 'other', label: 'Other' },
+  ];
+
+  const conditionOptions = [
+    { value: 'excellent', label: 'Excellent' },
+    { value: 'good', label: 'Good' },
+    { value: 'fair', label: 'Fair' },
+    { value: 'poor', label: 'Poor' },
+    { value: 'damaged', label: 'Damaged' },
+  ];
 
   useEffect(() => {
-    fetchItems();
+    const loadItems = async () => {
+      try {
+        setLoading(true);
+        const itemsData = await InventoryService.getAllInventoryItems();
+        setItems(itemsData);
+      } catch (error) {
+        console.error('Error loading inventory items:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadItems();
+
+    // Set up real-time listener
+    const unsubscribe = InventoryService.subscribeToInventory((itemsData) => {
+      setItems(itemsData);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
   }, []);
 
-  const fetchItems = async () => {
-    try {
-      const querySnapshot = await getDocs(collection(db, 'inventory'));
-      const itemsData = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate() || new Date(),
-        updatedAt: doc.data().updatedAt?.toDate() || new Date()
-      })) as InventoryItem[];
-      setItems(itemsData);
-    } catch (error) {
-      console.error('Error fetching inventory items:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const calculateStatus = (current: number, min: number, max: number): InventoryItem['status'] => {
+  const calculateStatus = (current: number, min: number, max: number) => {
     if (current === 0) return 'out_of_stock';
-    if (current < min) return 'low_stock';
+    if (current <= min) return 'low_stock';
     if (current > max) return 'overstocked';
-    return 'in_stock';
+    return 'fully_stocked';
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    try {
-      console.log('Form submission started', { formData, editingItem });
-      
-      const status = calculateStatus(formData.currentStock, formData.minStock, formData.maxStock);
-      
-      const itemData = {
-        ...formData,
-        status,
-        updatedAt: new Date()
-      };
-
-      if (editingItem) {
-        console.log('Updating existing item:', editingItem.id);
-        await updateDoc(doc(db, 'inventory', editingItem.id), itemData);
-        console.log('Item updated successfully');
-      } else {
-        console.log('Creating new item');
-        const docRef = await addDoc(collection(db, 'inventory'), {
-          ...itemData,
-          createdAt: new Date()
-        });
-        console.log('Item created successfully with ID:', docRef.id);
-      }
-
-      await fetchItems();
-      resetForm();
-      setShowModal(false);
-    } catch (error) {
-      console.error('Error saving inventory item:', error);
-      alert(`Error saving item: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  const getStatusBadgeVariant = (status: string) => {
+    switch (status) {
+      case 'fully_stocked':
+        return 'success';
+      case 'low_stock':
+        return 'warning';
+      case 'out_of_stock':
+        return 'danger';
+      case 'needs_replacement':
+        return 'danger';
+      default:
+        return 'default';
     }
+  };
+
+  const getConditionBadgeVariant = (condition: string) => {
+    switch (condition) {
+      case 'excellent':
+        return 'success';
+      case 'good':
+        return 'info';
+      case 'fair':
+        return 'warning';
+      case 'poor':
+        return 'danger';
+      case 'damaged':
+        return 'danger';
+      default:
+        return 'default';
+    }
+  };
+
+  const columns = [
+    {
+      key: 'name',
+      title: 'Item Name',
+      render: (item: InventoryItem) => (
+        <div className="font-medium text-gray-900 dark:text-white">
+          {item.name}
+        </div>
+      ),
+    },
+    {
+      key: 'category',
+      title: 'Category',
+      render: (item: InventoryItem) => (
+        <span className="capitalize">
+          {item.category.replace('_', ' ')}
+        </span>
+      ),
+    },
+    {
+      key: 'quantity',
+      title: 'Stock Level',
+      render: (item: InventoryItem) => (
+        <div>
+          <div className="font-medium">
+            {item.quantity} / {item.maxQuantity}
+          </div>
+          <div className="text-sm text-gray-500 dark:text-gray-400">
+            Min: {item.minQuantity}
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'status',
+      title: 'Status',
+      render: (item: InventoryItem) => (
+        <Badge variant={getStatusBadgeVariant(item.status)} className="capitalize">
+          {item.status.replace('_', ' ')}
+        </Badge>
+      ),
+    },
+    {
+      key: 'condition',
+      title: 'Condition',
+      render: (item: InventoryItem) => (
+        <Badge variant={getConditionBadgeVariant(item.condition)} className="capitalize">
+          {item.condition}
+        </Badge>
+      ),
+    },
+    {
+      key: 'location',
+      title: 'Location',
+      render: (item: InventoryItem) => item.location,
+    },
+    {
+      key: 'actions',
+      title: 'Actions',
+      render: (item: InventoryItem) => (
+        <div className="flex space-x-1">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleView(item);
+            }}
+            className="p-1"
+          >
+            <Eye size={14} />
+          </Button>
+          {canManageInventory && (
+            <>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleEdit(item);
+                }}
+                className="p-1"
+              >
+                <Edit size={14} />
+              </Button>
+              <Button
+                size="sm"
+                variant="danger"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDeleteClick(item);
+                }}
+                className="p-1"
+              >
+                <Trash2 size={14} />
+              </Button>
+            </>
+          )}
+        </div>
+      ),
+    },
+  ];
+
+  const handleCreate = () => {
+    setEditingItem(null);
+    reset({
+      name: '',
+      category: 'playing_equipment',
+      description: '',
+      quantity: 0,
+      minQuantity: 1,
+      maxQuantity: 10,
+      condition: 'good',
+      location: '',
+    });
+    setIsModalOpen(true);
   };
 
   const handleEdit = (item: InventoryItem) => {
     setEditingItem(item);
-    setFormData({
-      name: item.name,
-      category: item.category,
-      description: item.description,
-      currentStock: item.currentStock,
-      minStock: item.minStock,
-      maxStock: item.maxStock,
-      condition: item.condition,
-      location: item.location
-    });
-    setShowModal(true);
-  };
-
-  const handleDelete = async (id: string) => {
-    if (window.confirm('Are you sure you want to delete this item?')) {
-      try {
-        await deleteDoc(doc(db, 'inventory', id));
-        await fetchItems();
-      } catch (error) {
-        console.error('Error deleting inventory item:', error);
-        alert('Error deleting item');
-      }
-    }
+    setValue('name', item.name);
+    setValue('category', item.category);
+    setValue('description', item.description || '');
+    setValue('quantity', item.quantity);
+    setValue('minQuantity', item.minQuantity);
+    setValue('maxQuantity', item.maxQuantity);
+    setValue('condition', item.condition);
+    setValue('location', item.location);
+    setIsModalOpen(true);
   };
 
   const handleView = (item: InventoryItem) => {
     setViewingItem(item);
-    setShowViewModal(true);
+    setIsViewModalOpen(true);
   };
 
-  const resetForm = () => {
-    setFormData({
-      name: '',
-      category: '',
-      description: '',
-      currentStock: 0,
-      minStock: 0,
-      maxStock: 0,
-      condition: 'good',
-      location: ''
-    });
-    setEditingItem(null);
+  const handleDeleteClick = (item: InventoryItem) => {
+    setItemToDelete(item);
+    setIsDeleteModalOpen(true);
   };
 
-  const getStatusBadge = (status: InventoryItem['status']) => {
-    const statusConfig = {
-      in_stock: { color: 'green' as const, label: 'In Stock' },
-      low_stock: { color: 'yellow' as const, label: 'Low Stock' },
-      out_of_stock: { color: 'red' as const, label: 'Out of Stock' },
-      overstocked: { color: 'blue' as const, label: 'Overstocked' }
-    };
-    
-    const config = statusConfig[status];
-    return <Badge color={config.color}>{config.label}</Badge>;
+  const handleDelete = async () => {
+    if (itemToDelete) {
+      try {
+        await InventoryService.deleteInventoryItem(itemToDelete.id);
+        setIsDeleteModalOpen(false);
+        setItemToDelete(null);
+      } catch (error) {
+        console.error('Error deleting inventory item:', error);
+      }
+    }
   };
 
-  const getConditionBadge = (condition: InventoryItem['condition']) => {
-    const conditionConfig = {
-      excellent: { color: 'green' as const, label: 'Excellent' },
-      good: { color: 'blue' as const, label: 'Good' },
-      fair: { color: 'yellow' as const, label: 'Fair' },
-      poor: { color: 'orange' as const, label: 'Poor' },
-      needs_replacement: { color: 'red' as const, label: 'Needs Replacement' }
-    };
-    
-    const config = conditionConfig[condition];
-    return <Badge color={config.color}>{config.label}</Badge>;
+  const onSubmit = async (data: InventoryFormData) => {
+    try {
+      setSubmitting(true);
+      console.log('Form submission started', { data, editingItem });
+      
+      const status = calculateStatus(data.quantity, data.minQuantity, data.maxQuantity);
+      
+      const itemData = {
+        name: data.name,
+        category: data.category,
+        description: data.description || '',
+        quantity: data.quantity,
+        minQuantity: data.minQuantity,
+        maxQuantity: data.maxQuantity,
+        condition: data.condition,
+        location: data.location,
+        status,
+        lastChecked: new Date().toISOString(),
+        checkedBy: user?.id || '',
+      };
+
+      console.log('Submitting item data:', itemData);
+
+      if (editingItem) {
+        console.log('Updating existing item:', editingItem.id);
+        await InventoryService.updateInventoryItem(editingItem.id, itemData);
+        console.log('Item updated successfully');
+      } else {
+        console.log('Creating new item');
+        const id = await InventoryService.createInventoryItem(itemData);
+        console.log('Item created successfully with ID:', id);
+      }
+
+      setIsModalOpen(false);
+      reset();
+    } catch (error) {
+      console.error('Error saving inventory item:', error);
+      alert(`Error saving item: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleExport = async () => {
+    try {
+      setExporting(true);
+      
+      const stats = {
+        totalItems: items.length,
+        lowStockItems: items.filter(item => item.status === 'low_stock' || item.status === 'out_of_stock').length,
+        fullyStockedItems: items.filter(item => item.status === 'fully_stocked').length,
+        needsReplacement: items.filter(item => item.condition === 'damaged' || item.condition === 'poor').length,
+        totalValue: 0, // We don't track value anymore
+      };
+      
+      const exporter = new InventoryPDFExporter();
+      exporter.exportInventory({
+        inventoryItems: items,
+        stats,
+      });
+    } catch (error) {
+      console.error('Error exporting inventory:', error);
+    } finally {
+      setExporting(false);
+    }
   };
 
   // Statistics
   const totalItems = items.length;
-  const lowStockItems = items.filter(item => item.status === 'low_stock' || item.status === 'out_of_stock').length;
-  const needsReplacementItems = items.filter(item => item.condition === 'needs_replacement').length;
-
-  const columns = [
-    { key: 'name', label: 'Item Name' },
-    { key: 'category', label: 'Category' },
-    { key: 'currentStock', label: 'Current Stock' },
-    { key: 'status', label: 'Status' },
-    { key: 'condition', label: 'Condition' },
-    { key: 'location', label: 'Location' },
-    { key: 'actions', label: 'Actions' }
-  ];
-
-  const tableData = items.map(item => ({
-    ...item,
-    status: getStatusBadge(item.status),
-    condition: getConditionBadge(item.condition),
-    actions: (
-      <div className="flex space-x-2">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => handleView(item)}
-          className="text-blue-600 hover:text-blue-800"
-        >
-          <Eye className="w-4 h-4" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => handleEdit(item)}
-          className="text-green-600 hover:text-green-800"
-        >
-          <Edit className="w-4 h-4" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => handleDelete(item.id)}
-          className="text-red-600 hover:text-red-800"
-        >
-          <Trash2 className="w-4 h-4" />
-        </Button>
-      </div>
-    )
-  }));
+  const lowStockItems = items.filter(item => 
+    item.status === 'low_stock' || item.status === 'out_of_stock'
+  ).length;
+  const needsReplacementItems = items.filter(item => 
+    item.condition === 'damaged' || item.condition === 'poor'
+  ).length;
 
   if (loading) {
     return (
-      <Layout>
+      <div className="flex items-center justify-center min-h-64">
         <LoadingSpinner />
-      </Layout>
+      </div>
     );
   }
 
   return (
-    <Layout>
-      <div className="space-y-6">
-        <PageHeader
-          title="Inventory Management"
-          description="Track and manage club equipment and supplies"
-          action={
-            <Button onClick={() => setShowModal(true)}>
-              <Plus className="w-4 h-4 mr-2" />
-              Add Item
-            </Button>
-          }
-        />
-
-        {/* Statistics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card className="p-6">
-            <div className="flex items-center">
-              <Package className="w-8 h-8 text-blue-600 mr-3" />
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Items</p>
-                <p className="text-2xl font-bold text-gray-900">{totalItems}</p>
-              </div>
-            </div>
-          </Card>
-
-          <Card className="p-6">
-            <div className="flex items-center">
-              <AlertTriangle className="w-8 h-8 text-yellow-600 mr-3" />
-              <div>
-                <p className="text-sm font-medium text-gray-600">Low Stock Items</p>
-                <p className="text-2xl font-bold text-gray-900">{lowStockItems}</p>
-              </div>
-            </div>
-          </Card>
-
-          <Card className="p-6">
-            <div className="flex items-center">
-              <CheckCircle className="w-8 h-8 text-red-600 mr-3" />
-              <div>
-                <p className="text-sm font-medium text-gray-600">Needs Replacement</p>
-                <p className="text-2xl font-bold text-gray-900">{needsReplacementItems}</p>
-              </div>
-            </div>
-          </Card>
-        </div>
-
-        {/* Inventory Table */}
-        <Card>
-          {items.length === 0 ? (
-            <EmptyState
-              icon={Package}
-              title="No inventory items"
-              description="Start by adding your first inventory item to track equipment and supplies."
-              action={
-                <Button onClick={() => setShowModal(true)}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add First Item
-                </Button>
-              }
-            />
-          ) : (
-            <Table columns={columns} data={tableData} />
-          )}
-        </Card>
-
-        {/* Add/Edit Modal */}
-        <Modal
-          isOpen={showModal}
-          onClose={() => {
-            setShowModal(false);
-            resetForm();
-          }}
-          title={editingItem ? 'Edit Inventory Item' : 'Add New Inventory Item'}
-        >
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Input
-                label="Item Name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                required
-              />
-              
-              <Select
-                label="Category"
-                value={formData.category}
-                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                required
+    <div>
+      <PageHeader
+        title="Equipment Inventory"
+        description={`Track and manage club equipment and supplies (${totalItems} items)`}
+        actions={
+          <div className="flex space-x-2">
+            {canManageInventory && (
+              <Button 
+                onClick={handleCreate} 
+                leftIcon={<Plus size={18} />}
+                className="bg-primary-600 hover:bg-primary-700 text-white"
               >
-                <option value="">Select Category</option>
-                {CATEGORIES.map(category => (
-                  <option key={category} value={category}>{category}</option>
-                ))}
-              </Select>
-            </div>
+                Add Item
+              </Button>
+            )}
+            {canExport && (
+              <Button
+                onClick={handleExport}
+                leftIcon={<Download size={18} />}
+                isLoading={exporting}
+                variant="outline"
+              >
+                Export PDF
+              </Button>
+            )}
+          </div>
+        }
+      />
 
+      {/* Statistics Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 border border-blue-200 dark:border-blue-800">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-blue-600 dark:text-blue-400">
+                Total Items
+              </p>
+              <p className="text-2xl font-bold text-blue-900 dark:text-blue-100">
+                {totalItems}
+              </p>
+            </div>
+            <Package className="h-8 w-8 text-blue-600 dark:text-blue-400" />
+          </div>
+        </div>
+        
+        <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-lg p-4 border border-yellow-200 dark:border-yellow-800">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-yellow-600 dark:text-yellow-400">
+                Low Stock Alert
+              </p>
+              <p className="text-2xl font-bold text-yellow-900 dark:text-yellow-100">
+                {lowStockItems}
+              </p>
+            </div>
+            <AlertTriangle className="h-8 w-8 text-yellow-600 dark:text-yellow-400" />
+          </div>
+        </div>
+        
+        <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-4 border border-red-200 dark:border-red-800">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-red-600 dark:text-red-400">
+                Needs Attention
+              </p>
+              <p className="text-2xl font-bold text-red-900 dark:text-red-100">
+                {needsReplacementItems}
+              </p>
+            </div>
+            <AlertTriangle className="h-8 w-8 text-red-600 dark:text-red-400" />
+          </div>
+        </div>
+      </div>
+
+      <Card>
+        {items.length > 0 ? (
+          <Table
+            data={items}
+            columns={columns}
+            onRowClick={(item) => handleView(item)}
+          />
+        ) : (
+          <EmptyState
+            title="No inventory items"
+            description="Start by adding your first inventory item to track equipment and supplies."
+            icon={<Package size={24} />}
+            action={
+              canManageInventory
+                ? {
+                    label: 'Add First Item',
+                    onClick: handleCreate,
+                  }
+                : undefined
+            }
+          />
+        )}
+      </Card>
+
+      {/* Add/Edit Modal */}
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title={editingItem ? 'Edit Inventory Item' : 'Add New Inventory Item'}
+        size="lg"
+      >
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Input
               label="Description"
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              multiline
-              rows={3}
+              placeholder="e.g., Football, Training Cones"
+              error={errors.name?.message}
+              required
+              {...register('name', { required: 'Item name is required' })}
             />
+            
+            <Select
+              label="Category"
+              options={categoryOptions}
+              placeholder="Select category"
+              error={errors.category?.message}
+              required
+              {...register('category', { required: 'Category is required' })}
+            />
+          </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Input
-                label="Current Stock"
-                type="number"
-                value={formData.currentStock}
-                onChange={(e) => setFormData({ ...formData, currentStock: parseInt(e.target.value) || 0 })}
-                min="0"
-                required
-              />
-              
-              <Input
-                label="Minimum Stock"
-                type="number"
-                value={formData.minStock}
-                onChange={(e) => setFormData({ ...formData, minStock: parseInt(e.target.value) || 0 })}
-                min="0"
-                required
-              />
-              
-              <Input
-                label="Maximum Stock"
-                type="number"
-                value={formData.maxStock}
-                onChange={(e) => setFormData({ ...formData, maxStock: parseInt(e.target.value) || 0 })}
-                min="0"
-                required
-              />
-            </div>
+          <Input
+            label="Description (Optional)"
+            placeholder="Brief description of the item"
+            error={errors.description?.message}
+            {...register('description')}
+          />
 
-            {/* Stock Level Preview */}
-            <div className="p-4 bg-gray-50 rounded-lg">
-              <h4 className="font-medium text-gray-900 mb-2">Stock Level Preview</h4>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <Input
+              label="Current Quantity"
+              type="number"
+              min="0"
+              placeholder="0"
+              error={errors.quantity?.message}
+              required
+              {...register('quantity', { 
+                required: 'Current quantity is required',
+                min: { value: 0, message: 'Quantity cannot be negative' },
+                valueAsNumber: true
+              })}
+            />
+            
+            <Input
+              label="Minimum Quantity"
+              type="number"
+              min="0"
+              placeholder="1"
+              error={errors.minQuantity?.message}
+              required
+              {...register('minQuantity', { 
+                required: 'Minimum quantity is required',
+                min: { value: 0, message: 'Minimum quantity cannot be negative' },
+                valueAsNumber: true
+              })}
+            />
+            
+            <Input
+              label="Maximum Quantity"
+              type="number"
+              min="1"
+              placeholder="10"
+              error={errors.maxQuantity?.message}
+              required
+              {...register('maxQuantity', { 
+                required: 'Maximum quantity is required',
+                min: { value: 1, message: 'Maximum quantity must be at least 1' },
+                valueAsNumber: true
+              })}
+            />
+          </div>
+
+          {/* Stock Level Preview */}
+          {(watchQuantity !== undefined && watchMinQuantity !== undefined && watchMaxQuantity !== undefined) && (
+            <div className="bg-gray-50 dark:bg-neutral-700/30 rounded-lg p-4">
+              <h4 className="font-medium text-gray-900 dark:text-white mb-2">Stock Level Preview</h4>
               <div className="flex items-center space-x-4">
-                <span className="text-sm text-gray-600">Status:</span>
-                {getStatusBadge(calculateStatus(formData.currentStock, formData.minStock, formData.maxStock))}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Select
-                label="Condition"
-                value={formData.condition}
-                onChange={(e) => setFormData({ ...formData, condition: e.target.value as InventoryFormData['condition'] })}
-                required
-              >
-                {CONDITIONS.map(condition => (
-                  <option key={condition.value} value={condition.value}>
-                    {condition.label}
-                  </option>
-                ))}
-              </Select>
-              
-              <Input
-                label="Location"
-                value={formData.location}
-                onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                placeholder="e.g., Equipment Room, Storage A1"
-                required
-              />
-            </div>
-
-            <div className="flex justify-end space-x-3 pt-4">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setShowModal(false);
-                  resetForm();
-                }}
-              >
-                Cancel
-              </Button>
-              <Button type="submit">
-                {editingItem ? 'Update Item' : 'Add Item'}
-              </Button>
-            </div>
-          </form>
-        </Modal>
-
-        {/* View Modal */}
-        <Modal
-          isOpen={showViewModal}
-          onClose={() => setShowViewModal(false)}
-          title="Inventory Item Details"
-        >
-          {viewingItem && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Item Name</label>
-                  <p className="text-gray-900">{viewingItem.name}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-                  <p className="text-gray-900">{viewingItem.category}</p>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                <p className="text-gray-900">{viewingItem.description}</p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Current Stock</label>
-                  <p className="text-gray-900">{viewingItem.currentStock}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Min Stock</label>
-                  <p className="text-gray-900">{viewingItem.minStock}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Max Stock</label>
-                  <p className="text-gray-900">{viewingItem.maxStock}</p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                  {getStatusBadge(viewingItem.status)}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Condition</label>
-                  {getConditionBadge(viewingItem.condition)}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
-                <p className="text-gray-900">{viewingItem.location}</p>
-              </div>
-
-              <div className="flex justify-end pt-4">
-                <Button onClick={() => setShowViewModal(false)}>
-                  Close
-                </Button>
+                <span className="text-sm text-gray-600 dark:text-gray-400">Status:</span>
+                <Badge 
+                  variant={getStatusBadgeVariant(calculateStatus(watchQuantity, watchMinQuantity, watchMaxQuantity))} 
+                  className="capitalize"
+                >
+                  {calculateStatus(watchQuantity, watchMinQuantity, watchMaxQuantity).replace('_', ' ')}
+                </Badge>
               </div>
             </div>
           )}
-        </Modal>
-      </div>
-    </Layout>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Select
+              label="Condition"
+              options={conditionOptions}
+              placeholder="Select condition"
+              error={errors.condition?.message}
+              required
+              {...register('condition', { required: 'Condition is required' })}
+            />
+            
+            <Input
+              label="Storage Location"
+              placeholder="e.g., Equipment Room, Storage A1"
+              error={errors.location?.message}
+              required
+              {...register('location', { required: 'Location is required' })}
+            />
+          </div>
+
+          <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200 dark:border-gray-700">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button 
+              type="submit" 
+              isLoading={submitting}
+              className="bg-primary-600 hover:bg-primary-700 text-white"
+            >
+              {editingItem ? 'Update Item' : 'Add Item'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* View Modal */}
+      <Modal
+        isOpen={isViewModalOpen}
+        onClose={() => setIsViewModalOpen(false)}
+        title="Inventory Item Details"
+        size="lg"
+      >
+        {viewingItem && (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Item Name
+                </label>
+                <p className="text-gray-900 dark:text-white font-medium">
+                  {viewingItem.name}
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Category
+                </label>
+                <p className="text-gray-900 dark:text-white capitalize">
+                  {viewingItem.category.replace('_', ' ')}
+                </p>
+              </div>
+            </div>
+
+            {viewingItem.description && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Description
+                </label>
+                <p className="text-gray-900 dark:text-white">
+                  {viewingItem.description}
+                </p>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Current Quantity
+                </label>
+                <p className="text-gray-900 dark:text-white font-bold text-lg">
+                  {viewingItem.quantity}
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Minimum Quantity
+                </label>
+                <p className="text-gray-900 dark:text-white">
+                  {viewingItem.minQuantity}
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Maximum Quantity
+                </label>
+                <p className="text-gray-900 dark:text-white">
+                  {viewingItem.maxQuantity}
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Status
+                </label>
+                <Badge variant={getStatusBadgeVariant(viewingItem.status)} className="capitalize">
+                  {viewingItem.status.replace('_', ' ')}
+                </Badge>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Condition
+                </label>
+                <Badge variant={getConditionBadgeVariant(viewingItem.condition)} className="capitalize">
+                  {viewingItem.condition}
+                </Badge>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Storage Location
+              </label>
+              <p className="text-gray-900 dark:text-white">
+                {viewingItem.location}
+              </p>
+            </div>
+
+            <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+              {canManageInventory && (
+                <Button
+                  onClick={() => {
+                    setIsViewModalOpen(false);
+                    handleEdit(viewingItem);
+                  }}
+                  leftIcon={<Edit size={16} />}
+                  className="bg-primary-600 hover:bg-primary-700 text-white"
+                >
+                  Edit Item
+                </Button>
+              )}
+              <Button
+                variant="outline"
+                onClick={() => setIsViewModalOpen(false)}
+              >
+                Close
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        title="Delete Inventory Item"
+        size="sm"
+      >
+        <div className="space-y-4">
+          <p className="text-gray-600 dark:text-gray-300">
+            Are you sure you want to delete <strong>{itemToDelete?.name}</strong>? This action cannot be undone.
+          </p>
+          <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <Button
+              variant="outline"
+              onClick={() => setIsDeleteModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button variant="danger" onClick={handleDelete}>
+              Delete Item
+            </Button>
+          </div>
+        </div>
+      </Modal>
+    </div>
   );
 };
 
