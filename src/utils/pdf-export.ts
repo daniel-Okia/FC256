@@ -1067,7 +1067,6 @@ export class InventoryPDFExporter extends BasePDFExporter {
         condition: item.condition.replace(/\b\w/g, l => l.toUpperCase()),
         status: item.status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()),
         location: item.location,
-        value: item.purchasePrice ? formatUGX(item.purchasePrice * item.quantity) : 'N/A',
         lastChecked: formatDate(item.lastChecked, 'MMM d, yyyy'),
       }));
 
@@ -1079,7 +1078,6 @@ export class InventoryPDFExporter extends BasePDFExporter {
         { header: 'Condition', dataKey: 'condition' },
         { header: 'Status', dataKey: 'status' },
         { header: 'Location', dataKey: 'location' },
-        { header: 'Total Value', dataKey: 'value' },
         { header: 'Last Checked', dataKey: 'lastChecked' },
       ],
       inventoryRows,

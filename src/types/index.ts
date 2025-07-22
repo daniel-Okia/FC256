@@ -282,11 +282,6 @@ export interface InventoryItem {
   status: InventoryStatus;
   condition: InventoryCondition;
   location: string; // Where the item is stored
-  membersInCharge?: string[]; // Member IDs responsible for this equipment
-  purchaseDate?: string; // Optional purchase date
-  purchasePrice?: number; // Optional purchase price per unit
-  supplier?: string; // Optional supplier information
-  notes?: string; // Optional notes
   lastChecked: string;
   checkedBy: string;
   createdAt: string;

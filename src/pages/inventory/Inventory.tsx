@@ -27,11 +27,6 @@ interface InventoryFormData {
   maxQuantity: number;
   condition: InventoryCondition;
   location: string;
-  membersInCharge?: string[];
-  purchaseDate?: string;
-  purchasePrice?: number;
-  supplier?: string;
-  notes?: string;
 }
 
 const Inventory: React.FC = () => {
@@ -153,9 +148,6 @@ const Inventory: React.FC = () => {
     ).length,
     fullyStockedItems: inventoryItems.filter(item => item.status === 'fully_stocked').length,
     needsReplacement: inventoryItems.filter(item => item.status === 'needs_replacement').length,
-    totalValue: inventoryItems.reduce((sum, item) => 
-      sum + ((item.purchasePrice || 0) * item.quantity), 0
-    ),
   };
 
   const getStatusBadgeVariant = (status: InventoryStatus) => {
@@ -357,7 +349,6 @@ const Inventory: React.FC = () => {
       maxQuantity: 10,
       condition: 'good',
       location: '',
-      membersInCharge: [],
     });
     setIsModalOpen(true);
   };
@@ -372,10 +363,6 @@ const Inventory: React.FC = () => {
     setValue('maxQuantity', item.maxQuantity);
     setValue('condition', item.condition);
     setValue('location', item.location);
-    if (item.purchaseDate) setValue('purchaseDate', item.purchaseDate.split('T')[0]);
-    if (item.purchasePrice) setValue('purchasePrice', item.purchasePrice);
-    if (item.supplier) setValue('supplier', item.supplier);
-    if (item.notes) setValue('notes', item.notes);
     setIsModalOpen(true);
   };
 
@@ -404,6 +391,7 @@ const Inventory: React.FC = () => {
   const onSubmit = async (data: InventoryFormData) => {
     try {
       setSubmitting(true);
+      console.log('Form data received:', data);
       
       // Auto-calculate status based on quantity
       const status = calculateStatus(data.quantity, data.minQuantity);
@@ -417,10 +405,6 @@ const Inventory: React.FC = () => {
         maxQuantity: data.maxQuantity,
         condition: data.condition,
         location: data.location,
-        purchaseDate: data.purchaseDate || undefined,
-        purchasePrice: data.purchasePrice || undefined,
-        supplier: data.supplier || undefined,
-        notes: data.notes || undefined,
         status,
         lastChecked: new Date().toISOString(),
         checkedBy: user?.id || '',
@@ -430,8 +414,10 @@ const Inventory: React.FC = () => {
 
       if (editingItem) {
         await InventoryService.updateInventoryItem(editingItem.id, itemData);
+        console.log('Item updated successfully');
       } else {
-        await InventoryService.createInventoryItem(itemData);
+        const newItemId = await InventoryService.createInventoryItem(itemData);
+        console.log('Item created successfully with ID:', newItemId);
       }
 
       setIsModalOpen(false);
@@ -439,7 +425,7 @@ const Inventory: React.FC = () => {
       setEditingItem(null);
     } catch (error) {
       console.error('Error saving inventory item:', error);
-      alert('Failed to save inventory item. Please try again.');
+      alert(`Failed to save inventory item: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setSubmitting(false);
     }
@@ -481,15 +467,8 @@ const Inventory: React.FC = () => {
               </Button>
             )}
             {canExport && (
-              <Button
-                variant="outline"
-                leftIcon={<Download size={18} />}
-                onClick={() => console.log('Export inventory')}
-                className="w-full sm:w-auto"
-              >
-                Export PDF
-              </Button>
-            )}
+          <div className="text-sm text-gray-500 dark:text-gray-400">
+            {formatDate(item.lastChecked)}
           </div>
         }
       />
@@ -542,10 +521,10 @@ const Inventory: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-purple-600 dark:text-purple-400">
-                Total Value
+                Needs Replacement
               </p>
-              <p className="text-xl font-bold text-purple-900 dark:text-purple-100">
-                {formatUGX(stats.totalValue)}
+              <p className="text-2xl font-bold text-purple-900 dark:text-purple-100">
+                {stats.needsReplacement}
               </p>
             </div>
           </div>
@@ -706,39 +685,6 @@ const Inventory: React.FC = () => {
                   </p>
                 </div>
                 
-                {viewingItem.purchaseDate && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Purchase Date
-                    </label>
-                    <p className="text-gray-900 dark:text-white">
-                      {formatDate(viewingItem.purchaseDate)}
-                    </p>
-                  </div>
-                )}
-                
-                {viewingItem.purchasePrice && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Purchase Price
-                    </label>
-                    <p className="text-gray-900 dark:text-white">
-                      {formatUGX(viewingItem.purchasePrice)} per unit
-                    </p>
-                  </div>
-                )}
-                
-                {viewingItem.supplier && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Supplier
-                    </label>
-                    <p className="text-gray-900 dark:text-white">
-                      {viewingItem.supplier}
-                    </p>
-                  </div>
-                )}
-                
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Last Checked
@@ -750,19 +696,6 @@ const Inventory: React.FC = () => {
               </div>
             </div>
 
-            {viewingItem.notes && (
-              <div className="space-y-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Notes
-                  </label>
-                  <p className="text-gray-900 dark:text-white bg-gray-50 dark:bg-neutral-700 p-3 rounded-lg">
-                    {viewingItem.notes}
-                  </p>
-                </div>
-              </div>
-            )}
-            
             <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200 dark:border-gray-700">
               {canManageInventory && (
                 <Button
@@ -924,48 +857,6 @@ const Inventory: React.FC = () => {
               error={errors.location?.message}
               required
               {...register('location', { required: 'Location is required' })}
-            />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Input
-              label="Purchase Date (Optional)"
-              type="date"
-              error={errors.purchaseDate?.message}
-              {...register('purchaseDate')}
-            />
-
-            <Input
-              label="Purchase Price per Unit (Optional)"
-              type="number"
-              step="1"
-              min="0"
-              placeholder="e.g., 25000"
-              error={errors.purchasePrice?.message}
-              helperText="Price in UGX per unit"
-              {...register('purchasePrice', { 
-                min: { value: 0, message: 'Price cannot be negative' },
-                valueAsNumber: true
-              })}
-            />
-          </div>
-
-          <Input
-            label="Supplier (Optional)"
-            placeholder="e.g., Sports World, Equipment Plus"
-            error={errors.supplier?.message}
-            {...register('supplier')}
-          />
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Notes (Optional)
-            </label>
-            <textarea
-              rows={3}
-              className="block w-full rounded-lg shadow-sm border transition-colors duration-200 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 text-sm border-gray-300 dark:border-gray-600 dark:bg-neutral-700 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 hover:border-gray-400 dark:hover:border-gray-500 px-3 py-2.5"
-              placeholder="Additional notes about the item..."
-              {...register('notes')}
             />
           </div>
 
