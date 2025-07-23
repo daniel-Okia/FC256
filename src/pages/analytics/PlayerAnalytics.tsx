@@ -179,13 +179,44 @@ const PlayerAnalytics: React.FC = () => {
 
   const calculatePlayerAnalytics = (): PlayerAnalytics[] => {
     return members.map(member => {
-      // Attendance calculations
+      // Attendance calculations with normalization
       const memberAttendance = attendance.filter(a => a.memberId === member.id);
       const totalSessions = new Set(memberAttendance.map(a => a.eventId)).size;
       const attendedSessions = memberAttendance.filter(a => a.status === 'present').length;
       const lateArrivals = memberAttendance.filter(a => a.status === 'late').length;
       const excusedAbsences = memberAttendance.filter(a => a.status === 'excused').length;
-      const attendanceRate = totalSessions > 0 ? (attendedSessions / totalSessions) * 100 : 0;
+      
+      // Calculate normalized attendance rate
+      let attendanceRate = 0;
+      let normalizedAttendanceRate = 0;
+      
+      if (member.position === 'Coach' || member.position === 'Manager') {
+        // Coaches and managers use their own attendance rate
+        attendanceRate = totalSessions > 0 ? (attendedSessions / totalSessions) * 100 : 0;
+        normalizedAttendanceRate = attendanceRate;
+      } else {
+        // For players, normalize based on maximum regular player sessions
+        const regularPlayers = members.filter(m => 
+          m.position !== 'Coach' && 
+          m.position !== 'Manager' && 
+          m.status === 'active'
+        );
+        
+        // Find the maximum sessions attended by any regular player
+        const maxPlayerSessions = Math.max(
+          ...regularPlayers.map(player => {
+            const playerAttendance = attendance.filter(a => a.memberId === player.id);
+            return new Set(playerAttendance.map(a => a.eventId)).size;
+          }),
+          1 // Minimum of 1 to avoid division by zero
+        );
+        
+        attendanceRate = totalSessions > 0 ? (attendedSessions / totalSessions) * 100 : 0;
+        normalizedAttendanceRate = maxPlayerSessions > 0 ? (attendedSessions / maxPlayerSessions) * 100 : 0;
+        
+        // Cap normalized rate at 100%
+        normalizedAttendanceRate = Math.min(100, normalizedAttendanceRate);
+      }
 
       // Match performance calculations
       const friendlyMatches = events.filter(e => e.type === 'friendly' && e.isCompleted && e.matchDetails);
@@ -195,9 +226,43 @@ const PlayerAnalytics: React.FC = () => {
       let redCards = 0;
       let manOfTheMatchAwards = 0;
       let matchesPlayed = 0;
+      let goalsConceded = 0;
+      let teamGoalsInMatches = 0;
+      let teamAssistsInMatches = 0;
 
       friendlyMatches.forEach(match => {
         if (match.matchDetails) {
+          // Check if player was involved in the match
+          const wasInvolved = 
+            match.matchDetails.goalScorers?.includes(member.id) ||
+            match.matchDetails.assists?.includes(member.id) ||
+            match.matchDetails.yellowCards?.includes(member.id) ||
+            match.matchDetails.redCards?.includes(member.id) ||
+            match.matchDetails.manOfTheMatch === member.id;
+          
+          if (wasInvolved) {
+            matchesPlayed++;
+            
+            // Track goals conceded for defenders and goalkeepers
+            if (member.position === 'Goalkeeper' || 
+                member.position === 'Centre-back' || 
+                member.position === 'Left-back' || 
+                member.position === 'Right-back' || 
+                member.position === 'Sweeper') {
+              goalsConceded += match.matchDetails.opponentScore || 0;
+            }
+            
+            // Track team goals and assists for defenders and goalkeepers
+            if (member.position === 'Goalkeeper' || 
+                member.position === 'Centre-back' || 
+                member.position === 'Left-back' || 
+                member.position === 'Right-back' || 
+                member.position === 'Sweeper') {
+              teamGoalsInMatches += match.matchDetails.fc256Score || 0;
+              teamAssistsInMatches += (match.matchDetails.assists?.length || 0);
+            }
+          }
+          
           if (match.matchDetails.goalScorers?.includes(member.id)) {
             goalsScored += match.matchDetails.goalScorers.filter(id => id === member.id).length;
           }
@@ -213,18 +278,6 @@ const PlayerAnalytics: React.FC = () => {
           if (match.matchDetails.manOfTheMatch === member.id) {
             manOfTheMatchAwards++;
           }
-          
-          // Check if player was involved in the match (goals, assists, cards, or MOTM)
-          const wasInvolved = 
-            match.matchDetails.goalScorers?.includes(member.id) ||
-            match.matchDetails.assists?.includes(member.id) ||
-            match.matchDetails.yellowCards?.includes(member.id) ||
-            match.matchDetails.redCards?.includes(member.id) ||
-            match.matchDetails.manOfTheMatch === member.id;
-          
-          if (wasInvolved) {
-            matchesPlayed++;
-          }
         }
       });
 
@@ -236,11 +289,29 @@ const PlayerAnalytics: React.FC = () => {
         .filter(c => c.type === 'monetary' && c.amount)
         .reduce((sum, c) => sum + (c.amount || 0), 0);
 
-      // Score calculations (0-100 scale)
-      const attendanceScore = Math.min(100, attendanceRate);
+      // Score calculations (0-100 scale) with updated logic
+      const attendanceScore = Math.min(100, normalizedAttendanceRate);
       
-      // Performance score based on positive vs negative actions
-      const positiveActions = goalsScored * 3 + assists * 2 + manOfTheMatchAwards * 5;
+      // Enhanced performance score with position-specific adjustments
+      let positiveActions = goalsScored * 3 + assists * 2 + manOfTheMatchAwards * 5;
+      
+      // Position-specific bonuses for defenders and goalkeepers
+      if (member.position === 'Goalkeeper' || 
+          member.position === 'Centre-back' || 
+          member.position === 'Left-back' || 
+          member.position === 'Right-back' || 
+          member.position === 'Sweeper') {
+        
+        // Bonus for team goals and assists when they played
+        const teamGoalBonus = teamGoalsInMatches * 0.5; // 0.5 points per team goal
+        const teamAssistBonus = teamAssistsInMatches * 0.3; // 0.3 points per team assist
+        positiveActions += teamGoalBonus + teamAssistBonus;
+        
+        // Deduction for goals conceded
+        const goalsConcededPenalty = goalsConceded * 1.5; // 1.5 points deducted per goal conceded
+        positiveActions -= goalsConcededPenalty;
+      }
+      
       const negativeActions = yellowCards * 1 + redCards * 3;
       const netPerformance = positiveActions - negativeActions;
       const performanceScore = Math.max(0, Math.min(100, 50 + (netPerformance * 2)));
@@ -251,11 +322,12 @@ const PlayerAnalytics: React.FC = () => {
         (totalContributionAmount / 10000) // Scale UGX amounts
       );
 
-      // Overall rating calculation with weights
+      // Overall rating calculation with updated weights
+      // Attendance: 45%, Performance: 30%, Contributions: 15%
       const overallRating = Math.round(
-        (attendanceScore * 0.4) + 
-        (performanceScore * 0.35) + 
-        (contributionScore * 0.25)
+        (attendanceScore * 0.45) + 
+        (performanceScore * 0.30) + 
+        (contributionScore * 0.15)
       );
 
       // Recent data (last 10 records)
@@ -286,7 +358,7 @@ const PlayerAnalytics: React.FC = () => {
 
       return {
         member,
-        attendanceRate,
+        attendanceRate: normalizedAttendanceRate, // Use normalized rate for display
         totalSessions,
         attendedSessions,
         lateArrivals,
@@ -514,7 +586,7 @@ const PlayerAnalytics: React.FC = () => {
     <div>
       <PageHeader
         title="Player Analytics"
-        description={`Individual performance analysis and ratings for ${teamStats.totalPlayers} players`}
+        description={`Fair individual performance analysis with normalized attendance, position-specific adjustments, and weighted ratings for ${teamStats.totalPlayers} players`}
         actions={
           canExport && (
             <Button
@@ -528,6 +600,49 @@ const PlayerAnalytics: React.FC = () => {
           )
         }
       />
+
+      {/* Rating System Explanation */}
+      <Card className="mb-6 bg-gradient-to-r from-blue-50 to-green-50 dark:from-blue-900/20 dark:to-green-900/20 border border-blue-200 dark:border-blue-800">
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
+            <TrendingUp size={20} className="mr-2 text-blue-600 dark:text-blue-400" />
+            Fair Rating System
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+            <div className="bg-white dark:bg-neutral-800 rounded-lg p-4 border border-blue-200 dark:border-blue-700">
+              <h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-2">
+                📊 Attendance (45%)
+              </h4>
+              <ul className="space-y-1 text-blue-700 dark:text-blue-300">
+                <li>• Normalized against max player sessions</li>
+                <li>• Coaches use their own rate</li>
+                <li>• Fair comparison across all players</li>
+              </ul>
+            </div>
+            <div className="bg-white dark:bg-neutral-800 rounded-lg p-4 border border-green-200 dark:border-green-700">
+              <h4 className="font-semibold text-green-900 dark:text-green-100 mb-2">
+                ⚽ Performance (30%)
+              </h4>
+              <ul className="space-y-1 text-green-700 dark:text-green-300">
+                <li>• Goals, assists, MOTM awards</li>
+                <li>• Defensive bonuses for team goals</li>
+                <li>• Penalties for goals conceded</li>
+                <li>• Card deductions</li>
+              </ul>
+            </div>
+            <div className="bg-white dark:bg-neutral-800 rounded-lg p-4 border border-purple-200 dark:border-purple-700">
+              <h4 className="font-semibold text-purple-900 dark:text-purple-100 mb-2">
+                💰 Contributions (15%)
+              </h4>
+              <ul className="space-y-1 text-purple-700 dark:text-purple-300">
+                <li>• Monetary and in-kind contributions</li>
+                <li>• Amount-based scoring</li>
+                <li>• Team support recognition</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </Card>
 
       {/* Team Overview Statistics */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
@@ -685,11 +800,11 @@ const PlayerAnalytics: React.FC = () => {
               <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 border border-blue-200 dark:border-blue-800">
                 <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-3 flex items-center">
                   <Calendar size={18} className="mr-2" />
-                  Attendance (40% weight)
+                  Attendance (45% weight)
                 </h4>
                 <div className="space-y-3">
                   <div className="flex justify-between">
-                    <span className="text-sm text-blue-700 dark:text-blue-300">Rate:</span>
+                    <span className="text-sm text-blue-700 dark:text-blue-300">Normalized Rate:</span>
                     <span className="font-bold text-blue-900 dark:text-blue-100">
                       {Math.round(selectedPlayer.attendanceRate)}%
                     </span>
@@ -727,7 +842,7 @@ const PlayerAnalytics: React.FC = () => {
               <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4 border border-green-200 dark:border-green-800">
                 <h4 className="font-medium text-green-900 dark:text-green-100 mb-3 flex items-center">
                   <Trophy size={18} className="mr-2" />
-                  Performance (35% weight)
+                  Performance (30% weight)
                 </h4>
                 <div className="space-y-3">
                   <div className="flex justify-between">
@@ -760,6 +875,19 @@ const PlayerAnalytics: React.FC = () => {
                       {selectedPlayer.yellowCards}Y {selectedPlayer.redCards}R
                     </span>
                   </div>
+                  {(selectedPlayer.member.position === 'Goalkeeper' || 
+                    selectedPlayer.member.position === 'Centre-back' || 
+                    selectedPlayer.member.position === 'Left-back' || 
+                    selectedPlayer.member.position === 'Right-back' || 
+                    selectedPlayer.member.position === 'Sweeper') && (
+                    <div className="pt-2 border-t border-green-200 dark:border-green-700">
+                      <div className="text-xs text-green-600 dark:text-green-400 space-y-1">
+                        <p>• Team goal/assist bonuses applied</p>
+                        <p>• Goals conceded penalties applied</p>
+                        <p>• Defensive position adjustments</p>
+                      </div>
+                    </div>
+                  )}
                   <div className="pt-2 border-t border-green-200 dark:border-green-700">
                     <div className="flex justify-between">
                       <span className="text-sm font-medium text-green-700 dark:text-green-300">Score:</span>
@@ -775,7 +903,7 @@ const PlayerAnalytics: React.FC = () => {
               <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-4 border border-purple-200 dark:border-purple-800">
                 <h4 className="font-medium text-purple-900 dark:text-purple-100 mb-3 flex items-center">
                   <CreditCard size={18} className="mr-2" />
-                  Contributions (25% weight)
+                  Contributions (15% weight)
                 </h4>
                 <div className="space-y-3">
                   <div className="flex justify-between">
