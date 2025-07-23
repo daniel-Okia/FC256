@@ -1091,3 +1091,166 @@ export class InventoryPDFExporter extends BasePDFExporter {
     this.save('fc256-inventory');
   }
 }
+
+/**
+ * Player Performance PDF Export
+ */
+export class PlayerPerformancePDFExporter extends BasePDFExporter {
+  exportPlayerPerformance(data: {
+    playerStats: any[];
+    summary: {
+      totalPlayers: number;
+      averageRating: number;
+      topPerformer: string;
+      averageAttendance: number;
+    };
+  }): void {
+    console.log('Exporting player performance with data:', data);
+    
+    this.addHeader(
+      'PLAYER PERFORMANCE ANALYTICS', 
+      `Individual player insights and performance metrics for ${data.playerStats.length} players`
+    );
+
+    // Performance summary statistics
+    this.addStatsSection([
+      { 
+        label: 'Total Players', 
+        value: data.summary.totalPlayers.toString(),
+        color: COLORS.primary,
+      },
+      { 
+        label: 'Average Rating', 
+        value: `${data.summary.averageRating}/100`,
+        color: COLORS.success,
+      },
+      { 
+        label: 'Top Performer', 
+        value: data.summary.topPerformer,
+        color: COLORS.warning,
+      },
+      { 
+        label: 'Avg Attendance', 
+        value: `${data.summary.averageAttendance}%`,
+        color: COLORS.info,
+      },
+    ]);
+
+    // Player performance overview
+    const performanceRows = data.playerStats
+      .slice(0, 30) // Limit to top 30 players for PDF
+      .map((stat, index) => ({
+        rank: (index + 1).toString(),
+        name: stat.member.name || 'Unknown',
+        jersey: `#${stat.member.jerseyNumber}`,
+        position: stat.member.position || 'Unknown',
+        rating: `${stat.overallRating}/100`,
+        attendance: `${stat.attendance.attendanceRate}%`,
+        goals: stat.friendlies.goals.toString(),
+        assists: stat.friendlies.assists.toString(),
+        contributions: stat.contributions.totalContributions.toString(),
+        status: (stat.member.status || 'unknown').charAt(0).toUpperCase() + (stat.member.status || 'unknown').slice(1),
+      }));
+
+    this.addTable(
+      [
+        { header: 'Rank', dataKey: 'rank' },
+        { header: 'Player Name', dataKey: 'name' },
+        { header: 'Jersey', dataKey: 'jersey' },
+        { header: 'Position', dataKey: 'position' },
+        { header: 'Overall Rating', dataKey: 'rating' },
+        { header: 'Attendance', dataKey: 'attendance' },
+        { header: 'Goals', dataKey: 'goals' },
+        { header: 'Assists', dataKey: 'assists' },
+        { header: 'Contributions', dataKey: 'contributions' },
+        { header: 'Status', dataKey: 'status' },
+      ],
+      performanceRows,
+      { title: 'PLAYER PERFORMANCE RANKINGS', headerColor: COLORS.primary }
+    );
+
+    // Top performers in each category
+    const topAttendance = [...data.playerStats]
+      .sort((a, b) => b.attendance.attendanceRate - a.attendance.attendanceRate)
+      .slice(0, 5)
+      .map((stat, index) => ({
+        rank: (index + 1).toString(),
+        name: stat.member.name,
+        rate: `${stat.attendance.attendanceRate}%`,
+        sessions: `${stat.attendance.attended}/${stat.attendance.totalSessions}`,
+        status: stat.member.status.charAt(0).toUpperCase() + stat.member.status.slice(1),
+      }));
+
+    this.addTable(
+      [
+        { header: 'Rank', dataKey: 'rank' },
+        { header: 'Player Name', dataKey: 'name' },
+        { header: 'Attendance Rate', dataKey: 'rate' },
+        { header: 'Sessions', dataKey: 'sessions' },
+        { header: 'Status', dataKey: 'status' },
+      ],
+      topAttendance,
+      { title: 'TOP 5 - ATTENDANCE LEADERS', headerColor: COLORS.success }
+    );
+
+    // Top goal scorers
+    const topScorers = [...data.playerStats]
+      .filter(stat => stat.friendlies.goals > 0)
+      .sort((a, b) => b.friendlies.goals - a.friendlies.goals)
+      .slice(0, 5)
+      .map((stat, index) => ({
+        rank: (index + 1).toString(),
+        name: stat.member.name,
+        goals: stat.friendlies.goals.toString(),
+        assists: stat.friendlies.assists.toString(),
+        motm: stat.friendlies.manOfTheMatchCount.toString(),
+        position: stat.member.position,
+      }));
+
+    if (topScorers.length > 0) {
+      this.addTable(
+        [
+          { header: 'Rank', dataKey: 'rank' },
+          { header: 'Player Name', dataKey: 'name' },
+          { header: 'Goals', dataKey: 'goals' },
+          { header: 'Assists', dataKey: 'assists' },
+          { header: 'MOTM Awards', dataKey: 'motm' },
+          { header: 'Position', dataKey: 'position' },
+        ],
+        topScorers,
+        { title: 'TOP GOAL SCORERS', headerColor: COLORS.warning }
+      );
+    }
+
+    // Top contributors
+    const topContributors = [...data.playerStats]
+      .filter(stat => stat.contributions.totalContributions > 0)
+      .sort((a, b) => b.contributions.monetaryAmount - a.contributions.monetaryAmount)
+      .slice(0, 5)
+      .map((stat, index) => ({
+        rank: (index + 1).toString(),
+        name: stat.member.name,
+        total: stat.contributions.totalContributions.toString(),
+        monetary: formatUGX(stat.contributions.monetaryAmount),
+        inKind: stat.contributions.inKindCount.toString(),
+        position: stat.member.position,
+      }));
+
+    if (topContributors.length > 0) {
+      this.addTable(
+        [
+          { header: 'Rank', dataKey: 'rank' },
+          { header: 'Player Name', dataKey: 'name' },
+          { header: 'Total Contributions', dataKey: 'total' },
+          { header: 'Monetary Amount', dataKey: 'monetary' },
+          { header: 'In-Kind Items', dataKey: 'inKind' },
+          { header: 'Position', dataKey: 'position' },
+        ],
+        topContributors,
+        { title: 'TOP CONTRIBUTORS', headerColor: COLORS.info }
+      );
+    }
+
+    this.save('fc256-player-performance');
+  }
+}
