@@ -1037,7 +1037,9 @@ export class InventoryPDFExporter extends BasePDFExporter {
         current: item.quantity.toString(),
         minimum: item.minQuantity.toString(),
         status: item.status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()),
-        location: item.location,
+        allocatedMembers: item.allocatedMembers && item.allocatedMembers.length > 0 
+          ? `${item.allocatedMembers.length} member(s)`
+          : 'None',
         priority: item.status === 'out_of_stock' ? 'URGENT' : item.status === 'needs_replacement' ? 'HIGH' : 'MEDIUM'
       }));
 
@@ -1049,7 +1051,7 @@ export class InventoryPDFExporter extends BasePDFExporter {
           { header: 'Current', dataKey: 'current' },
           { header: 'Minimum', dataKey: 'minimum' },
           { header: 'Status', dataKey: 'status' },
-          { header: 'Location', dataKey: 'location' },
+          { header: 'Allocated Members', dataKey: 'allocatedMembers' },
           { header: 'Priority', dataKey: 'priority' },
         ],
         lowStockItems,
@@ -1066,7 +1068,9 @@ export class InventoryPDFExporter extends BasePDFExporter {
         quantity: `${item.quantity}/${item.maxQuantity}`,
         condition: item.condition.replace(/\b\w/g, l => l.toUpperCase()),
         status: item.status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()),
-        location: item.location,
+        allocatedMembers: item.allocatedMembers && item.allocatedMembers.length > 0 
+          ? `${item.allocatedMembers.length} member(s) assigned`
+          : 'No members assigned',
         lastChecked: formatDate(item.lastChecked, 'MMM d, yyyy'),
       }));
 
@@ -1077,7 +1081,7 @@ export class InventoryPDFExporter extends BasePDFExporter {
         { header: 'Stock Level', dataKey: 'quantity' },
         { header: 'Condition', dataKey: 'condition' },
         { header: 'Status', dataKey: 'status' },
-        { header: 'Location', dataKey: 'location' },
+        { header: 'Allocated Members', dataKey: 'allocatedMembers' },
         { header: 'Last Checked', dataKey: 'lastChecked' },
       ],
       inventoryRows,

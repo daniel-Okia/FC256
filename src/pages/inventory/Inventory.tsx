@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Package, Plus, Edit, Trash2, Eye, AlertTriangle, Download } from 'lucide-react';
+import { Package, Plus, Edit, Trash2, Eye, AlertTriangle, Download, X } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { InventoryService } from '../../services/firestore';
+import { InventoryService, MemberService } from '../../services/firestore';
 import PageHeader from '../../components/layout/PageHeader';
 import Card from '../../components/ui/Card';
 import Table from '../../components/ui/Table';
@@ -12,7 +12,7 @@ import Badge from '../../components/ui/Badge';
 import Button from '../../components/ui/Button';
 import EmptyState from '../../components/common/EmptyState';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
-import type { InventoryItem, InventoryCategory, InventoryCondition } from '../../types';
+import type { InventoryItem, InventoryCategory, InventoryCondition, Member } from '../../types';
 import { canUserAccess, Permissions } from '../../utils/permissions';
 import { InventoryPDFExporter } from '../../utils/pdf-export';
 import { useForm } from 'react-hook-form';
@@ -25,12 +25,13 @@ interface InventoryFormData {
   minQuantity: number;
   maxQuantity: number;
   condition: InventoryCondition;
-  location: string;
+  allocatedMembers: string[];
 }
 
 const Inventory: React.FC = () => {
   const { user } = useAuth();
   const [items, setItems] = useState<InventoryItem[]>([]);
+  const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -40,6 +41,7 @@ const Inventory: React.FC = () => {
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
   const [viewingItem, setViewingItem] = useState<InventoryItem | null>(null);
   const [itemToDelete, setItemToDelete] = useState<InventoryItem | null>(null);
+  const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
 
   const canManageInventory = user && canUserAccess(user.role, Permissions.MANAGE_INVENTORY);
   const canExport = user && canUserAccess(user.role, Permissions.EXPORT_REPORTS);
@@ -79,8 +81,12 @@ const Inventory: React.FC = () => {
     const loadItems = async () => {
       try {
         setLoading(true);
-        const itemsData = await InventoryService.getAllInventoryItems();
+        const [itemsData, membersData] = await Promise.all([
+          InventoryService.getAllInventoryItems(),
+          MemberService.getAllMembers(),
+        ]);
         setItems(itemsData);
+        setMembers(membersData);
       } catch (error) {
         console.error('Error loading inventory items:', error);
       } finally {
@@ -96,7 +102,12 @@ const Inventory: React.FC = () => {
       setLoading(false);
     });
 
-    return () => unsubscribe();
+    const unsubscribeMembers = MemberService.subscribeToMembers(setMembers);
+
+    return () => {
+      unsubscribe();
+      unsubscribeMembers();
+    };
   }, []);
 
   const calculateStatus = (current: number, min: number, max: number) => {
@@ -190,9 +201,39 @@ const Inventory: React.FC = () => {
       ),
     },
     {
-      key: 'location',
-      title: 'Location',
-      render: (item: InventoryItem) => item.location,
+      key: 'allocatedMembers',
+      title: 'Allocated Members',
+      render: (item: InventoryItem) => {
+        if (!item.allocatedMembers || item.allocatedMembers.length === 0) {
+          return <span className="text-gray-500 dark:text-gray-400">No members assigned</span>;
+        }
+        
+        const allocatedMemberNames = item.allocatedMembers
+          .map(memberId => {
+            const member = members.find(m => m.id === memberId);
+            return member ? member.name : 'Unknown';
+          })
+          .filter(name => name !== 'Unknown');
+        
+        if (allocatedMemberNames.length === 0) {
+          return <span className="text-gray-500 dark:text-gray-400">No valid members</span>;
+        }
+        
+        return (
+          <div className="flex flex-wrap gap-1">
+            {allocatedMemberNames.slice(0, 2).map((name, index) => (
+              <Badge key={index} variant="info" size="sm">
+                {name}
+              </Badge>
+            ))}
+            {allocatedMemberNames.length > 2 && (
+              <Badge variant="default" size="sm">
+                +{allocatedMemberNames.length - 2} more
+              </Badge>
+            )}
+          </div>
+        );
+      },
     },
     {
       key: 'actions',
@@ -243,6 +284,7 @@ const Inventory: React.FC = () => {
 
   const handleCreate = () => {
     setEditingItem(null);
+    setSelectedMembers([]);
     reset({
       name: '',
       category: 'playing_equipment',
@@ -251,13 +293,14 @@ const Inventory: React.FC = () => {
       minQuantity: 1,
       maxQuantity: 10,
       condition: 'good',
-      location: '',
+      allocatedMembers: [],
     });
     setIsModalOpen(true);
   };
 
   const handleEdit = (item: InventoryItem) => {
     setEditingItem(item);
+    setSelectedMembers(item.allocatedMembers || []);
     setValue('name', item.name);
     setValue('category', item.category);
     setValue('description', item.description || '');
@@ -265,7 +308,7 @@ const Inventory: React.FC = () => {
     setValue('minQuantity', item.minQuantity);
     setValue('maxQuantity', item.maxQuantity);
     setValue('condition', item.condition);
-    setValue('location', item.location);
+    setValue('allocatedMembers', item.allocatedMembers || []);
     setIsModalOpen(true);
   };
 
@@ -291,6 +334,28 @@ const Inventory: React.FC = () => {
     }
   };
 
+  const handleMemberSelect = (memberId: string) => {
+    if (!selectedMembers.includes(memberId)) {
+      const newSelectedMembers = [...selectedMembers, memberId];
+      setSelectedMembers(newSelectedMembers);
+      setValue('allocatedMembers', newSelectedMembers);
+    }
+  };
+
+  const handleMemberRemove = (memberId: string) => {
+    const newSelectedMembers = selectedMembers.filter(id => id !== memberId);
+    setSelectedMembers(newSelectedMembers);
+    setValue('allocatedMembers', newSelectedMembers);
+  };
+
+  const getMemberById = (memberId: string) => {
+    return members.find(m => m.id === memberId);
+  };
+
+  const availableMembers = members.filter(member => 
+    !selectedMembers.includes(member.id) && member.status === 'active'
+  );
+
   const onSubmit = async (data: InventoryFormData) => {
     try {
       setSubmitting(true);
@@ -306,7 +371,7 @@ const Inventory: React.FC = () => {
         minQuantity: data.minQuantity,
         maxQuantity: data.maxQuantity,
         condition: data.condition,
-        location: data.location,
+        allocatedMembers: selectedMembers,
         status,
         lastChecked: new Date().toISOString(),
         checkedBy: user?.id || '',
@@ -326,6 +391,7 @@ const Inventory: React.FC = () => {
 
       setIsModalOpen(false);
       reset();
+      setSelectedMembers([]);
     } catch (error) {
       console.error('Error saving inventory item:', error);
       alert(`Error saving item: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -578,13 +644,74 @@ const Inventory: React.FC = () => {
               {...register('condition', { required: 'Condition is required' })}
             />
             
-            <Input
-              label="Storage Location"
-              placeholder="e.g., Equipment Room, Storage A1"
-              error={errors.location?.message}
-              required
-              {...register('location', { required: 'Location is required' })}
-            />
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Allocated Members in Charge
+              </label>
+              
+              {/* Selected Members Display */}
+              {selectedMembers.length > 0 && (
+                <div className="mb-3 flex flex-wrap gap-2">
+                  {selectedMembers.map(memberId => {
+                    const member = getMemberById(memberId);
+                    return member ? (
+                      <div
+                        key={memberId}
+                        className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-primary-100 text-primary-800 dark:bg-primary-900/30 dark:text-primary-300"
+                      >
+                        {member.name} (#{member.jerseyNumber})
+                        <button
+                          type="button"
+                          onClick={() => handleMemberRemove(memberId)}
+                          className="ml-2 text-primary-600 hover:text-primary-800 dark:text-primary-400 dark:hover:text-primary-200"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    ) : null;
+                  })}
+                </div>
+              )}
+              
+              {/* Member Selection Dropdown */}
+              {availableMembers.length > 0 && (
+                <select
+                  className="block w-full rounded-lg shadow-sm border transition-colors duration-200 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 text-sm border-gray-300 dark:border-gray-600 dark:bg-neutral-700 dark:text-white hover:border-gray-400 dark:hover:border-gray-500 px-3 py-2.5"
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      handleMemberSelect(e.target.value);
+                      e.target.value = '';
+                    }
+                  }}
+                  defaultValue=""
+                >
+                  <option value="">Select a member to assign...</option>
+                  {availableMembers
+                    .sort((a, b) => a.name.localeCompare(b.name))
+                    .map(member => (
+                      <option key={member.id} value={member.id}>
+                        {member.name} (#{member.jerseyNumber}) - {member.position}
+                      </option>
+                    ))}
+                </select>
+              )}
+              
+              {availableMembers.length === 0 && selectedMembers.length === 0 && (
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                  No active members available to assign
+                </p>
+              )}
+              
+              {availableMembers.length === 0 && selectedMembers.length > 0 && (
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                  All active members have been assigned
+                </p>
+              )}
+              
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                Select multiple members who will be responsible for this equipment
+              </p>
+            </div>
           </div>
 
           <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200 dark:border-gray-700">
@@ -695,9 +822,33 @@ const Inventory: React.FC = () => {
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Storage Location
               </label>
-              <p className="text-gray-900 dark:text-white">
-                {viewingItem.location}
-              </p>
+              <div>
+                {viewingItem.allocatedMembers && viewingItem.allocatedMembers.length > 0 ? (
+                  <div className="space-y-2">
+                    {viewingItem.allocatedMembers.map(memberId => {
+                      const member = getMemberById(memberId);
+                      return member ? (
+                        <div key={memberId} className="flex items-center space-x-2">
+                          <Badge variant="info" size="sm">
+                            {member.name} (#{member.jerseyNumber})
+                          </Badge>
+                          <span className="text-sm text-gray-500 dark:text-gray-400">
+                            {member.position}
+                          </span>
+                        </div>
+                      ) : (
+                        <span key={memberId} className="text-sm text-gray-500 dark:text-gray-400">
+                          Unknown member
+                        </span>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <span className="text-gray-500 dark:text-gray-400">
+                    No members assigned
+                  </span>
+                )}
+              </div>
             </div>
 
             <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200 dark:border-gray-700">
