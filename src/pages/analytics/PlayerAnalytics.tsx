@@ -842,7 +842,7 @@ const PlayerAnalytics: React.FC = () => {
               <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4 border border-green-200 dark:border-green-800">
                 <h4 className="font-medium text-green-900 dark:text-green-100 mb-3 flex items-center">
                   <Trophy size={18} className="mr-2" />
-                  Performance (30% weight)
+                  Performance (35% weight)
                 </h4>
                 <div className="space-y-3">
                   <div className="flex justify-between">
