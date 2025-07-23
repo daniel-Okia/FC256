@@ -17,7 +17,6 @@ import Contributions from './pages/contributions/Contributions';
 import Attendance from './pages/attendance/Attendance';
 import Profile from './pages/profile/Profile';
 import Inventory from './pages/inventory/Inventory';
-import PlayerPerformance from './pages/performance/PlayerPerformance';
 import NotFound from './pages/NotFound';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 
@@ -121,15 +120,6 @@ function App() {
               element={
                 <ProtectedRoute>
                   <Inventory />
-                </ProtectedRoute>
-              } 
-            />
-            
-            <Route 
-              path="/performance" 
-              element={
-                <ProtectedRoute>
-                  <PlayerPerformance />
                 </ProtectedRoute>
               } 
             />

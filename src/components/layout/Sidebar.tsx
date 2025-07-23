@@ -33,12 +33,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       roles: Permissions.VIEW_DASHBOARD 
     },
     { 
-      name: 'Performance', 
-      path: '/performance', 
-      icon: TrendingUp, 
-      roles: Permissions.VIEW_DASHBOARD 
-    },
-    { 
       name: 'Training', 
       path: '/training', 
       icon: Calendar, 
