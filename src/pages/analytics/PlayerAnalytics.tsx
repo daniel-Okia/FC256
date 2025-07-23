@@ -323,10 +323,10 @@ const PlayerAnalytics: React.FC = () => {
       );
 
       // Overall rating calculation with updated weights
-      // Attendance: 45%, Performance: 30%, Contributions: 15%
+      // Attendance: 50%, Performance: 35%, Contributions: 15%
       const overallRating = Math.round(
-        (attendanceScore * 0.45) + 
-        (performanceScore * 0.30) + 
+        (attendanceScore * 0.50) + 
+        (performanceScore * 0.35) + 
         (contributionScore * 0.15)
       );
 
@@ -611,7 +611,7 @@ const PlayerAnalytics: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
             <div className="bg-white dark:bg-neutral-800 rounded-lg p-4 border border-blue-200 dark:border-blue-700">
               <h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-2">
-                📊 Attendance (45%)
+                📊 Attendance (50%)
               </h4>
               <ul className="space-y-1 text-blue-700 dark:text-blue-300">
                 <li>• Normalized against max player sessions</li>
@@ -621,7 +621,7 @@ const PlayerAnalytics: React.FC = () => {
             </div>
             <div className="bg-white dark:bg-neutral-800 rounded-lg p-4 border border-green-200 dark:border-green-700">
               <h4 className="font-semibold text-green-900 dark:text-green-100 mb-2">
-                ⚽ Performance (30%)
+                ⚽ Performance (35%)
               </h4>
               <ul className="space-y-1 text-green-700 dark:text-green-300">
                 <li>• Goals, assists, MOTM awards</li>
