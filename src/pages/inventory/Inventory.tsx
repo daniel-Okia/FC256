@@ -25,7 +25,7 @@ interface InventoryFormData {
   minQuantity: number;
   maxQuantity: number;
   condition: InventoryCondition;
-  allocatedMembers: string[];
+  location: string;
 }
 
 const Inventory: React.FC = () => {
@@ -190,38 +190,9 @@ const Inventory: React.FC = () => {
       ),
     },
     {
-      key: 'allocatedMembers',
-      title: 'Responsible Members',
-      render: (item: InventoryItem) => {
-        if (!item.allocatedMembers || item.allocatedMembers.length === 0) {
-          return <span className="text-gray-400 italic">No members assigned</span>;
-        }
-        const memberNames = item.allocatedMembers
-          .map(memberId => {
-            const member = members.find(m => m.id === memberId);
-            return member ? member.name : 'Unknown';
-          })
-          .filter(name => name !== 'Unknown');
-        
-        if (memberNames.length === 0) {
-          return <span className="text-gray-400 italic">No valid members</span>;
-        }
-        
-        return (
-          <div className="space-y-1">
-            {memberNames.slice(0, 2).map((name, index) => (
-              <div key={index} className="text-sm">
-                {name}
-              </div>
-            ))}
-            {memberNames.length > 2 && (
-              <div className="text-xs text-gray-500">
-                +{memberNames.length - 2} more
-              </div>
-            )}
-          </div>
-        );
-      },
+      key: 'location',
+      title: 'Location',
+      render: (item: InventoryItem) => item.location,
     },
     {
       key: 'actions',
@@ -280,7 +251,7 @@ const Inventory: React.FC = () => {
       minQuantity: 1,
       maxQuantity: 10,
       condition: 'good',
-      allocatedMembers: [],
+      location: '',
     });
     setIsModalOpen(true);
   };
@@ -294,7 +265,7 @@ const Inventory: React.FC = () => {
     setValue('minQuantity', item.minQuantity);
     setValue('maxQuantity', item.maxQuantity);
     setValue('condition', item.condition);
-    setValue('allocatedMembers', item.allocatedMembers || []);
+    setValue('location', item.location);
     setIsModalOpen(true);
   };
 
@@ -335,7 +306,7 @@ const Inventory: React.FC = () => {
         minQuantity: data.minQuantity,
         maxQuantity: data.maxQuantity,
         condition: data.condition,
-        allocatedMembers: data.allocatedMembers || [],
+        location: data.location,
         status,
         lastChecked: new Date().toISOString(),
         checkedBy: user?.id || '',
@@ -599,35 +570,21 @@ const Inventory: React.FC = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Select
-              label="Item Condition"
+              label="Condition"
               options={conditionOptions}
               placeholder="Select condition"
               error={errors.condition?.message}
               required
               {...register('condition', { required: 'Condition is required' })}
             />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Responsible Members
-            </label>
-            <div className="space-y-2">
-              {[0, 1, 2].map((index) => (
-                <Select
-                  key={`member-${index}`}
-                  options={[
-                    { value: '', label: 'Select member...' },
-                    ...memberOptions
-                  ]}
-                  placeholder={index === 0 ? "Select primary responsible member" : "Select additional member (optional)"}
-                  {...register(`allocatedMembers.${index}` as any)}
-                />
-              ))}
-            </div>
-            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-              Select up to 3 members who will be responsible for this equipment
-            </p>
+            
+            <Input
+              label="Storage Location"
+              placeholder="e.g., Equipment Room, Storage A1"
+              error={errors.location?.message}
+              required
+              {...register('location', { required: 'Location is required' })}
+            />
           </div>
 
           <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200 dark:border-gray-700">
@@ -734,27 +691,13 @@ const Inventory: React.FC = () => {
               </div>
             </div>
 
-            <div className="sm:col-span-2">
+            <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Responsible Members
+                Storage Location
               </label>
-              {viewingItem.allocatedMembers && viewingItem.allocatedMembers.length > 0 ? (
-                <div className="space-y-2">
-                  {viewingItem.allocatedMembers.map((memberId, index) => {
-                    const member = members.find(m => m.id === memberId);
-                    return member ? (
-                      <div key={index} className="flex items-center space-x-2">
-                        <div className="w-2 h-2 bg-primary-500 rounded-full"></div>
-                        <span className="text-gray-900 dark:text-white">
-                          {member.name} (#{member.jerseyNumber})
-                        </span>
-                      </div>
-                    ) : null;
-                  })}
-                </div>
-              ) : (
-                <p className="text-gray-400 italic">No members assigned</p>
-              )}
+              <p className="text-gray-900 dark:text-white">
+                {viewingItem.location}
+              </p>
             </div>
 
             <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200 dark:border-gray-700">
