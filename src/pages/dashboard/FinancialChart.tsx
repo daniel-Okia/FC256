@@ -50,7 +50,7 @@ const FinancialChart: React.FC<FinancialChartProps> = ({ className }) => {
         
         // Calculate monthly trends for the last 6 months
         const now = new Date();
-        const monthlyData: FinancialTrend[] = [];
+        let monthlyData: FinancialTrend[] = [];
         
         for (let i = 5; i >= 0; i--) {
           const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
@@ -80,12 +80,26 @@ const FinancialChart: React.FC<FinancialChartProps> = ({ className }) => {
             })
             .reduce((sum, e) => sum + (parseFloat(String(e.amount)) || 0), 0);
           
-          monthlyData.push({
-            month: shortMonth,
-            contributions: Math.round(monthContributions),
-            expenses: Math.round(monthExpenses),
-            net: Math.round(monthContributions - monthExpenses),
-          });
+          // Only include months that have contributions OR expenses (not empty months)
+          if (monthContributions > 0 || monthExpenses > 0) {
+            monthlyData.push({
+              month: shortMonth,
+              contributions: Math.round(monthContributions),
+              expenses: Math.round(monthExpenses),
+              net: Math.round(monthContributions - monthExpenses),
+            });
+          }
+        }
+        
+        // If no months have data, show a message instead of empty chart
+        if (monthlyData.length === 0) {
+          // Create a single entry to show "No Data" state
+          monthlyData = [{
+            month: 'No Data',
+            contributions: 0,
+            expenses: 0,
+            net: 0,
+          }];
         }
         
         setFinancialTrends(monthlyData);
@@ -101,7 +115,7 @@ const FinancialChart: React.FC<FinancialChartProps> = ({ className }) => {
         
         const netBalance = totalContributions - totalExpenses;
         const monthlyAverage = monthlyData.length > 0 
-          ? monthlyData.reduce((sum, month) => sum + month.net, 0) / monthlyData.length
+          ? (monthlyData[0].month === 'No Data' ? 0 : monthlyData.reduce((sum, month) => sum + month.net, 0) / monthlyData.length)
           : 0;
         
         setTotalStats({
