@@ -1066,7 +1066,12 @@ export class InventoryPDFExporter extends BasePDFExporter {
         quantity: `${item.quantity}/${item.maxQuantity}`,
         condition: item.condition.replace(/\b\w/g, l => l.toUpperCase()),
         status: item.status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()),
-        location: item.location,
+        responsibleMembers: item.allocatedMembers && item.allocatedMembers.length > 0 
+          ? item.allocatedMembers.map(memberId => {
+              // Note: In a real implementation, you'd need to pass members data to get names
+              return `Member ${memberId.slice(-4)}`; // Show last 4 chars of ID as placeholder
+            }).join(', ')
+          : 'No members assigned',
         lastChecked: formatDate(item.lastChecked, 'MMM d, yyyy'),
       }));
 
@@ -1077,7 +1082,7 @@ export class InventoryPDFExporter extends BasePDFExporter {
         { header: 'Stock Level', dataKey: 'quantity' },
         { header: 'Condition', dataKey: 'condition' },
         { header: 'Status', dataKey: 'status' },
-        { header: 'Location', dataKey: 'location' },
+        { header: 'Responsible Members', dataKey: 'responsibleMembers' },
         { header: 'Last Checked', dataKey: 'lastChecked' },
       ],
       inventoryRows,

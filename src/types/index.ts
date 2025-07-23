@@ -281,7 +281,7 @@ export interface InventoryItem {
   maxQuantity: number; // Maximum stock level
   status: InventoryStatus;
   condition: InventoryCondition;
-  location: string; // Where the item is stored
+  allocatedMembers: string[]; // Member IDs responsible for the item
   lastChecked: string;
   checkedBy: string;
   createdAt: string;
