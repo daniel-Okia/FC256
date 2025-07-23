@@ -144,6 +144,12 @@ service cloud.firestore {
       allow read, write: if isAdminOrManager();
     }
     
+    // Inventory collection - all can read, admins/managers can write
+    match /inventory/{inventoryId} {
+      allow read: if isValidUser();
+      allow write: if isAdminOrManager();
+    }
+    
     // Deny all other requests
     match /{document=**} {
       allow read, write: if false;
