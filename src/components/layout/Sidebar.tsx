@@ -10,7 +10,8 @@ import {
   User,
   X,
   ClipboardList,
-  Package
+  Package,
+  TrendingUp
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { canUserAccess, Permissions } from '../../utils/permissions';
@@ -78,6 +79,12 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       name: 'Profile', 
       path: '/profile', 
       icon: User, 
+      roles: Permissions.VIEW_DASHBOARD 
+    },
+    { 
+      name: 'Analytics', 
+      path: '/analytics', 
+      icon: TrendingUp, 
       roles: Permissions.VIEW_DASHBOARD 
     },
   ];
