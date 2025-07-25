@@ -20,6 +20,7 @@ import { PlayerAnalyticsPDFExporter } from '../../utils/pdf-export';
 interface PlayerAnalytics {
   member: Member;
   attendanceRate: number;
+  normalizedAttendanceRate: number;
   totalSessions: number;
   attendedSessions: number;
   lateArrivals: number;
@@ -186,14 +187,15 @@ const PlayerAnalytics: React.FC = () => {
       const lateArrivals = memberAttendance.filter(a => a.status === 'late').length;
       const excusedAbsences = memberAttendance.filter(a => a.status === 'excused').length;
       
-      // Calculate normalized attendance rate
-      let attendanceRate = 0;
+      // Calculate individual attendance rate (for display)
+      const individualAttendanceRate = totalSessions > 0 ? (attendedSessions / totalSessions) * 100 : 0;
+      
+      // Calculate normalized attendance rate (for overall rating calculation)
       let normalizedAttendanceRate = 0;
       
       if (member.position === 'Coach' || member.position === 'Manager') {
         // Coaches and managers use their own attendance rate
-        attendanceRate = totalSessions > 0 ? (attendedSessions / totalSessions) * 100 : 0;
-        normalizedAttendanceRate = attendanceRate;
+        normalizedAttendanceRate = individualAttendanceRate;
       } else {
         // For players, normalize based on maximum regular player sessions
         const regularPlayers = members.filter(m => 
@@ -211,7 +213,6 @@ const PlayerAnalytics: React.FC = () => {
           1 // Minimum of 1 to avoid division by zero
         );
         
-        attendanceRate = totalSessions > 0 ? (attendedSessions / totalSessions) * 100 : 0;
         normalizedAttendanceRate = maxPlayerSessions > 0 ? (attendedSessions / maxPlayerSessions) * 100 : 0;
         
         // Cap normalized rate at 100%
@@ -323,12 +324,19 @@ const PlayerAnalytics: React.FC = () => {
       );
 
       // Overall rating calculation with updated weights
-      // Attendance: 50%, Performance: 35%, Contributions: 15%
-      const overallRating = Math.round(
-        (attendanceScore * 0.50) + 
-        (performanceScore * 0.35) + 
-        (contributionScore * 0.15)
-      );
+      // Only calculate rating if player has some activity (attendance, performance, or contributions)
+      let overallRating = 0;
+      
+      const hasActivity = totalSessions > 0 || matchesPlayed > 0 || memberContributions.length > 0;
+      
+      if (hasActivity) {
+        // Attendance: 50%, Performance: 35%, Contributions: 15%
+        overallRating = Math.round(
+          (attendanceScore * 0.50) + 
+          (performanceScore * 0.35) + 
+          (contributionScore * 0.15)
+        );
+      }
 
       // Recent data (last 10 records)
       const recentAttendance = memberAttendance
@@ -358,7 +366,8 @@ const PlayerAnalytics: React.FC = () => {
 
       return {
         member,
-        attendanceRate: normalizedAttendanceRate, // Use normalized rate for display
+        attendanceRate: individualAttendanceRate, // Use individual rate for display
+        normalizedAttendanceRate, // Keep normalized rate for calculations
         totalSessions,
         attendedSessions,
         lateArrivals,
@@ -586,7 +595,7 @@ const PlayerAnalytics: React.FC = () => {
     <div>
       <PageHeader
         title="Player Analytics"
-        description={`Fair individual performance analysis with normalized attendance, position-specific adjustments, and weighted ratings for ${teamStats.totalPlayers} players`}
+        description={`Individual performance analysis with weighted ratings for ${teamStats.totalPlayers} players`}
         actions={
           canExport && (
             <Button
@@ -601,44 +610,24 @@ const PlayerAnalytics: React.FC = () => {
         }
       />
 
-      {/* Rating System Explanation */}
+      {/* Rating System Weights */}
       <Card className="mb-6 bg-gradient-to-r from-blue-50 to-green-50 dark:from-blue-900/20 dark:to-green-900/20 border border-blue-200 dark:border-blue-800">
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
-            <TrendingUp size={20} className="mr-2 text-blue-600 dark:text-blue-400" />
-            Fair Rating System
+        <div className="text-center">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+            Overall Rating Calculation
           </h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-            <div className="bg-white dark:bg-neutral-800 rounded-lg p-4 border border-blue-200 dark:border-blue-700">
-              <h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-2">
-                📊 Attendance (50%)
-              </h4>
-              <ul className="space-y-1 text-blue-700 dark:text-blue-300">
-                <li>• Normalized against max player sessions</li>
-                <li>• Coaches use their own rate</li>
-                <li>• Fair comparison across all players</li>
-              </ul>
+          <div className="grid grid-cols-3 gap-6">
+            <div>
+              <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">50%</div>
+              <div className="text-sm font-medium text-gray-700 dark:text-gray-300">Attendance</div>
             </div>
-            <div className="bg-white dark:bg-neutral-800 rounded-lg p-4 border border-green-200 dark:border-green-700">
-              <h4 className="font-semibold text-green-900 dark:text-green-100 mb-2">
-                ⚽ Performance (35%)
-              </h4>
-              <ul className="space-y-1 text-green-700 dark:text-green-300">
-                <li>• Goals, assists, MOTM awards</li>
-                <li>• Defensive bonuses for team goals</li>
-                <li>• Penalties for goals conceded</li>
-                <li>• Card deductions</li>
-              </ul>
+            <div>
+              <div className="text-2xl font-bold text-green-600 dark:text-green-400">35%</div>
+              <div className="text-sm font-medium text-gray-700 dark:text-gray-300">Performance</div>
             </div>
-            <div className="bg-white dark:bg-neutral-800 rounded-lg p-4 border border-purple-200 dark:border-purple-700">
-              <h4 className="font-semibold text-purple-900 dark:text-purple-100 mb-2">
-                💰 Contributions (15%)
-              </h4>
-              <ul className="space-y-1 text-purple-700 dark:text-purple-300">
-                <li>• Monetary and in-kind contributions</li>
-                <li>• Amount-based scoring</li>
-                <li>• Team support recognition</li>
-              </ul>
+            <div>
+              <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">15%</div>
+              <div className="text-sm font-medium text-gray-700 dark:text-gray-300">Contributions</div>
             </div>
           </div>
         </div>
