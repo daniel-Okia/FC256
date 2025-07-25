@@ -793,7 +793,7 @@ const PlayerAnalytics: React.FC = () => {
                 </h4>
                 <div className="space-y-3">
                   <div className="flex justify-between">
-                    <span className="text-sm text-blue-700 dark:text-blue-300">Individual Rate:</span>
+                    <span className="text-sm text-blue-700 dark:text-blue-300">Normalized Rate:</span>
                     <span className="font-bold text-blue-900 dark:text-blue-100">
                       {Math.round(selectedPlayer.attendanceRate)}%
                     </span>
@@ -864,19 +864,6 @@ const PlayerAnalytics: React.FC = () => {
                       {selectedPlayer.yellowCards}Y {selectedPlayer.redCards}R
                     </span>
                   </div>
-                  {(selectedPlayer.member.position === 'Goalkeeper' || 
-                    selectedPlayer.member.position === 'Centre-back' || 
-                    selectedPlayer.member.position === 'Left-back' || 
-                    selectedPlayer.member.position === 'Right-back' || 
-                    selectedPlayer.member.position === 'Sweeper') && (
-                    <div className="pt-2 border-t border-green-200 dark:border-green-700">
-                      <div className="text-xs text-green-600 dark:text-green-400 space-y-1">
-                        <p>• Team goal/assist bonuses applied</p>
-                        <p>• Goals conceded penalties applied</p>
-                        <p>• Defensive position adjustments</p>
-                      </div>
-                    </div>
-                  )}
                   <div className="pt-2 border-t border-green-200 dark:border-green-700">
                     <div className="flex justify-between">
                       <span className="text-sm font-medium text-green-700 dark:text-green-300">Score:</span>
