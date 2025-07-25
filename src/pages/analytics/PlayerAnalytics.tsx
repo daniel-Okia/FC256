@@ -793,7 +793,7 @@ const PlayerAnalytics: React.FC = () => {
                 </h4>
                 <div className="space-y-3">
                   <div className="flex justify-between">
-                    <span className="text-sm text-blue-700 dark:text-blue-300">Normalized Rate:</span>
+                    <span className="text-sm text-blue-700 dark:text-blue-300">Individual Rate:</span>
                     <span className="font-bold text-blue-900 dark:text-blue-100">
                       {Math.round(selectedPlayer.attendanceRate)}%
                     </span>
