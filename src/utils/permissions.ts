@@ -36,14 +36,10 @@ export const Permissions = {
   MANAGE_LEADERSHIP: ['admin', 'manager'] as UserRole[],
   
   // Contribution and Expense permissions
-  VIEW_TRANSACTIONS: ['admin', 'manager', 'member'] as UserRole[], // Allow members to view transactions
-  CREATE_TRANSACTION: ['admin', 'manager'] as UserRole[],
-  EDIT_TRANSACTION: ['admin', 'manager'] as UserRole[],
-  DELETE_TRANSACTION: ['admin', 'manager'] as UserRole[],
-  
-  // Membership Fee permissions
-  VIEW_MEMBERSHIP_FEES: ['admin', 'manager', 'member'] as UserRole[],
-  MANAGE_MEMBERSHIP_FEES: ['admin'] as UserRole[], // Only admins can manage membership fees
+  VIEW_CONTRIBUTIONS: ['admin', 'manager', 'member'] as UserRole[], // Allow members to view contributions
+  CREATE_CONTRIBUTION: ['admin', 'manager'] as UserRole[],
+  EDIT_CONTRIBUTION: ['admin', 'manager'] as UserRole[],
+  DELETE_CONTRIBUTION: ['admin', 'manager'] as UserRole[],
   
   // Dashboard permissions
   VIEW_DASHBOARD: ['admin', 'manager', 'member'] as UserRole[],

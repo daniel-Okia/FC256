@@ -11,8 +11,7 @@ import {
   X,
   ClipboardList,
   Package,
-  TrendingUp,
-  DollarSign
+  TrendingUp
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { canUserAccess, Permissions } from '../../utils/permissions';
@@ -71,16 +70,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       roles: Permissions.VIEW_LEADERSHIP 
     },
     { 
-      name: 'Transactions', 
-      path: '/transactions', 
+      name: 'Contributions', 
+      path: '/contributions', 
       icon: CreditCard, 
-      roles: Permissions.VIEW_TRANSACTIONS 
-    },
-    { 
-      name: 'Membership Fees', 
-      path: '/membership-fees', 
-      icon: DollarSign, 
-      roles: Permissions.VIEW_MEMBERSHIP_FEES 
+      roles: Permissions.VIEW_CONTRIBUTIONS 
     },
     { 
       name: 'Profile', 

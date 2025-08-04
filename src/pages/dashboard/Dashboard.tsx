@@ -56,7 +56,7 @@ const Dashboard: React.FC = () => {
   });
 
   const canExport = user && canUserAccess(user.role, Permissions.EXPORT_REPORTS);
-  const canViewFinancials = user && canUserAccess(user.role, Permissions.VIEW_TRANSACTIONS);
+  const canViewFinancials = user && canUserAccess(user.role, Permissions.VIEW_CONTRIBUTIONS);
   const canViewEvents = user && canUserAccess(user.role, Permissions.VIEW_EVENTS);
 
   useEffect(() => {

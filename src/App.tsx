@@ -13,8 +13,7 @@ import MemberDetail from './pages/members/MemberDetail';
 import Training from './pages/training/Training';
 import Friendlies from './pages/friendlies/Friendlies';
 import Leadership from './pages/leadership/Leadership';
-import Transactions from './pages/transactions/Transactions';
-import MembershipFees from './pages/membership-fees/MembershipFees';
+import Contributions from './pages/contributions/Contributions';
 import Attendance from './pages/attendance/Attendance';
 import Profile from './pages/profile/Profile';
 import Inventory from './pages/inventory/Inventory';
@@ -100,19 +99,10 @@ function App() {
             />
             
             <Route 
-              path="/transactions" 
+              path="/contributions" 
               element={
                 <ProtectedRoute>
-                  <Transactions />
-                </ProtectedRoute>
-              } 
-            />
-            
-            <Route 
-              path="/membership-fees" 
-              element={
-                <ProtectedRoute>
-                  <MembershipFees />
+                  <Contributions />
                 </ProtectedRoute>
               } 
             />
