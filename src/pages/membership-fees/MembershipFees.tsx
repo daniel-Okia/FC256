@@ -470,8 +470,18 @@ const MembershipFees: React.FC = () => {
   const handleExport = async () => {
     try {
       setExporting(true);
-      // TODO: Implement membership fees PDF export
-      console.log('Exporting membership fees...');
+      
+      const { MembershipFeesPDFExporter } = await import('../../utils/pdf-export');
+      const exporter = new MembershipFeesPDFExporter();
+      exporter.exportMembershipFees({
+        membershipFees,
+        membershipStatuses,
+        members,
+        totalCollected,
+        totalOwed,
+        currentMembers,
+        overdueMembers,
+      });
     } catch (error) {
       console.error('Error exporting membership fees:', error);
     } finally {

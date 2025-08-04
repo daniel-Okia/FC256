@@ -341,7 +341,7 @@ const RecentTransactions: React.FC<RecentTransactionsProps> = ({ className }) =>
               Showing latest {transactions.length} transactions
             </p>
             <a
-              href="/contributions"
+              href="/transactions"
               className="text-sm font-medium text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors"
             >
               View all transactions →
