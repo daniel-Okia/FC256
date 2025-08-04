@@ -174,6 +174,8 @@ export interface Leadership {
 // Contribution Types
 export type ContributionType = 'monetary' | 'in-kind';
 export type PaymentMethod = 'cash' | 'bank transfer' | 'mobile money' | 'other';
+export type MembershipPeriod = 'monthly' | 'quarterly';
+export type MembershipStatus = 'current' | 'overdue' | 'paid_ahead';
 
 export interface Contribution {
   id: string;
@@ -186,6 +188,32 @@ export interface Contribution {
   date: string;
   recordedBy: string;
   recordedAt: string;
+}
+
+// Membership Fee Types
+export interface MembershipFee {
+  id: string;
+  memberId: string;
+  period: MembershipPeriod;
+  amount: number; // Amount in UGX (15000 for monthly)
+  paymentDate: string;
+  periodCovered: string; // e.g., "2024-01" for January 2024 or "2024-Q1" for Q1 2024
+  paymentMethod: PaymentMethod;
+  notes?: string;
+  recordedBy: string;
+  recordedAt: string;
+}
+
+export interface MembershipStatus {
+  memberId: string;
+  member: Member;
+  currentStatus: MembershipStatus;
+  lastPaymentDate?: string;
+  lastPeriodCovered?: string;
+  monthsOwed: number;
+  totalOwed: number; // Amount owed in UGX
+  paidMonths: string[]; // Array of periods paid for (e.g., ["2024-01", "2024-02"])
+  nextDueDate: string;
 }
 
 // Expense Types

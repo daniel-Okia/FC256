@@ -604,8 +604,8 @@ export class MembersPDFExporter extends BasePDFExporter {
 /**
  * Contributions & Expenses PDF Export
  */
-export class ContributionsPDFExporter extends BasePDFExporter {
-  exportContributions(data: {
+export class TransactionsPDFExporter extends BasePDFExporter {
+  exportTransactions(data: {
     contributions: Contribution[];
     expenses: Expense[];
     members: Member[];
@@ -613,10 +613,10 @@ export class ContributionsPDFExporter extends BasePDFExporter {
     totalExpenses: number;
     remainingBalance: number;
   }): void {
-    console.log('Exporting contributions with data:', data);
+    console.log('Exporting transactions with data:', data);
     
     this.addHeader(
-      'FINANCIAL REPORT', 
+      'TRANSACTIONS REPORT', 
       `Contributions & Expenses Analysis - ${formatDate(new Date().toISOString())}`
     );
 
@@ -703,10 +703,119 @@ export class ContributionsPDFExporter extends BasePDFExporter {
       );
     }
 
-    this.save('fc256-financial-report');
+    this.save('fc256-transactions-report');
   }
 }
 
+/**
+ * Membership Fees PDF Export
+ */
+export class MembershipFeesPDFExporter extends BasePDFExporter {
+  exportMembershipFees(data: {
+    membershipFees: any[];
+    membershipStatuses: any[];
+    members: Member[];
+    totalCollected: number;
+    totalOwed: number;
+    currentMembers: number;
+    overdueMembers: number;
+  }): void {
+    console.log('Exporting membership fees with data:', data);
+    
+    this.addHeader(
+      'MEMBERSHIP FEES REPORT', 
+      `Monthly and quarterly membership fee tracking - ${formatDate(new Date().toISOString())}`
+    );
+
+    // Membership fee statistics
+    this.addStatsSection([
+      { 
+        label: 'Total Collected', 
+        value: formatUGX(data.totalCollected),
+        color: COLORS.success,
+      },
+      { 
+        label: 'Current Members', 
+        value: data.currentMembers.toString(),
+        color: COLORS.info,
+      },
+      { 
+        label: 'Overdue Members', 
+        value: data.overdueMembers.toString(),
+        color: COLORS.danger,
+      },
+      { 
+        label: 'Total Outstanding', 
+        value: formatUGX(data.totalOwed),
+        color: COLORS.warning,
+      },
+    ]);
+
+    // Member status overview
+    const statusRows = data.membershipStatuses
+      .sort((a, b) => b.monthsOwed - a.monthsOwed)
+      .map(status => ({
+        name: status.member.name,
+        jersey: `#${status.member.jerseyNumber}`,
+        status: status.currentStatus.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()),
+        monthsOwed: status.monthsOwed.toString(),
+        amountOwed: formatUGX(status.totalOwed),
+        lastPayment: status.lastPaymentDate ? formatDate(status.lastPaymentDate, 'MMM d, yyyy') : 'No payments',
+        paidPeriods: status.paidPeriods.length.toString(),
+        totalPaid: formatUGX(status.paidPeriods.length * 15000),
+      }));
+
+    this.addTable(
+      [
+        { header: 'Member Name', dataKey: 'name' },
+        { header: 'Jersey', dataKey: 'jersey' },
+        { header: 'Status', dataKey: 'status' },
+        { header: 'Months Owed', dataKey: 'monthsOwed' },
+        { header: 'Amount Owed', dataKey: 'amountOwed' },
+        { header: 'Last Payment', dataKey: 'lastPayment' },
+        { header: 'Paid Periods', dataKey: 'paidPeriods' },
+        { header: 'Total Paid', dataKey: 'totalPaid' },
+      ],
+      statusRows,
+      { title: 'MEMBERSHIP STATUS OVERVIEW', headerColor: COLORS.primary }
+    );
+
+    // Recent payments
+    if (data.membershipFees.length > 0) {
+      const paymentRows = data.membershipFees
+        .sort((a, b) => new Date(b.paymentDate).getTime() - new Date(a.paymentDate).getTime())
+        .slice(0, 30)
+        .map(fee => {
+          const member = data.members.find(m => m.id === fee.memberId);
+          return {
+            date: formatDate(fee.paymentDate, 'MMM d, yyyy'),
+            member: member ? member.name : 'Unknown Member',
+            period: fee.period.charAt(0).toUpperCase() + fee.period.slice(1),
+            periodCovered: fee.periodCovered,
+            amount: formatUGX(fee.amount),
+            method: fee.paymentMethod.replace(/[_-]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+            notes: fee.notes || 'No notes'
+          };
+        });
+
+      this.addTable(
+        [
+          { header: 'Payment Date', dataKey: 'date' },
+          { header: 'Member Name', dataKey: 'member' },
+          { header: 'Period Type', dataKey: 'period' },
+          { header: 'Period Covered', dataKey: 'periodCovered' },
+          { header: 'Amount', dataKey: 'amount' },
+          { header: 'Payment Method', dataKey: 'method' },
+          { header: 'Notes', dataKey: 'notes' },
+        ],
+        paymentRows,
+        { title: 'RECENT MEMBERSHIP FEE PAYMENTS', headerColor: COLORS.success }
+      );
+    }
+
+    this.save('fc256-membership-fees');
+  }
+}
 /**
  * Events PDF Export
  */
