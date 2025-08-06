@@ -183,15 +183,19 @@ const MembershipFees: React.FC = () => {
   });
 
   useEffect(() => {
+    // Calculate stats based on actual fee records, not member status
+    const paidFees = membershipFees.filter(fee => fee.status === 'paid').length;
+    const pendingFees = membershipFees.filter(fee => fee.status === 'pending' || fee.status === 'partial').length;
+    const totalCollected = membershipFees.reduce((sum, fee) => sum + fee.amountPaid, 0);
+    
     setStats({
-      totalMembers: membersWithStatus.length,
-      paidMembers: membersWithStatus.filter(m => m.status === 'active').length,
-      pendingPayments: membersWithStatus.filter(m => m.status === 'pending').length,
-      totalCollected: membersWithStatus.reduce((sum, m) => sum + m.totalPaid, 0),
-      totalOutstanding: membersWithStatus.reduce((sum, m) => sum + m.totalOwed, 0),
-      overdueCount: membersWithStatus.filter(m => m.status === 'overdue').length,
+      totalMembers: members.filter(m => m.status === 'active').length,
+      paidMembers: paidFees,
+      pendingPayments: pendingFees,
+      totalCollected: Math.round(totalCollected),
+      totalOutstanding: 0, // Not used anymore
+      overdueCount: 0, // Not used anymore
     });
-  }, [membersWithStatus]);
 
   // Overview columns for member status
   const overviewColumns = [
@@ -729,20 +733,6 @@ const MembershipFees: React.FC = () => {
           </div>
         </div>
         
-        <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-4 border border-red-200 dark:border-red-800">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-red-600 dark:text-red-400">
-                Overdue
-              </p>
-              <p className="text-2xl font-bold text-red-900 dark:text-red-100">
-                {stats.overdueCount}
-              </p>
-            </div>
-            <AlertTriangle className="h-8 w-8 text-red-600 dark:text-red-400" />
-          </div>
-        </div>
-        
         <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-4 border border-purple-200 dark:border-purple-800">
           <div className="flex items-center justify-between">
             <div>
@@ -757,17 +747,17 @@ const MembershipFees: React.FC = () => {
           </div>
         </div>
         
-        <div className="bg-orange-50 dark:bg-orange-900/20 rounded-lg p-4 border border-orange-200 dark:border-orange-800">
+        <div className="bg-indigo-50 dark:bg-indigo-900/20 rounded-lg p-4 border border-indigo-200 dark:border-indigo-800">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-orange-600 dark:text-orange-400">
-                Outstanding
+              <p className="text-sm font-medium text-indigo-600 dark:text-indigo-400">
+                Total Records
               </p>
-              <p className="text-xl font-bold text-orange-900 dark:text-orange-100">
-                {formatUGX(stats.totalOutstanding)}
+              <p className="text-xl font-bold text-indigo-900 dark:text-indigo-100">
+                {membershipFees.length}
               </p>
             </div>
-            <DollarSign className="h-6 w-6 text-orange-600 dark:text-orange-400" />
+            <Calendar className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
           </div>
         </div>
       </div>
