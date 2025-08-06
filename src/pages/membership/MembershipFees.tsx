@@ -196,6 +196,7 @@ const MembershipFees: React.FC = () => {
       totalOutstanding: 0, // Not used anymore
       overdueCount: 0, // Not used anymore
     });
+  }, [members, membershipFees]);
 
   // Overview columns for member status
   const overviewColumns = [
