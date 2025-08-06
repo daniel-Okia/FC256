@@ -185,7 +185,9 @@ const MembershipFees: React.FC = () => {
   useEffect(() => {
     // Calculate stats based on actual fee records, not member status
     const paidFees = membershipFees.filter(fee => fee.status === 'paid').length;
-    const pendingFees = membershipFees.filter(fee => fee.status === 'pending' || fee.status === 'partial').length;
+    const pendingFees = membershipFees.filter(fee => 
+      fee.status === 'pending' || fee.status === 'partial' || fee.status === 'overdue'
+    ).length;
     const totalCollected = membershipFees.reduce((sum, fee) => sum + fee.amountPaid, 0);
     
     setStats({
