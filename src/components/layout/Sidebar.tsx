@@ -11,7 +11,7 @@ import {
   X,
   ClipboardList,
   Package,
-  TrendingUp
+  TrendingUp,
   CreditCard as MembershipIcon
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
