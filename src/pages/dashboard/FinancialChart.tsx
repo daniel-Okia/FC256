@@ -13,7 +13,7 @@ import {
 import { TrendingUp, TrendingDown, DollarSign, Calendar } from 'lucide-react';
 import Card from '../../components/ui/Card';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
-import { ContributionService, ExpenseService } from '../../services/firestore';
+import { ContributionService, ExpenseService, MembershipFeeService } from '../../services/firestore';
 import { Contribution, Expense, FinancialTrend } from '../../types';
 import { formatUGX } from '../../utils/currency-utils';
 
@@ -23,13 +23,21 @@ interface FinancialChartProps {
   className?: string;
 }
 
+interface EnhancedFinancialTrend extends FinancialTrend {
+  membershipFees: number;
+  totalIncome: number;
+}
+
 const FinancialChart: React.FC<FinancialChartProps> = ({ className }) => {
   const [contributions, setContributions] = useState<Contribution[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [financialTrends, setFinancialTrends] = useState<FinancialTrend[]>([]);
+  const [membershipFees, setMembershipFees] = useState<any[]>([]);
+  const [financialTrends, setFinancialTrends] = useState<EnhancedFinancialTrend[]>([]);
   const [loading, setLoading] = useState(true);
   const [totalStats, setTotalStats] = useState({
     totalContributions: 0,
+    totalMembershipFees: 0,
+    totalIncome: 0,
     totalExpenses: 0,
     netBalance: 0,
     monthlyAverage: 0,
@@ -40,17 +48,19 @@ const FinancialChart: React.FC<FinancialChartProps> = ({ className }) => {
       try {
         setLoading(true);
         
-        const [contributionsData, expensesData] = await Promise.all([
+        const [contributionsData, expensesData, membershipFeesData] = await Promise.all([
           ContributionService.getAllContributions(),
           ExpenseService.getAllExpenses(),
+          MembershipFeeService.getAllMembershipFees(),
         ]);
         
         setContributions(contributionsData);
         setExpenses(expensesData);
+        setMembershipFees(membershipFeesData);
         
         // Calculate monthly trends for the last 6 months
         const now = new Date();
-        let monthlyData: FinancialTrend[] = [];
+        let monthlyData: EnhancedFinancialTrend[] = [];
         
         for (let i = 5; i >= 0; i--) {
           const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
@@ -69,6 +79,17 @@ const FinancialChart: React.FC<FinancialChartProps> = ({ className }) => {
             })
             .reduce((sum, c) => sum + (parseFloat(String(c.amount)) || 0), 0);
           
+          // Calculate membership fees for this month
+          const monthMembershipFees = membershipFeesData
+            .filter(fee => {
+              const feeDate = new Date(fee.recordedAt);
+              return feeDate.getMonth() === date.getMonth() && 
+                     feeDate.getFullYear() === date.getFullYear() &&
+                     fee.amountPaid !== undefined &&
+                     fee.amountPaid !== null;
+            })
+            .reduce((sum, fee) => sum + (parseFloat(String(fee.amountPaid)) || 0), 0);
+          
           // Calculate expenses for this month
           const monthExpenses = expensesData
             .filter(e => {
@@ -80,13 +101,18 @@ const FinancialChart: React.FC<FinancialChartProps> = ({ className }) => {
             })
             .reduce((sum, e) => sum + (parseFloat(String(e.amount)) || 0), 0);
           
-          // Only include months that have contributions OR expenses (not empty months)
-          if (monthContributions > 0 || monthExpenses > 0) {
+          // Calculate total income for the month
+          const monthTotalIncome = monthContributions + monthMembershipFees;
+          
+          // Only include months that have income OR expenses (not empty months)
+          if (monthTotalIncome > 0 || monthExpenses > 0) {
             monthlyData.push({
               month: shortMonth,
               contributions: Math.round(monthContributions),
+              membershipFees: Math.round(monthMembershipFees),
+              totalIncome: Math.round(monthTotalIncome),
               expenses: Math.round(monthExpenses),
-              net: Math.round(monthContributions - monthExpenses),
+              net: Math.round(monthTotalIncome - monthExpenses),
             });
           }
         }
@@ -97,6 +123,8 @@ const FinancialChart: React.FC<FinancialChartProps> = ({ className }) => {
           monthlyData = [{
             month: 'No Data',
             contributions: 0,
+            membershipFees: 0,
+            totalIncome: 0,
             expenses: 0,
             net: 0,
           }];
@@ -109,17 +137,25 @@ const FinancialChart: React.FC<FinancialChartProps> = ({ className }) => {
           .filter(c => c.type === 'monetary' && c.amount !== undefined && c.amount !== null)
           .reduce((sum, c) => sum + (parseFloat(String(c.amount)) || 0), 0);
         
+        const totalMembershipFees = membershipFeesData
+          .filter(fee => fee.amountPaid !== undefined && fee.amountPaid !== null)
+          .reduce((sum, fee) => sum + (parseFloat(String(fee.amountPaid)) || 0), 0);
+        
+        const totalIncome = totalContributions + totalMembershipFees;
+        
         const totalExpenses = expensesData
           .filter(e => e.amount !== undefined && e.amount !== null)
           .reduce((sum, e) => sum + (parseFloat(String(e.amount)) || 0), 0);
         
-        const netBalance = totalContributions - totalExpenses;
+        const netBalance = totalIncome - totalExpenses;
         const monthlyAverage = monthlyData.length > 0 
-          ? (monthlyData[0].month === 'No Data' ? 0 : monthlyData.reduce((sum, month) => sum + month.net, 0) / monthlyData.length)
+          ? (monthlyData[0].month === 'No Data' ? 0 : monthlyData.reduce((sum, month) => sum + month.totalIncome, 0) / monthlyData.length)
           : 0;
         
         setTotalStats({
           totalContributions: Math.round(totalContributions),
+          totalMembershipFees: Math.round(totalMembershipFees),
+          totalIncome: Math.round(totalIncome),
           totalExpenses: Math.round(totalExpenses),
           netBalance: Math.round(netBalance),
           monthlyAverage: Math.round(monthlyAverage),
@@ -143,9 +179,14 @@ const FinancialChart: React.FC<FinancialChartProps> = ({ className }) => {
       loadFinancialData();
     });
 
+    const unsubscribeMembershipFees = MembershipFeeService.subscribeToMembershipFees(() => {
+      loadFinancialData();
+    });
+
     return () => {
       unsubscribeContributions();
       unsubscribeExpenses();
+      unsubscribeMembershipFees();
     };
   }, []);
 
@@ -157,6 +198,15 @@ const FinancialChart: React.FC<FinancialChartProps> = ({ className }) => {
         data: financialTrends.map(trend => trend.contributions),
         backgroundColor: 'rgba(34, 197, 94, 0.8)',
         borderColor: 'rgba(34, 197, 94, 1)',
+        borderWidth: 2,
+        borderRadius: 4,
+        borderSkipped: false,
+      },
+      {
+        label: 'Membership Fees',
+        data: financialTrends.map(trend => trend.membershipFees),
+        backgroundColor: 'rgba(147, 51, 234, 0.8)',
+        borderColor: 'rgba(147, 51, 234, 1)',
         borderWidth: 2,
         borderRadius: 4,
         borderSkipped: false,
@@ -269,18 +319,18 @@ const FinancialChart: React.FC<FinancialChartProps> = ({ className }) => {
   return (
     <Card
       title="Financial Trends"
-      subtitle="Monthly contributions and expenses overview (Last 6 months)"
+      subtitle="Monthly income (contributions + membership fees) and expenses (Last 6 months)"
       className={className}
     >
       {financialTrends.length > 0 ? (
         <div>
           {/* Summary Stats */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
             <div className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-xl p-4 border border-green-200 dark:border-green-800">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-semibold text-green-600 dark:text-green-400">
-                    Total Income
+                    Contributions
                   </p>
                   <p className="text-lg font-bold text-green-900 dark:text-green-100">
                     {formatUGX(totalStats.totalContributions)}
@@ -288,6 +338,22 @@ const FinancialChart: React.FC<FinancialChartProps> = ({ className }) => {
                 </div>
                 <div className="p-2 bg-green-200 dark:bg-green-800 rounded-lg">
                   <TrendingUp className="h-5 w-5 text-green-600 dark:text-green-400" />
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 rounded-xl p-4 border border-purple-200 dark:border-purple-800">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-purple-600 dark:text-purple-400">
+                    Membership Fees
+                  </p>
+                  <p className="text-lg font-bold text-purple-900 dark:text-purple-100">
+                    {formatUGX(totalStats.totalMembershipFees)}
+                  </p>
+                </div>
+                <div className="p-2 bg-purple-200 dark:bg-purple-800 rounded-lg">
+                  <DollarSign className="h-5 w-5 text-purple-600 dark:text-purple-400" />
                 </div>
               </div>
             </div>
@@ -344,18 +410,18 @@ const FinancialChart: React.FC<FinancialChartProps> = ({ className }) => {
               </div>
             </div>
             
-            <div className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 rounded-xl p-4 border border-purple-200 dark:border-purple-800">
+            <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 dark:from-indigo-900/20 dark:to-indigo-800/20 rounded-xl p-4 border border-indigo-200 dark:border-indigo-800">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-semibold text-purple-600 dark:text-purple-400">
+                  <p className="text-sm font-semibold text-indigo-600 dark:text-indigo-400">
                     Monthly Avg
                   </p>
-                  <p className="text-lg font-bold text-purple-900 dark:text-purple-100">
+                  <p className="text-lg font-bold text-indigo-900 dark:text-indigo-100">
                     {formatUGX(Math.abs(totalStats.monthlyAverage))}
                   </p>
                 </div>
-                <div className="p-2 bg-purple-200 dark:bg-purple-800 rounded-lg">
-                  <Calendar className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                <div className="p-2 bg-indigo-200 dark:bg-indigo-800 rounded-lg">
+                  <Calendar className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
                 </div>
               </div>
             </div>
@@ -391,10 +457,22 @@ const FinancialChart: React.FC<FinancialChartProps> = ({ className }) => {
                   </div>
                   <div className="space-y-1 text-xs">
                     <div className="flex justify-between">
-                      <span className="text-gray-500 dark:text-gray-400">Income:</span>
-                      <span className="text-green-600 dark:text-green-400">
+                        <span className="text-purple-600 dark:text-purple-400">
+                          {formatUGX(trend.totalIncome)}
                         {formatUGX(trend.contributions)}
                       </span>
+                      <div className="flex justify-between ml-2">
+                        <span className="text-gray-400 dark:text-gray-500">• Contributions:</span>
+                        <span className="text-green-600 dark:text-green-400">
+                          {formatUGX(trend.contributions)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between ml-2">
+                        <span className="text-gray-400 dark:text-gray-500">• Membership:</span>
+                        <span className="text-purple-600 dark:text-purple-400">
+                          {formatUGX(trend.membershipFees)}
+                        </span>
+                      </div>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-500 dark:text-gray-400">Expenses:</span>
@@ -418,7 +496,7 @@ const FinancialChart: React.FC<FinancialChartProps> = ({ className }) => {
               No Financial Data Available
             </h3>
             <p className="text-gray-500 dark:text-gray-400">
-              No contributions or expenses found to display financial trends.
+              No contributions, membership fees, or expenses found to display financial trends.
             </p>
           </div>
         </div>

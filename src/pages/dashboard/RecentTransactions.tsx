@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { CreditCard, TrendingDown, Users, TrendingUp } from 'lucide-react';
-import { ContributionService, ExpenseService, MemberService } from '../../services/firestore';
+import { ContributionService, ExpenseService, MemberService, MembershipFeeService } from '../../services/firestore';
 import Card from '../../components/ui/Card';
 import Badge from '../../components/ui/Badge';
 import Avatar from '../../components/ui/Avatar';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
-import { Contribution, Expense, Member } from '../../types';
+import { Contribution, Expense, Member, MembershipFee } from '../../types';
 import { formatDate } from '../../utils/date-utils';
 import { formatUGX } from '../../utils/currency-utils';
 
@@ -15,7 +15,7 @@ interface RecentTransactionsProps {
 
 interface Transaction {
   id: string;
-  type: 'contribution' | 'expense';
+  type: 'contribution' | 'expense' | 'membership';
   amount: number;
   description: string;
   date: string;
@@ -30,8 +30,10 @@ const RecentTransactions: React.FC<RecentTransactionsProps> = ({ className }) =>
   const [stats, setStats] = useState({
     totalContributors: 0,
     totalContributions: 0,
+    totalMembershipFees: 0,
     totalExpenses: 0,
     thisMonthContributions: 0,
+    thisMonthMembershipFees: 0,
     thisMonthExpenses: 0,
   });
 
@@ -40,10 +42,11 @@ const RecentTransactions: React.FC<RecentTransactionsProps> = ({ className }) =>
       try {
         setLoading(true);
         
-        // Load contributions, expenses, and members
-        const [contributions, expenses, members] = await Promise.all([
+        // Load contributions, expenses, membership fees, and members
+        const [contributions, expenses, membershipFees, members] = await Promise.all([
           ContributionService.getAllContributions(),
           ExpenseService.getAllExpenses(),
+          MembershipFeeService.getAllMembershipFees(),
           MemberService.getAllMembers(),
         ]);
 
@@ -73,6 +76,28 @@ const RecentTransactions: React.FC<RecentTransactionsProps> = ({ className }) =>
             };
           });
 
+        // Convert membership fees to transactions
+        const membershipTransactions: Transaction[] = membershipFees
+          .filter(fee => {
+            const feeDate = new Date(fee.recordedAt);
+            return feeDate >= thirtyDaysAgo && 
+                   fee.amountPaid !== undefined && 
+                   fee.amountPaid !== null &&
+                   fee.amountPaid > 0;
+          })
+          .map(fee => {
+            const member = members.find(m => m.id === fee.memberId);
+            return {
+              id: fee.id,
+              type: 'membership' as const,
+              amount: parseFloat(String(fee.amountPaid)) || 0,
+              description: `Membership fee payment (${fee.period.replace('_', ' ')})`,
+              date: fee.recordedAt,
+              member,
+              paymentMethod: fee.paymentMethod,
+            };
+          });
+
         // Convert expenses to transactions with proper number handling
         const expenseTransactions: Transaction[] = expenses
           .filter(expense => {
@@ -92,7 +117,7 @@ const RecentTransactions: React.FC<RecentTransactionsProps> = ({ className }) =>
           }));
 
         // Combine and sort by date (latest first)
-        const allTransactions = [...contributionTransactions, ...expenseTransactions]
+        const allTransactions = [...contributionTransactions, ...membershipTransactions, ...expenseTransactions]
           .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
           .slice(0, 10); // Get latest 10 transactions
 
@@ -113,6 +138,16 @@ const RecentTransactions: React.FC<RecentTransactionsProps> = ({ className }) =>
           })
           .reduce((sum, c) => sum + (parseFloat(String(c.amount)) || 0), 0);
 
+        const thisMonthMembershipFees = membershipFees
+          .filter(fee => {
+            const feeDate = new Date(fee.recordedAt);
+            return feeDate.getMonth() === currentMonth && 
+                   feeDate.getFullYear() === currentYear &&
+                   fee.amountPaid !== undefined &&
+                   fee.amountPaid !== null;
+          })
+          .reduce((sum, fee) => sum + (parseFloat(String(fee.amountPaid)) || 0), 0);
+
         const thisMonthExpenses = expenses
           .filter(expense => {
             const expenseDate = new Date(expense.date);
@@ -129,6 +164,10 @@ const RecentTransactions: React.FC<RecentTransactionsProps> = ({ className }) =>
           .filter(c => c.type === 'monetary' && c.amount !== undefined && c.amount !== null)
           .reduce((sum, c) => sum + (parseFloat(String(c.amount)) || 0), 0);
         
+        const totalMembershipFees = membershipFees
+          .filter(fee => fee.amountPaid !== undefined && fee.amountPaid !== null)
+          .reduce((sum, fee) => sum + (parseFloat(String(fee.amountPaid)) || 0), 0);
+        
         const totalExpenses = expenses
           .filter(e => e.amount !== undefined && e.amount !== null)
           .reduce((sum, e) => sum + (parseFloat(String(e.amount)) || 0), 0);
@@ -136,8 +175,10 @@ const RecentTransactions: React.FC<RecentTransactionsProps> = ({ className }) =>
         setStats({
           totalContributors: uniqueContributors,
           totalContributions: Math.round(totalContributions),
+          totalMembershipFees: Math.round(totalMembershipFees),
           totalExpenses: Math.round(totalExpenses),
           thisMonthContributions: Math.round(thisMonthContributions),
+          thisMonthMembershipFees: Math.round(thisMonthMembershipFees),
           thisMonthExpenses: Math.round(thisMonthExpenses),
         });
       } catch (error) {
@@ -159,6 +200,10 @@ const RecentTransactions: React.FC<RecentTransactionsProps> = ({ className }) =>
       loadTransactionsData();
     });
 
+    const unsubscribeMembershipFees = MembershipFeeService.subscribeToMembershipFees(() => {
+      loadTransactionsData();
+    });
+
     const unsubscribeMembers = MemberService.subscribeToMembers(() => {
       loadTransactionsData();
     });
@@ -166,12 +211,255 @@ const RecentTransactions: React.FC<RecentTransactionsProps> = ({ className }) =>
     return () => {
       unsubscribeContributions();
       unsubscribeExpenses();
+      unsubscribeMembershipFees();
       unsubscribeMembers();
     };
   }, []);
 
   const getTransactionIcon = (transaction: Transaction) => {
-    return transaction.type === 'contribution' ? (
+    if (transaction.type === 'contribution') {
+      return (
+        <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
+          <TrendingUp className="h-5 w-5 text-green-600 dark:text-green-400" />
+        </div>
+      );
+    } else if (transaction.type === 'membership') {
+      return (
+        <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+          <CreditCard className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+        </div>
+      );
+    } else {
+      return (
+        <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-lg">
+          <TrendingDown className="h-5 w-5 text-red-600 dark:text-red-400" />
+        </div>
+      );
+    }
+  };
+
+  const getTransactionBadgeVariant = (type: string) => {
+    switch (type) {
+      case 'contribution':
+        return 'success';
+      case 'membership':
+        return 'info';
+      case 'expense':
+        return 'danger';
+      default:
+        return 'default';
+    }
+  };
+
+  const getTransactionLabel = (type: string) => {
+    switch (type) {
+      case 'contribution':
+        return 'Contribution';
+      case 'membership':
+        return 'Membership Fee';
+      case 'expense':
+        return 'Expense';
+      default:
+        return type;
+    }
+  };
+
+  if (loading) {
+    return (
+      <Card
+        title="Recent Transactions"
+        subtitle="Latest contributions, membership fees, and expenses"
+        className={className}
+      >
+        <div className="flex justify-center py-8">
+          <LoadingSpinner size="md" />
+        </div>
+      </Card>
+    );
+  }
+
+  return (
+    <Card
+      title="Recent Transactions"
+      subtitle="Latest contributions, membership fees, and expenses"
+      className={className}
+    >
+      {/* Stats Summary */}
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+        <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-blue-600 dark:text-blue-400">
+                Contributors
+              </p>
+              <p className="text-2xl font-bold text-blue-900 dark:text-blue-100">
+                {stats.totalContributors}
+              </p>
+            </div>
+            <Users className="h-8 w-8 text-blue-600 dark:text-blue-400" />
+          </div>
+        </div>
+        
+        <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-green-600 dark:text-green-400">
+                Contributions
+              </p>
+              <p className="text-xl font-bold text-green-900 dark:text-green-100">
+                {formatUGX(stats.thisMonthContributions)}
+              </p>
+            </div>
+            <TrendingUp className="h-8 w-8 text-green-600 dark:text-green-400" />
+          </div>
+        </div>
+        
+        <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-purple-600 dark:text-purple-400">
+                Membership
+              </p>
+              <p className="text-xl font-bold text-purple-900 dark:text-purple-100">
+                {formatUGX(stats.thisMonthMembershipFees)}
+              </p>
+            </div>
+            <CreditCard className="h-8 w-8 text-purple-600 dark:text-purple-400" />
+          </div>
+        </div>
+        
+        <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-red-600 dark:text-red-400">
+                Expenses
+              </p>
+              <p className="text-xl font-bold text-red-900 dark:text-red-100">
+                {formatUGX(stats.thisMonthExpenses)}
+              </p>
+            </div>
+            <TrendingDown className="h-8 w-8 text-red-600 dark:text-red-400" />
+          </div>
+        </div>
+        
+        <div className="bg-indigo-50 dark:bg-indigo-900/20 rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-indigo-600 dark:text-indigo-400">
+                Net This Month
+              </p>
+              <p className={`text-xl font-bold ${
+                (stats.thisMonthContributions + stats.thisMonthMembershipFees - stats.thisMonthExpenses) >= 0
+                  ? 'text-green-900 dark:text-green-100'
+                  : 'text-red-900 dark:text-red-100'
+              }`}>
+                {formatUGX(stats.thisMonthContributions + stats.thisMonthMembershipFees - stats.thisMonthExpenses)}
+              </p>
+            </div>
+            <CreditCard className="h-8 w-8 text-indigo-600 dark:text-indigo-400" />
+          </div>
+        </div>
+      </div>
+
+      {/* Recent Transactions List */}
+      <div className="space-y-4">
+        {transactions.length > 0 ? (
+          transactions.map((transaction) => (
+            <div
+              key={`${transaction.type}-${transaction.id}`}
+              className="flex items-center justify-between p-4 bg-gray-50 dark:bg-neutral-700/30 rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-700/50 transition-colors"
+            >
+              <div className="flex items-center space-x-3">
+                {getTransactionIcon(transaction)}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center space-x-2 mb-1">
+                    <p className="font-medium text-gray-900 dark:text-white truncate">
+                      {transaction.member
+                        ? transaction.member.name
+                        : transaction.description
+                      }
+                    </p>
+                    <Badge
+                      variant={getTransactionBadgeVariant(transaction.type)}
+                      size="sm"
+                      className="capitalize"
+                    >
+                      {getTransactionLabel(transaction.type)}
+                    </Badge>
+                  </div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 truncate">
+                    {transaction.type === 'expense' 
+                      ? `${transaction.category} - ${transaction.description}`
+                      : transaction.description
+                    }
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-500">
+                    {formatDate(transaction.date)}
+                  </p>
+                </div>
+              </div>
+              
+              <div className="text-right">
+                <p className={`font-semibold ${
+                  transaction.type === 'expense'
+                    ? 'text-red-600 dark:text-red-400'
+                    : transaction.type === 'membership'
+                    ? 'text-purple-600 dark:text-purple-400'
+                    : 'text-green-600 dark:text-green-400'
+                }`}>
+                  {transaction.type === 'expense' ? '-' : '+'}{formatUGX(Math.round(transaction.amount))}
+                </p>
+                {transaction.paymentMethod && (
+                  <p className="text-xs text-gray-500 dark:text-gray-500 capitalize">
+                    {transaction.paymentMethod}
+                  </p>
+                )}
+              </div>
+            </div>
+          ))
+        ) : (
+          <div className="text-center py-12">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
+              <CreditCard size={32} className="text-gray-400 dark:text-gray-500" />
+            </div>
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+              No Recent Transactions
+            </h3>
+            <p className="text-gray-500 dark:text-gray-400">
+              No contributions, membership fees, or expenses have been recorded in the last 30 days.
+            </p>
+          </div>
+        )}
+      </div>
+
+      {transactions.length > 0 && (
+        <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <div className="flex justify-between items-center">
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Showing latest {transactions.length} transactions
+            </p>
+            <div className="flex space-x-4">
+              <a
+                href="/contributions"
+                className="text-sm font-medium text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors"
+              >
+                View contributions →
+              </a>
+              <a
+                href="/membership-fees"
+                className="text-sm font-medium text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 transition-colors"
+              >
+                View membership fees →
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
+    </Card>
+  );
+};
+
+export default RecentTransactions;
       <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
         <TrendingUp className="h-5 w-5 text-green-600 dark:text-green-400" />
       </div>

@@ -173,12 +173,14 @@ const MembershipFees: React.FC = () => {
   const getMemberById = (id: string) => members.find(m => m.id === id);
 
   // Statistics
-  const stats = {
-    totalMembers: members.filter(m => m.status === 'active').length,
-    paidMembers: membersWithStatus.filter(m => m.status === 'active').length,
-    pendingPayments: membersWithStatus.filter(m => m.status === 'pending' || m.status === 'overdue').length,
-    totalCollected: membershipFees.reduce((sum, fee) => sum + fee.amountPaid, 0),
-    totalOutstanding: membersWithStatus.reduce((sum, m) => sum + m.totalOwed, 0),
+  const [stats, setStats] = useState({
+    totalMembers: 0,
+    paidMembers: 0,
+    pendingPayments: 0,
+    totalCollected: 0,
+    totalOutstanding: 0,
+    overdueCount: 0,
+  });
     overdueCount: membersWithStatus.filter(m => m.status === 'overdue').length,
   };
 

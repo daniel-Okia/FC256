@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Users, Calendar, Award, CreditCard, TrendingDown, Download, Filter } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { MemberService, EventService, ContributionService, ExpenseService, AttendanceService } from '../../services/firestore';
+import { MemberService, EventService, ContributionService, ExpenseService, AttendanceService, MembershipFeeService } from '../../services/firestore';
 import PageHeader from '../../components/layout/PageHeader';
 import DashboardCard from './DashboardCard';
 import AttendanceChart from './AttendanceChart';
@@ -27,6 +27,8 @@ interface DashboardStats {
   totalContributions: number;
   totalExpenses: number;
   remainingBalance: number;
+  membershipFeesCollected: number;
+  membershipFeesOutstanding: number;
 }
 
 interface DateRange {
@@ -44,6 +46,8 @@ const Dashboard: React.FC = () => {
     totalContributions: 0,
     totalExpenses: 0,
     remainingBalance: 0,
+    membershipFeesCollected: 0,
+    membershipFeesOutstanding: 0,
   });
   const [loading, setLoading] = useState(true);
   const [upcomingEvents, setUpcomingEvents] = useState<any[]>([]);
@@ -65,12 +69,13 @@ const Dashboard: React.FC = () => {
         setLoading(true);
         
         // Load all data in parallel
-        const [members, events, contributions, expenses, attendance] = await Promise.all([
+        const [members, events, contributions, expenses, attendance, membershipFees] = await Promise.all([
           MemberService.getAllMembers(),
           EventService.getAllEvents(),
           ContributionService.getAllContributions(),
           ExpenseService.getAllExpenses(),
           AttendanceService.getAllAttendance(),
+          MembershipFeeService.getAllMembershipFees(),
         ]);
 
         console.log('Dashboard data loaded:', {
@@ -78,7 +83,8 @@ const Dashboard: React.FC = () => {
           events: events.length,
           contributions: contributions.length,
           expenses: expenses.length,
-          attendance: attendance.length
+          attendance: attendance.length,
+          membershipFees: membershipFees.length
         });
 
         // Get current date info
@@ -125,15 +131,34 @@ const Dashboard: React.FC = () => {
           console.log('Processing expense:', { id: e.id, amount: e.amount, parsed: amount });
           return sum + amount;
         }, 0);
-          
-        // Calculate remaining balance
-        const remainingBalance = totalContributions - totalExpenses;
+        
+        // Calculate membership fee totals
+        const membershipFeesCollected = membershipFees
+          .filter(fee => fee.amountPaid !== undefined && fee.amountPaid !== null)
+          .reduce((sum, fee) => sum + (parseFloat(String(fee.amountPaid)) || 0), 0);
+        
+        const membershipFeesOutstanding = membershipFees
+          .filter(fee => fee.amount !== undefined && fee.amountPaid !== undefined)
+          .reduce((sum, fee) => {
+            const total = parseFloat(String(fee.amount)) || 0;
+            const paid = parseFloat(String(fee.amountPaid)) || 0;
+            return sum + Math.max(0, total - paid);
+          }, 0);
+        
+        // Calculate total income (contributions + membership fees)
+        const totalIncome = totalContributions + membershipFeesCollected;
+        
+        // Calculate remaining balance (total income - expenses)
+        const remainingBalance = totalIncome - totalExpenses;
 
         console.log('Financial calculations:', {
           monetaryContributions: monetaryContributions.length,
           totalContributions,
           validExpenses: validExpenses.length,
           totalExpenses,
+          membershipFeesCollected,
+          membershipFeesOutstanding,
+          totalIncome,
           remainingBalance
         });
 
@@ -192,9 +217,15 @@ const Dashboard: React.FC = () => {
       loadDashboardData();
     });
 
+    const unsubscribeMembershipFees = MembershipFeeService.subscribeToMembershipFees(() => {
+      console.log('Membership fees updated, reloading dashboard data');
+      loadDashboardData();
+    });
+
     return () => {
       unsubscribeContributions();
       unsubscribeExpenses();
+      unsubscribeMembershipFees();
     };
   }, []);
 
@@ -264,6 +295,14 @@ const Dashboard: React.FC = () => {
         return expenseDate >= startDate && expenseDate <= endDate;
       });
 
+      // Filter membership fees by date range
+      const filteredMembershipFees = await MembershipFeeService.getAllMembershipFees().then(fees =>
+        fees.filter(fee => {
+          const feeDate = new Date(fee.recordedAt.split('T')[0] + 'T00:00:00');
+          return feeDate >= startDate && feeDate <= endDate;
+        })
+      );
+
       // Filter attendance by event date (not recorded date)
       const filteredAttendance = attendance.filter(attendanceRecord => {
         const event = events.find(e => e.id === attendanceRecord.eventId);
@@ -276,7 +315,8 @@ const Dashboard: React.FC = () => {
         events: filteredEvents.length,
         contributions: filteredContributions.length,
         expenses: filteredExpenses.length,
-        attendance: filteredAttendance.length
+        attendance: filteredAttendance.length,
+        membershipFees: filteredMembershipFees.length
       });
 
       // Calculate filtered stats
@@ -293,7 +333,15 @@ const Dashboard: React.FC = () => {
         .filter(e => e.amount !== undefined && e.amount !== null)
         .reduce((sum, e) => sum + (parseFloat(String(e.amount)) || 0), 0);
       
-      const remainingBalance = totalContributions - totalExpenses;
+      // Calculate membership fee totals for the date range
+      const membershipFeesCollected = filteredMembershipFees
+        .filter(fee => fee.amountPaid !== undefined && fee.amountPaid !== null)
+        .reduce((sum, fee) => sum + (parseFloat(String(fee.amountPaid)) || 0), 0);
+      
+      // Calculate total income (contributions + membership fees)
+      const totalIncome = totalContributions + membershipFeesCollected;
+      
+      const remainingBalance = totalIncome - totalExpenses;
 
       const filteredStats = {
         totalMembers: members.length, // Total members doesn't change
@@ -303,6 +351,8 @@ const Dashboard: React.FC = () => {
         totalContributions: Math.round(totalContributions),
         totalExpenses: Math.round(totalExpenses),
         remainingBalance: Math.round(remainingBalance),
+        membershipFeesCollected: Math.round(membershipFeesCollected),
+        membershipFeesOutstanding: 0, // Not applicable for filtered data
       };
 
       // Get upcoming events from filtered events
@@ -324,26 +374,6 @@ const Dashboard: React.FC = () => {
       const filteredRecentTransactions = [...recentContributions, ...recentExpenses]
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
         .slice(0, 10);
-
-      // Calculate attendance trends for filtered events
-      const filteredTrainingEvents = filteredEvents.filter(event => event.type === 'training');
-      
-      const filteredAttendanceTrends = filteredTrainingEvents.map(event => {
-        const eventAttendance = filteredAttendance.filter(a => 
-          a.eventId === event.id && a.status === 'present'
-        );
-        
-        return {
-          date: event.date,
-          type: event.type,
-          opponent: event.opponent,
-          presentCount: eventAttendance.length,
-          totalMembers: activeMembers,
-          attendanceRate: activeMembers > 0 ? (eventAttendance.length / activeMembers) * 100 : 0,
-          recentMatchResults: filteredMatchResults,
-          attendanceBreakdown: filteredAttendanceBreakdown,
-        };
-      });
 
       return {
         stats: filteredStats,
@@ -446,9 +476,9 @@ const Dashboard: React.FC = () => {
         {canViewFinancials && (
           <>
             <DashboardCard
-              title="Total Contributions"
-              value={formatUGX(stats.totalContributions)}
-              description="All time monetary"
+              title="Total Income"
+              value={formatUGX(stats.totalContributions + stats.membershipFeesCollected)}
+              description="Contributions + membership fees"
               icon={<CreditCard className="h-6 w-6 text-green-600 dark:text-green-400" />}
               link={{ text: 'View contributions', to: '/contributions' }}
             />
@@ -466,39 +496,69 @@ const Dashboard: React.FC = () => {
       {/* Balance Summary */}
       {canViewFinancials && (
         <div className="mb-8">
-          <div className={`rounded-lg p-6 border ${
-            stats.remainingBalance >= 0 
-              ? 'bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-900/20 dark:to-blue-900/20 border-green-200 dark:border-green-800'
-              : 'bg-gradient-to-r from-red-50 to-orange-50 dark:from-red-900/20 dark:to-orange-900/20 border-red-200 dark:border-red-800'
-          }`}>
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  Financial Summary
-                </h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Current balance after all contributions and expenses
-                </p>
-                <div className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                  <span className="font-medium">In:</span> {formatUGX(stats.totalContributions)} • 
-                  <span className="font-medium ml-2">Out:</span> {formatUGX(stats.totalExpenses)}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Financial Summary */}
+            <div className={`rounded-lg p-6 border ${
+              stats.remainingBalance >= 0 
+                ? 'bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-900/20 dark:to-blue-900/20 border-green-200 dark:border-green-800'
+                : 'bg-gradient-to-r from-red-50 to-orange-50 dark:from-red-900/20 dark:to-orange-900/20 border-red-200 dark:border-red-800'
+            }`}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                    Financial Summary
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Current balance including membership fees
+                  </p>
+                  <div className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                    <span className="font-medium">Contributions:</span> {formatUGX(stats.totalContributions)} • 
+                    <span className="font-medium ml-2">Membership:</span> {formatUGX(stats.membershipFeesCollected)} •
+                    <span className="font-medium ml-2">Expenses:</span> {formatUGX(stats.totalExpenses)}
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className={`text-3xl font-bold ${
+                    stats.remainingBalance >= 0 
+                      ? 'text-green-600 dark:text-green-400' 
+                      : 'text-red-600 dark:text-red-400'
+                  }`}>
+                    {formatUGX(Math.abs(stats.remainingBalance))}
+                  </p>
+                  <p className={`text-sm font-medium ${
+                    stats.remainingBalance >= 0 
+                      ? 'text-green-600 dark:text-green-400' 
+                      : 'text-red-600 dark:text-red-400'
+                  }`}>
+                    {stats.remainingBalance >= 0 ? 'Available Balance' : 'Deficit'}
+                  </p>
                 </div>
               </div>
-              <div className="text-right">
-                <p className={`text-3xl font-bold ${
-                  stats.remainingBalance >= 0 
-                    ? 'text-green-600 dark:text-green-400' 
-                    : 'text-red-600 dark:text-red-400'
-                }`}>
-                  {formatUGX(Math.abs(stats.remainingBalance))}
-                </p>
-                <p className={`text-sm font-medium ${
-                  stats.remainingBalance >= 0 
-                    ? 'text-green-600 dark:text-green-400' 
-                    : 'text-red-600 dark:text-red-400'
-                }`}>
-                  {stats.remainingBalance >= 0 ? 'Available Balance' : 'Deficit'}
-                </p>
+            </div>
+            
+            {/* Membership Fee Summary */}
+            <div className="bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 border border-purple-200 dark:border-purple-800 rounded-lg p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                    Membership Fees
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Fee collection status and outstanding amounts
+                  </p>
+                  <div className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                    <span className="font-medium">Collected:</span> {formatUGX(stats.membershipFeesCollected)} • 
+                    <span className="font-medium ml-2">Outstanding:</span> {formatUGX(stats.membershipFeesOutstanding)}
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">
+                    {formatUGX(stats.membershipFeesCollected)}
+                  </p>
+                  <p className="text-sm font-medium text-purple-600 dark:text-purple-400">
+                    Total Collected
+                  </p>
+                </div>
               </div>
             </div>
           </div>
