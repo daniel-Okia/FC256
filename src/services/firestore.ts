@@ -18,6 +18,7 @@ import {
 import { db } from '../config/firebase';
 import { Member, Event, Contribution, Leadership, Attendance, Expense } from '../types';
 import type { InventoryItem } from '../types';
+import type { MembershipFee } from '../types';
 
 // Generic CRUD operations
 export class FirestoreService {
@@ -646,5 +647,71 @@ export class InventoryService {
 
   static subscribeToInventory(callback: (items: InventoryItem[]) => void): () => void {
     return FirestoreService.subscribeToCollection<InventoryItem>(this.collection, callback);
+  }
+}
+
+export class MembershipFeeService {
+  private static collection = 'membershipFees';
+
+  static async createMembershipFee(feeData: Omit<MembershipFee, 'id'>): Promise<string> {
+    return FirestoreService.create<MembershipFee>(this.collection, feeData);
+  }
+
+  static async getAllMembershipFees(): Promise<MembershipFee[]> {
+    return FirestoreService.getAll<MembershipFee>(this.collection);
+  }
+
+  static async getMembershipFeeById(id: string): Promise<MembershipFee | null> {
+    return FirestoreService.getById<MembershipFee>(this.collection, id);
+  }
+
+  static async updateMembershipFee(id: string, feeData: Partial<MembershipFee>): Promise<void> {
+    return FirestoreService.update<MembershipFee>(this.collection, id, feeData);
+  }
+
+  static async deleteMembershipFee(id: string): Promise<void> {
+    return FirestoreService.delete(this.collection, id);
+  }
+
+  static async getMembershipFeesByMember(memberId: string): Promise<MembershipFee[]> {
+    const fees = await FirestoreService.query<MembershipFee>(this.collection, [
+      { field: 'memberId', operator: '==', value: memberId }
+    ]);
+    // Sort by start date (latest first)
+    return fees.sort((a, b) => {
+      const dateA = new Date(a.startDate);
+      const dateB = new Date(b.startDate);
+      return dateB.getTime() - dateA.getTime();
+    });
+  }
+
+  static async getMembershipFeesByStatus(status: PaymentStatus): Promise<MembershipFee[]> {
+    const fees = await FirestoreService.query<MembershipFee>(this.collection, [
+      { field: 'status', operator: '==', value: status }
+    ]);
+    // Sort by due date (earliest first for pending/overdue)
+    return fees.sort((a, b) => {
+      const dateA = new Date(a.dueDate);
+      const dateB = new Date(b.dueDate);
+      return dateA.getTime() - dateB.getTime();
+    });
+  }
+
+  static async getOverdueFees(): Promise<MembershipFee[]> {
+    const allFees = await FirestoreService.getAll<MembershipFee>(this.collection);
+    const now = new Date();
+    
+    return allFees.filter(fee => {
+      const dueDate = new Date(fee.dueDate);
+      return dueDate < now && (fee.status === 'pending' || fee.status === 'partial');
+    }).sort((a, b) => {
+      const dateA = new Date(a.dueDate);
+      const dateB = new Date(b.dueDate);
+      return dateA.getTime() - dateB.getTime();
+    });
+  }
+
+  static subscribeToMembershipFees(callback: (fees: MembershipFee[]) => void): () => void {
+    return FirestoreService.subscribeToCollection<MembershipFee>(this.collection, callback);
   }
 }

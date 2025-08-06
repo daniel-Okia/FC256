@@ -287,3 +287,35 @@ export interface InventoryItem {
   createdAt: string;
   updatedAt: string;
 }
+
+// Membership Fee Types
+export type PaymentPeriod = '3_months' | '5_months' | '6_months' | '1_year';
+export type PaymentStatus = 'paid' | 'pending' | 'overdue' | 'partial';
+export type PaymentMethod = 'cash' | 'bank_transfer' | 'mobile_money' | 'other';
+
+export interface MembershipFee {
+  id: string;
+  memberId: string;
+  period: PaymentPeriod;
+  amount: number; // Amount in UGX
+  amountPaid: number; // Amount actually paid (for partial payments)
+  status: PaymentStatus;
+  paymentMethod?: PaymentMethod;
+  startDate: string; // Period start date
+  endDate: string; // Period end date
+  dueDate: string; // Payment due date
+  paidDate?: string; // Date payment was completed
+  notes?: string;
+  recordedBy: string;
+  recordedAt: string;
+  updatedAt: string;
+}
+
+export interface FeeStructure {
+  period: PaymentPeriod;
+  months: number;
+  amount: number;
+  savings: number;
+  label: string;
+  description: string;
+}

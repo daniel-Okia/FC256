@@ -12,6 +12,7 @@ import {
   ClipboardList,
   Package,
   TrendingUp
+  CreditCard as MembershipIcon
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { canUserAccess, Permissions } from '../../utils/permissions';
@@ -74,6 +75,12 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       path: '/contributions', 
       icon: CreditCard, 
       roles: Permissions.VIEW_CONTRIBUTIONS 
+    },
+    { 
+      name: 'Membership Fees', 
+      path: '/membership-fees', 
+      icon: MembershipIcon, 
+      roles: Permissions.VIEW_MEMBERSHIP_FEES 
     },
     { 
       name: 'Profile', 

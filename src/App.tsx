@@ -142,6 +142,15 @@ function App() {
                 </ProtectedRoute>
               } 
             />
+            
+            <Route 
+              path="/membership-fees" 
+              element={
+                <ProtectedRoute>
+                  <MembershipFees />
+                </ProtectedRoute>
+              } 
+            />
           </Route>
           
           {/* Fallback routes */}

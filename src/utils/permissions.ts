@@ -48,4 +48,9 @@ export const Permissions = {
   // Inventory permissions
   VIEW_INVENTORY: ['admin', 'manager', 'member'] as UserRole[],
   MANAGE_INVENTORY: ['admin', 'manager'] as UserRole[],
+  
+  // Membership Fee permissions
+  VIEW_MEMBERSHIP_FEES: ['admin', 'manager', 'member'] as UserRole[],
+  MANAGE_MEMBERSHIP_FEES: ['admin', 'manager'] as UserRole[],
+  RECORD_FEE_PAYMENT: ['admin', 'manager'] as UserRole[],
 };
