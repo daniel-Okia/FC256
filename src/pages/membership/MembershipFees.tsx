@@ -181,8 +181,17 @@ const MembershipFees: React.FC = () => {
     totalOutstanding: 0,
     overdueCount: 0,
   });
-    overdueCount: membersWithStatus.filter(m => m.status === 'overdue').length,
-  };
+
+  useEffect(() => {
+    setStats({
+      totalMembers: membersWithStatus.length,
+      paidMembers: membersWithStatus.filter(m => m.status === 'active').length,
+      pendingPayments: membersWithStatus.filter(m => m.status === 'pending').length,
+      totalCollected: membersWithStatus.reduce((sum, m) => sum + m.totalPaid, 0),
+      totalOutstanding: membersWithStatus.reduce((sum, m) => sum + m.totalOwed, 0),
+      overdueCount: membersWithStatus.filter(m => m.status === 'overdue').length,
+    });
+  }, [membersWithStatus]);
 
   // Overview columns for member status
   const overviewColumns = [
