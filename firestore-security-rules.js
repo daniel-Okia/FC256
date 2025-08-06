@@ -89,6 +89,12 @@ service cloud.firestore {
       allow write: if isAuthenticated() && isAdminOrManager();
     }
     
+    // Membership fees collection - all authenticated users can read, admins/managers can write
+    match /membershipFees/{feeId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && isAdminOrManager();
+    }
+    
     // Deny all other requests
     match /{document=**} {
       allow read, write: if false;

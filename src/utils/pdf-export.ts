@@ -1,8 +1,7 @@
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { Attendance, Contribution, Event, Member, Expense, Leadership } from '../types';
-import type { InventoryItem } from '../types';
-import type { MembershipFee } from '../types';
+import type { InventoryItem, MembershipFee } from '../types';
 import { formatDate } from './date-utils';
 import { formatUGX } from './currency-utils';
 
@@ -1302,5 +1301,127 @@ export class PlayerAnalyticsPDFExporter extends BasePDFExporter {
     );
 
     this.save('fc256-player-analytics');
+  }
+}
+
+/**
+ * Membership Fees PDF Export
+ */
+export class MembershipFeesPDFExporter extends BasePDFExporter {
+  exportMembershipFees(data: {
+    membershipFees: MembershipFee[];
+    members: Member[];
+    stats: {
+      totalMembers: number;
+      paidMembers: number;
+      pendingPayments: number;
+      totalCollected: number;
+      totalOutstanding: number;
+      overdueCount: number;
+    };
+  }): void {
+    console.log('Exporting membership fees with data:', data);
+    
+    this.addHeader(
+      'MEMBERSHIP FEES REPORT', 
+      `Fee payment tracking and analysis for ${data.stats.totalMembers} members`
+    );
+
+    // Fee statistics
+    this.addStatsSection([
+      { 
+        label: 'Total Collected', 
+        value: formatUGX(data.stats.totalCollected),
+        color: COLORS.success,
+      },
+      { 
+        label: 'Outstanding', 
+        value: formatUGX(data.stats.totalOutstanding),
+        color: COLORS.warning,
+      },
+      { 
+        label: 'Paid Members', 
+        value: data.stats.paidMembers.toString(),
+        color: COLORS.info,
+      },
+      { 
+        label: 'Overdue', 
+        value: data.stats.overdueCount.toString(),
+        color: COLORS.danger,
+      },
+    ]);
+
+    // Payment status breakdown
+    const statusBreakdown = data.membershipFees.reduce((acc, fee) => {
+      acc[fee.status] = (acc[fee.status] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    const statusData = Object.entries(statusBreakdown)
+      .map(([status, count]) => ({
+        status: status.charAt(0).toUpperCase() + status.slice(1),
+        count: count.toString(),
+        percentage: `${Math.round((count / data.membershipFees.length) * 100)}%`,
+        amount: formatUGX(
+          data.membershipFees
+            .filter(fee => fee.status === status)
+            .reduce((sum, fee) => sum + fee.amountPaid, 0)
+        )
+      }));
+
+    this.addTable(
+      [
+        { header: 'Payment Status', dataKey: 'status' },
+        { header: 'Count', dataKey: 'count' },
+        { header: 'Percentage', dataKey: 'percentage' },
+        { header: 'Total Amount', dataKey: 'amount' },
+      ],
+      statusData,
+      { title: 'PAYMENT STATUS BREAKDOWN', headerColor: COLORS.info }
+    );
+
+    // Recent fee records
+    const feeRows = data.membershipFees
+      .sort((a, b) => new Date(b.recordedAt).getTime() - new Date(a.recordedAt).getTime())
+      .slice(0, 50)
+      .map(fee => {
+        const member = data.members.find(m => m.id === fee.memberId);
+        const structure = [
+          { period: '3_months', label: '3 Months' },
+          { period: '5_months', label: '5 Months' },
+          { period: '6_months', label: '6 Months' },
+          { period: '1_year', label: '1 Year' },
+        ].find(s => s.period === fee.period);
+        
+        return {
+          member: member ? member.name : 'Unknown Member',
+          jersey: member ? `#${member.jerseyNumber}` : 'N/A',
+          period: structure?.label || fee.period,
+          amount: formatUGX(fee.amount),
+          paid: formatUGX(fee.amountPaid),
+          remaining: formatUGX(fee.amount - fee.amountPaid),
+          status: fee.status.charAt(0).toUpperCase() + fee.status.slice(1),
+          dueDate: formatDate(fee.dueDate, 'MMM d, yyyy'),
+          paidDate: fee.paidDate ? formatDate(fee.paidDate, 'MMM d, yyyy') : 'Not paid',
+        };
+      });
+
+    this.addTable(
+      [
+        { header: 'Member', dataKey: 'member' },
+        { header: 'Jersey', dataKey: 'jersey' },
+        { header: 'Period', dataKey: 'period' },
+        { header: 'Amount', dataKey: 'amount' },
+        { header: 'Paid', dataKey: 'paid' },
+        { header: 'Remaining', dataKey: 'remaining' },
+        { header: 'Status', dataKey: 'status' },
+        { header: 'Due Date', dataKey: 'dueDate' },
+        { header: 'Paid Date', dataKey: 'paidDate' },
+      ],
+      feeRows,
+      { title: 'MEMBERSHIP FEE RECORDS', headerColor: COLORS.primary }
+    );
+
+    this.save('fc256-membership-fees');
   }
 }

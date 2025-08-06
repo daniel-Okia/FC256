@@ -169,6 +169,8 @@ const Dashboard: React.FC = () => {
           totalContributions: Math.round(totalContributions), // Round to avoid floating point issues
           totalExpenses: Math.round(totalExpenses),
           remainingBalance: Math.round(remainingBalance),
+          membershipFeesCollected: Math.round(membershipFeesCollected),
+          membershipFeesOutstanding: Math.round(membershipFeesOutstanding),
         });
       } catch (error) {
         console.error('Error loading dashboard data:', error);
