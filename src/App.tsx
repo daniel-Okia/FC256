@@ -20,6 +20,7 @@ import Inventory from './pages/inventory/Inventory';
 import PlayerAnalytics from './pages/analytics/PlayerAnalytics';
 import NotFound from './pages/NotFound';
 import ProtectedRoute from './components/auth/ProtectedRoute';
+import MembershipFees from './pages/membership/MembershipFees';
 
 function App() {
   return (
