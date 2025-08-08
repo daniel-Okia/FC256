@@ -72,59 +72,6 @@ const PlayerAnalytics: React.FC = () => {
 
   const canExport = user && canUserAccess(user.role, Permissions.EXPORT_REPORTS);
 
-  // Calculate veteran bonus for long-term members
-  const calculateVeteranBonus = (member: Member, totalSessions: number, attendanceScore: number): number => {
-    const joinDate = new Date(member.dateJoined);
-    const now = new Date();
-    
-    // Calculate days since joining
-    const daysSinceJoining = Math.floor((now.getTime() - joinDate.getTime()) / (1000 * 60 * 60 * 24));
-    
-    // Calculate months since joining
-    const monthsSinceJoining = Math.floor(daysSinceJoining / 30);
-    
-    let veteranBonus = 0;
-    
-    // Longevity bonus (based on time with team)
-    if (monthsSinceJoining >= 12) {
-      veteranBonus += 3; // 3 points for 1+ years
-    } else if (monthsSinceJoining >= 6) {
-      veteranBonus += 2; // 2 points for 6+ months
-    } else if (monthsSinceJoining >= 3) {
-      veteranBonus += 1; // 1 point for 3+ months
-    }
-    
-    // Session availability bonus (based on number of sessions they could attend)
-    if (totalSessions >= 50) {
-      veteranBonus += 4; // 4 points for 50+ sessions availability
-    } else if (totalSessions >= 30) {
-      veteranBonus += 3; // 3 points for 30+ sessions availability
-    } else if (totalSessions >= 20) {
-      veteranBonus += 2; // 2 points for 20+ sessions availability
-    } else if (totalSessions >= 10) {
-      veteranBonus += 1; // 1 point for 10+ sessions availability
-    }
-    
-    // Consistency bonus (for members with good attendance over long periods)
-    if (monthsSinceJoining >= 6 && attendanceScore >= 80) {
-      veteranBonus += 2; // 2 points for consistent attendance over 6+ months
-    } else if (monthsSinceJoining >= 3 && attendanceScore >= 75) {
-      veteranBonus += 1; // 1 point for good attendance over 3+ months
-    }
-    
-    // Pioneer bonus (for very early members - joined in first 3 months of system)
-    const systemStartDate = new Date('2024-08-01'); // Assuming system started in August 2024
-    const threeMonthsAfterStart = new Date(systemStartDate);
-    threeMonthsAfterStart.setMonth(threeMonthsAfterStart.getMonth() + 3);
-    
-    if (joinDate <= threeMonthsAfterStart) {
-      veteranBonus += 3; // 3 points for pioneer members
-    }
-    
-    // Cap the veteran bonus at 10 points maximum
-    return Math.min(10, veteranBonus);
-  };
-
   // Load all data
   useEffect(() => {
     const loadData = async () => {
@@ -411,15 +358,11 @@ const PlayerAnalytics: React.FC = () => {
       
       if (hasActivity) {
         // Attendance: 50%, Performance: 35%, Contributions: 15%
-        const baseRating = Math.round(
+        overallRating = Math.round(
           (attendanceScore * 0.50) + 
           (performanceScore * 0.35) + 
           (contributionScore * 0.15)
         );
-        
-        // Veteran member bonus system
-        const veteranBonus = calculateVeteranBonus(member, totalSessions, attendanceScore);
-        overallRating = Math.min(100, baseRating + veteranBonus);
       }
 
       // Recent data (last 10 records)
@@ -889,6 +832,18 @@ const PlayerAnalytics: React.FC = () => {
                     </span>
                   </div>
                   <div className="flex justify-between">
+                    <span className="text-sm text-blue-700 dark:text-blue-300">Training:</span>
+                    <span className="text-blue-900 dark:text-blue-100">
+                      {Math.round(trainingAttendanceRate)}%
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-blue-700 dark:text-blue-300">Friendlies:</span>
+                    <span className="text-blue-900 dark:text-blue-100">
+                      {Math.round(friendlyAttendanceRate)}%
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
                     <span className="text-sm text-blue-700 dark:text-blue-300">Late:</span>
                     <span className="text-blue-900 dark:text-blue-100">
                       {selectedPlayer.lateArrivals}
@@ -898,18 +853,6 @@ const PlayerAnalytics: React.FC = () => {
                     <span className="text-sm text-blue-700 dark:text-blue-300">Excused:</span>
                     <span className="text-blue-900 dark:text-blue-100">
                       {selectedPlayer.excusedAbsences}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-blue-700 dark:text-blue-300">Member Since:</span>
-                    <span className="text-blue-900 dark:text-blue-100">
-                      {formatDate(selectedPlayer.member.dateJoined, 'MMM yyyy')}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-blue-700 dark:text-blue-300">Veteran Bonus:</span>
-                    <span className="text-blue-900 dark:text-blue-100">
-                      +{calculateVeteranBonus(selectedPlayer.member, selectedPlayer.totalSessions, selectedPlayer.attendanceScore)} pts
                     </span>
                   </div>
                   <div className="pt-2 border-t border-blue-200 dark:border-blue-700">
