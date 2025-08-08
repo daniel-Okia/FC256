@@ -180,41 +180,72 @@ const PlayerAnalytics: React.FC = () => {
 
   const calculatePlayerAnalytics = (): PlayerAnalytics[] => {
     return members.map(member => {
-      // Get all training sessions that this member could have attended
-      const availableTrainingSessions = events.filter(event => 
-        event.type === 'training' && 
-        new Date(event.date) <= new Date() // Only past and current training sessions
-      );
+      // Get member's join date
+      const memberJoinDate = new Date(member.dateJoined);
       
-      // Get member's attendance records for these available training sessions
-      const memberAttendance = attendance.filter(a => a.memberId === member.id);
-      
-      // Filter attendance to only include records for available training sessions
-      const validAttendanceRecords = memberAttendance.filter(a => {
-        const attendanceEvent = availableTrainingSessions.find(event => event.id === a.eventId);
-        return attendanceEvent !== undefined;
+      // Get all sessions (training + friendlies) that this member could have attended
+      // Only include sessions after their join date and up to current date
+      const availableSessions = events.filter(event => {
+        const eventDate = new Date(event.date);
+        const now = new Date();
+        return eventDate >= memberJoinDate && eventDate <= now;
       });
       
-      // Calculate actual sessions this member could have attended
-      const totalSessions = availableTrainingSessions.length;
+      // Separate training and friendly sessions for detailed tracking
+      const availableTrainingSessions = availableSessions.filter(event => event.type === 'training');
+      const availableFriendlySessions = availableSessions.filter(event => event.type === 'friendly');
+      
+      // Get member's attendance records for all available sessions
+      const memberAttendance = attendance.filter(a => a.memberId === member.id);
+      
+      // Filter attendance to only include records for sessions this member could attend
+      const validAttendanceRecords = memberAttendance.filter(a => {
+        const attendanceEvent = availableSessions.find(event => event.id === a.eventId);
+        if (!attendanceEvent) return false;
+        
+        // Ensure the event was after the member joined
+        const eventDate = new Date(attendanceEvent.date);
+        return eventDate >= memberJoinDate;
+      });
+      
+      // Calculate attendance for training sessions specifically
+      const trainingAttendanceRecords = validAttendanceRecords.filter(a => {
+        const event = availableTrainingSessions.find(e => e.id === a.eventId);
+        return event !== undefined;
+      });
+      
+      // Calculate attendance for friendly matches specifically
+      const friendlyAttendanceRecords = validAttendanceRecords.filter(a => {
+        const event = availableFriendlySessions.find(e => e.id === a.eventId);
+        return event !== undefined;
+      });
+      
+      // Calculate actual sessions this member could have attended (total available sessions)
+      const totalSessions = availableSessions.length;
+      const totalTrainingSessions = availableTrainingSessions.length;
+      const totalFriendlySessions = availableFriendlySessions.length;
+      
+      // Calculate attended sessions (present status for all session types)
       const attendedSessions = validAttendanceRecords.filter(a => a.status === 'present').length;
-      const lateArrivals = memberAttendance.filter(a => a.status === 'late').length;
-      const excusedAbsences = memberAttendance.filter(a => a.status === 'excused').length;
+      const attendedTrainingSessions = trainingAttendanceRecords.filter(a => a.status === 'present').length;
+      const attendedFriendlySessions = friendlyAttendanceRecords.filter(a => a.status === 'present').length;
       
-      // Calculate individual attendance rate based on actual available sessions
-      const individualAttendanceRate = totalSessions > 0 ? (attendedSessions / totalSessions) * 100 : 0;
+      // Calculate other attendance metrics
+      const lateArrivals = validAttendanceRecords.filter(a => a.status === 'late').length;
+      const excusedAbsences = validAttendanceRecords.filter(a => a.status === 'excused').length;
       
-      // For coaches and managers, use their own attendance rate
-      // For players, use the same calculation since we're now using actual available sessions
-      let normalizedAttendanceRate = 0;
+      // Calculate overall attendance rate based on all available sessions
+      const overallAttendanceRate = totalSessions > 0 ? (attendedSessions / totalSessions) * 100 : 0;
       
-      if (member.position === 'Coach' || member.position === 'Manager') {
-        normalizedAttendanceRate = individualAttendanceRate;
-      } else {
-        // For players, use the same calculation since we're using actual available sessions
-        normalizedAttendanceRate = individualAttendanceRate;
-      }
-
+      // Calculate training-specific attendance rate
+      const trainingAttendanceRate = totalTrainingSessions > 0 ? (attendedTrainingSessions / totalTrainingSessions) * 100 : 0;
+      
+      // Calculate friendly-specific attendance rate
+      const friendlyAttendanceRate = totalFriendlySessions > 0 ? (attendedFriendlySessions / totalFriendlySessions) * 100 : 0;
+      
+      // Use overall attendance rate for rating calculation
+      const attendanceRateForRating = overallAttendanceRate;
+      );
       // Match performance calculations
       const friendlyMatches = events.filter(e => e.type === 'friendly' && e.isCompleted && e.matchDetails);
       let goalsScored = 0;
@@ -287,7 +318,7 @@ const PlayerAnalytics: React.FC = () => {
         .reduce((sum, c) => sum + (c.amount || 0), 0);
 
       // Score calculations (0-100 scale) with updated logic
-      const attendanceScore = Math.min(100, normalizedAttendanceRate);
+      const attendanceScore = Math.min(100, attendanceRateForRating);
       
       // Enhanced performance score with position-specific adjustments
       let positiveActions = goalsScored * 3 + assists * 2 + manOfTheMatchAwards * 5;
@@ -362,8 +393,8 @@ const PlayerAnalytics: React.FC = () => {
 
       return {
         member,
-        attendanceRate: individualAttendanceRate, // Use individual rate for display
-        normalizedAttendanceRate, // Keep normalized rate for calculations
+        attendanceRate: overallAttendanceRate, // Use overall rate for display
+        normalizedAttendanceRate: attendanceRateForRating, // Keep for calculations
         totalSessions,
         attendedSessions,
         lateArrivals,
@@ -785,19 +816,31 @@ const PlayerAnalytics: React.FC = () => {
               <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 border border-blue-200 dark:border-blue-800">
                 <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-3 flex items-center">
                   <Calendar size={18} className="mr-2" />
-                  Attendance (45% weight)
+                  Attendance (50% weight)
                 </h4>
                 <div className="space-y-3">
                   <div className="flex justify-between">
-                    <span className="text-sm text-blue-700 dark:text-blue-300">Normalized Rate:</span>
+                    <span className="text-sm text-blue-700 dark:text-blue-300">Overall Rate:</span>
                     <span className="font-bold text-blue-900 dark:text-blue-100">
                       {Math.round(selectedPlayer.attendanceRate)}%
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-sm text-blue-700 dark:text-blue-300">Sessions:</span>
+                    <span className="text-sm text-blue-700 dark:text-blue-300">Available Sessions:</span>
                     <span className="text-blue-900 dark:text-blue-100">
                       {selectedPlayer.attendedSessions}/{selectedPlayer.totalSessions}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-blue-700 dark:text-blue-300">Training:</span>
+                    <span className="text-blue-900 dark:text-blue-100">
+                      {Math.round(trainingAttendanceRate)}%
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-blue-700 dark:text-blue-300">Friendlies:</span>
+                    <span className="text-blue-900 dark:text-blue-100">
+                      {Math.round(friendlyAttendanceRate)}%
                     </span>
                   </div>
                   <div className="flex justify-between">
