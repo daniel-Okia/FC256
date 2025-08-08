@@ -180,43 +180,39 @@ const PlayerAnalytics: React.FC = () => {
 
   const calculatePlayerAnalytics = (): PlayerAnalytics[] => {
     return members.map(member => {
-      // Attendance calculations with normalization
+      // Get all training sessions that this member could have attended
+      const availableTrainingSessions = events.filter(event => 
+        event.type === 'training' && 
+        new Date(event.date) <= new Date() // Only past and current training sessions
+      );
+      
+      // Get member's attendance records for these available training sessions
       const memberAttendance = attendance.filter(a => a.memberId === member.id);
-      const totalSessions = new Set(memberAttendance.map(a => a.eventId)).size;
-      const attendedSessions = memberAttendance.filter(a => a.status === 'present').length;
+      
+      // Filter attendance to only include records for available training sessions
+      const validAttendanceRecords = memberAttendance.filter(a => {
+        const attendanceEvent = availableTrainingSessions.find(event => event.id === a.eventId);
+        return attendanceEvent !== undefined;
+      });
+      
+      // Calculate actual sessions this member could have attended
+      const totalSessions = availableTrainingSessions.length;
+      const attendedSessions = validAttendanceRecords.filter(a => a.status === 'present').length;
       const lateArrivals = memberAttendance.filter(a => a.status === 'late').length;
       const excusedAbsences = memberAttendance.filter(a => a.status === 'excused').length;
       
-      // Calculate individual attendance rate (for display)
+      // Calculate individual attendance rate based on actual available sessions
       const individualAttendanceRate = totalSessions > 0 ? (attendedSessions / totalSessions) * 100 : 0;
       
-      // Calculate normalized attendance rate (for overall rating calculation)
+      // For coaches and managers, use their own attendance rate
+      // For players, use the same calculation since we're now using actual available sessions
       let normalizedAttendanceRate = 0;
       
       if (member.position === 'Coach' || member.position === 'Manager') {
-        // Coaches and managers use their own attendance rate
         normalizedAttendanceRate = individualAttendanceRate;
       } else {
-        // For players, normalize based on maximum regular player sessions
-        const regularPlayers = members.filter(m => 
-          m.position !== 'Coach' && 
-          m.position !== 'Manager' && 
-          m.status === 'active'
-        );
-        
-        // Find the maximum sessions attended by any regular player
-        const maxPlayerSessions = Math.max(
-          ...regularPlayers.map(player => {
-            const playerAttendance = attendance.filter(a => a.memberId === player.id);
-            return new Set(playerAttendance.map(a => a.eventId)).size;
-          }),
-          1 // Minimum of 1 to avoid division by zero
-        );
-        
-        normalizedAttendanceRate = maxPlayerSessions > 0 ? (attendedSessions / maxPlayerSessions) * 100 : 0;
-        
-        // Cap normalized rate at 100%
-        normalizedAttendanceRate = Math.min(100, normalizedAttendanceRate);
+        // For players, use the same calculation since we're using actual available sessions
+        normalizedAttendanceRate = individualAttendanceRate;
       }
 
       // Match performance calculations
