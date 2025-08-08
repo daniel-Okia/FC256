@@ -245,7 +245,7 @@ const PlayerAnalytics: React.FC = () => {
       
       // Use overall attendance rate for rating calculation
       const attendanceRateForRating = overallAttendanceRate;
-      );
+      
       // Match performance calculations
       const friendlyMatches = events.filter(e => e.type === 'friendly' && e.isCompleted && e.matchDetails);
       let goalsScored = 0;
@@ -393,8 +393,8 @@ const PlayerAnalytics: React.FC = () => {
 
       return {
         member,
-        attendanceRate: overallAttendanceRate, // Use overall rate for display
-        normalizedAttendanceRate: attendanceRateForRating, // Keep for calculations
+        attendanceRate: overallAttendanceRate, // Use individual rate for display
+        normalizedAttendanceRate: attendanceRateForRating, // Keep normalized rate for calculations
         totalSessions,
         attendedSessions,
         lateArrivals,
@@ -816,31 +816,19 @@ const PlayerAnalytics: React.FC = () => {
               <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 border border-blue-200 dark:border-blue-800">
                 <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-3 flex items-center">
                   <Calendar size={18} className="mr-2" />
-                  Attendance (50% weight)
+                  Attendance (45% weight)
                 </h4>
                 <div className="space-y-3">
                   <div className="flex justify-between">
-                    <span className="text-sm text-blue-700 dark:text-blue-300">Overall Rate:</span>
+                    <span className="text-sm text-blue-700 dark:text-blue-300">Normalized Rate:</span>
                     <span className="font-bold text-blue-900 dark:text-blue-100">
                       {Math.round(selectedPlayer.attendanceRate)}%
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-sm text-blue-700 dark:text-blue-300">Available Sessions:</span>
+                    <span className="text-sm text-blue-700 dark:text-blue-300">Sessions:</span>
                     <span className="text-blue-900 dark:text-blue-100">
                       {selectedPlayer.attendedSessions}/{selectedPlayer.totalSessions}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-blue-700 dark:text-blue-300">Training:</span>
-                    <span className="text-blue-900 dark:text-blue-100">
-                      {Math.round(trainingAttendanceRate)}%
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-blue-700 dark:text-blue-300">Friendlies:</span>
-                    <span className="text-blue-900 dark:text-blue-100">
-                      {Math.round(friendlyAttendanceRate)}%
                     </span>
                   </div>
                   <div className="flex justify-between">
