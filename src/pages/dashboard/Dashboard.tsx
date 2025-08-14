@@ -29,6 +29,10 @@ interface DashboardStats {
   remainingBalance: number;
   membershipFeesCollected: number;
   membershipFeesOutstanding: number;
+  contributionBalance: number;
+  membershipBalance: number;
+  contributionExpenses: number;
+  membershipExpenses: number;
 }
 
 interface DateRange {
@@ -132,6 +136,15 @@ const Dashboard: React.FC = () => {
           return sum + amount;
         }, 0);
         
+        // Calculate expenses by funding source
+        const contributionExpenses = validExpenses
+          .filter(e => e.fundingSource === 'contributions' || !e.fundingSource)
+          .reduce((sum, e) => sum + (parseFloat(String(e.amount)) || 0), 0);
+        
+        const membershipExpenses = validExpenses
+          .filter(e => e.fundingSource === 'membership_fees')
+          .reduce((sum, e) => sum + (parseFloat(String(e.amount)) || 0), 0);
+        
         // Calculate membership fee totals
         const membershipFeesCollected = membershipFees
           .filter(fee => fee.amountPaid !== undefined && fee.amountPaid !== null)
@@ -145,6 +158,10 @@ const Dashboard: React.FC = () => {
             return sum + Math.max(0, total - paid);
           }, 0);
         
+        // Calculate available balances by source
+        const contributionBalance = totalContributions - contributionExpenses;
+        const membershipBalance = membershipFeesCollected - membershipExpenses;
+        
         // Calculate total income (contributions + membership fees)
         const totalIncome = totalContributions + membershipFeesCollected;
         
@@ -156,8 +173,12 @@ const Dashboard: React.FC = () => {
           totalContributions,
           validExpenses: validExpenses.length,
           totalExpenses,
+          contributionExpenses,
+          membershipExpenses,
           membershipFeesCollected,
           membershipFeesOutstanding,
+          contributionBalance,
+          membershipBalance,
           totalIncome,
           remainingBalance
         });
@@ -196,6 +217,10 @@ const Dashboard: React.FC = () => {
           remainingBalance: Math.round(remainingBalance),
           membershipFeesCollected: Math.round(membershipFeesCollected),
           membershipFeesOutstanding: Math.round(membershipFeesOutstanding),
+          contributionBalance: Math.round(contributionBalance),
+          membershipBalance: Math.round(membershipBalance),
+          contributionExpenses: Math.round(contributionExpenses),
+          membershipExpenses: Math.round(membershipExpenses),
         });
       } catch (error) {
         console.error('Error loading dashboard data:', error);
@@ -449,23 +474,23 @@ const Dashboard: React.FC = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
         <DashboardCard
-          title="Team Members"
+          title="Active Members"
           value={stats.activeMembers.toString()}
-          description={`${stats.totalMembers} total members`}
+          description={`${stats.totalMembers} total`}
           icon={<Users className="h-6 w-6 text-primary-600 dark:text-primary-400" />}
           link={{ text: 'View all members', to: '/members' }}
         />
         {canViewEvents && (
           <>
             <DashboardCard
-              title="Training Sessions"
+              title="Training"
               value={stats.trainingSessionsThisMonth.toString()}
               description="This month"
               icon={<Calendar className="h-6 w-6 text-primary-600 dark:text-primary-400" />}
               link={{ text: 'View training', to: '/training' }}
             />
             <DashboardCard
-              title="Friendly Matches"
+              title="Friendlies"
               value={stats.friendliesThisMonth.toString()}
               description="This month"
               icon={<Award className="h-6 w-6 text-primary-600 dark:text-primary-400" />}
@@ -478,14 +503,14 @@ const Dashboard: React.FC = () => {
             <DashboardCard
               title="Total Income"
               value={formatUGX(stats.totalContributions + stats.membershipFeesCollected)}
-              description="Contributions + membership fees"
+              description="All sources"
               icon={<CreditCard className="h-6 w-6 text-green-600 dark:text-green-400" />}
               link={{ text: 'View contributions', to: '/contributions' }}
             />
             <DashboardCard
               title="Total Expenses"
               value={formatUGX(stats.totalExpenses)}
-              description="All time spending"
+              description="All spending"
               icon={<TrendingDown className="h-6 w-6 text-red-600 dark:text-red-400" />}
               link={{ text: 'View expenses', to: '/contributions' }}
             />
@@ -496,7 +521,7 @@ const Dashboard: React.FC = () => {
       {/* Balance Summary */}
       {canViewFinancials && (
         <div className="mb-8">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Financial Summary */}
             <div className={`rounded-lg p-6 border ${
               stats.remainingBalance >= 0 
@@ -506,16 +531,11 @@ const Dashboard: React.FC = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                    Financial Summary
+                    Net Balance
                   </h3>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Current balance including membership fees
+                    Total available funds
                   </p>
-                  <div className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                    <span className="font-medium">Contributions:</span> {formatUGX(stats.totalContributions)} • 
-                    <span className="font-medium ml-2">Membership:</span> {formatUGX(stats.membershipFeesCollected)} •
-                    <span className="font-medium ml-2">Expenses:</span> {formatUGX(stats.totalExpenses)}
-                  </div>
                 </div>
                 <div className="text-right">
                   <p className={`text-3xl font-bold ${
@@ -536,27 +556,61 @@ const Dashboard: React.FC = () => {
               </div>
             </div>
             
-            {/* Membership Fee Summary */}
+            {/* Contribution Balance */}
+            <div className="bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                    Contribution Fund
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Available from contributions
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className={`text-2xl font-bold ${
+                    stats.contributionBalance >= 0 
+                      ? 'text-blue-600 dark:text-blue-400'
+                      : 'text-red-600 dark:text-red-400'
+                  }`}>
+                    {formatUGX(Math.abs(stats.contributionBalance))}
+                  </p>
+                  <p className={`text-sm font-medium ${
+                    stats.contributionBalance >= 0 
+                      ? 'text-blue-600 dark:text-blue-400'
+                      : 'text-red-600 dark:text-red-400'
+                  }`}>
+                    {stats.contributionBalance >= 0 ? 'Available' : 'Overused'}
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            {/* Membership Fee Balance */}
             <div className="bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 border border-purple-200 dark:border-purple-800 rounded-lg p-6">
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                    Membership Fees
+                    Membership Fund
                   </h3>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Fee collection status and outstanding amounts
+                    Available from fees
                   </p>
-                  <div className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                    <span className="font-medium">Collected:</span> {formatUGX(stats.membershipFeesCollected)} • 
-                    <span className="font-medium ml-2">Outstanding:</span> {formatUGX(stats.membershipFeesOutstanding)}
-                  </div>
                 </div>
                 <div className="text-right">
-                  <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-                    {formatUGX(stats.membershipFeesCollected)}
+                  <p className={`text-2xl font-bold ${
+                    stats.membershipBalance >= 0 
+                      ? 'text-purple-600 dark:text-purple-400'
+                      : 'text-red-600 dark:text-red-400'
+                  }`}>
+                    {formatUGX(Math.abs(stats.membershipBalance))}
                   </p>
-                  <p className="text-sm font-medium text-purple-600 dark:text-purple-400">
-                    Total Collected
+                  <p className={`text-sm font-medium ${
+                    stats.membershipBalance >= 0 
+                      ? 'text-purple-600 dark:text-purple-400'
+                      : 'text-red-600 dark:text-red-400'
+                  }`}>
+                    {stats.membershipBalance >= 0 ? 'Available' : 'Overused'}
                   </p>
                 </div>
               </div>

@@ -35,6 +35,7 @@ interface ExpenseFormData {
   paymentMethod?: PaymentMethod;
   date: string;
   receipt?: string;
+  fundingSource: 'contributions' | 'membership_fees';
 }
 
 type TransactionType = 'contribution' | 'expense';
@@ -152,6 +153,10 @@ const Contributions: React.FC = () => {
     { value: 'other', label: 'Other' },
   ];
 
+  const fundingSourceOptions = [
+    { value: 'contributions', label: 'Contribution Fund' },
+    { value: 'membership_fees', label: 'Membership Fee Fund' },
+  ];
   const getMemberById = (id: string) => members.find(m => m.id === id);
 
   // Combine contributions and expenses for display
@@ -188,9 +193,16 @@ const Contributions: React.FC = () => {
           return member ? `${member.name} (#${member.jerseyNumber})` : 'Unknown Member';
         } else {
           return (
-            <span className="capitalize font-medium">
-              {transaction.category.replace('_', ' ')}
-            </span>
+            <div>
+              <span className="capitalize font-medium">
+                {transaction.category.replace('_', ' ')}
+              </span>
+              {transaction.fundingSource && (
+                <div className="text-xs text-gray-500 dark:text-gray-400">
+                  From: {transaction.fundingSource.replace('_', ' ')}
+                </div>
+              )}
+            </div>
           );
         }
       },
@@ -296,6 +308,7 @@ const Contributions: React.FC = () => {
       paymentMethod: undefined,
       date: '',
       receipt: '',
+      fundingSource: 'contributions',
     });
     setIsModalOpen(true);
   };
@@ -321,6 +334,7 @@ const Contributions: React.FC = () => {
       setValueExpense('paymentMethod', transaction.paymentMethod);
       setValueExpense('date', transaction.date.split('T')[0]);
       setValueExpense('receipt', transaction.receipt || '');
+      setValueExpense('fundingSource', transaction.fundingSource || 'contributions');
     }
     setIsModalOpen(true);
   };
@@ -397,6 +411,7 @@ const Contributions: React.FC = () => {
         paymentMethod: data.paymentMethod,
         date: new Date(data.date).toISOString(),
         receipt: data.receipt || '',
+        fundingSource: data.fundingSource,
         recordedBy: user?.id || '',
         recordedAt: new Date().toISOString(),
       };
@@ -763,16 +778,26 @@ const Contributions: React.FC = () => {
               {...registerExpense('category', { required: 'Category is required' })}
             />
 
+            <Select
+              label="Funding Source"
+              options={fundingSourceOptions}
+              placeholder="Select funding source"
+              error={errorsExpense.fundingSource?.message}
+              required
+              helperText="Choose which fund to use for this expense"
+              {...registerExpense('fundingSource', { required: 'Funding source is required' })}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Input
-              label="Date"
+              label="Expense Date"
               type="date"
               error={errorsExpense.date?.message}
               required
               {...registerExpense('date', { required: 'Date is required' })}
             />
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <Input
                 label="Amount (UGX)"
@@ -792,7 +817,16 @@ const Contributions: React.FC = () => {
                 Enter amount in Ugandan Shillings
               </p>
             </div>
+          </div>
 
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Input
+              label="Description"
+              placeholder="e.g., Football boots, Transport to match"
+              error={errorsExpense.description?.message}
+              required
+              {...registerExpense('description', { required: 'Description is required' })}
+            />
             <Select
               label="Payment Method"
               options={paymentMethodOptions}
@@ -802,13 +836,6 @@ const Contributions: React.FC = () => {
             />
           </div>
 
-          <Input
-            label="Description"
-            placeholder="e.g., Football boots for training, Transport to away match"
-            error={errorsExpense.description?.message}
-            required
-            {...registerExpense('description', { required: 'Description is required' })}
-          />
 
           <Input
             label="Receipt Reference (Optional)"

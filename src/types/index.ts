@@ -212,6 +212,7 @@ export interface Expense {
   recordedAt: string;
   eventId?: string; // Optional link to specific event
   receipt?: string; // Optional receipt URL or reference
+  fundingSource?: 'contributions' | 'membership_fees'; // Track funding source
 }
 
 // UI Types
