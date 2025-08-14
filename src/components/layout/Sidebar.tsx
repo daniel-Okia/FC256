@@ -71,8 +71,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       roles: Permissions.VIEW_LEADERSHIP 
     },
     { 
-      name: 'Contributions', 
-      path: '/contributions', 
+      name: 'Transactions', 
+      path: '/transactions', 
       icon: CreditCard, 
       roles: Permissions.VIEW_CONTRIBUTIONS 
     },
