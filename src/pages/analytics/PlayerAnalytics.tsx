@@ -107,66 +107,60 @@ const PlayerAnalytics: React.FC = () => {
           return;
         }
 
-        // Get all training sessions for fair attendance calculation
-        const trainingEvents = events.filter(e => e.type === 'training');
-        console.log('Training events for attendance calculation:', trainingEvents.length);
         // Calculate analytics for each player
         const analytics: PlayerAnalytics[] = activeMembers.map(member => {
-          // Fair attendance analytics - only count sessions after member joined
+          // Get member join date
           const memberJoinDate = new Date(member.dateJoined);
           
-          // Get ALL sessions that occurred after the member joined (more inclusive approach)
-          const allSessionsAfterJoining = events.filter(event => {
+          // Get all events (training and friendlies) that occurred after member joined
+          const eventsAfterJoining = events.filter(event => {
             const eventDate = new Date(event.date);
-            // Include sessions from the day they joined onwards
-            const joinDateOnly = new Date(memberJoinDate.getFullYear(), memberJoinDate.getMonth(), memberJoinDate.getDate());
-            const eventDateOnly = new Date(eventDate.getFullYear(), eventDate.getMonth(), eventDate.getDate());
-            return eventDateOnly >= joinDateOnly;
+            return eventDate >= memberJoinDate;
           });
           
           console.log(`Member ${member.name}:`, {
             joinDate: member.dateJoined,
-            eligibleSessions: allSessionsAfterJoining.length,
+            eligibleEvents: eventsAfterJoining.length,
             totalSystemSessions: events.length,
-            memberJoinDate: memberJoinDate.toISOString().split('T')[0]
+            memberJoinDate: memberJoinDate.toISOString().split('T')[0],
+            eventsAfterJoining: eventsAfterJoining.map(e => ({ id: e.id, date: e.date, type: e.type }))
           });
           
-          // Get ALL attendance records for this member
-          const allMemberAttendance = attendance.filter(a => a.memberId === member.id);
+          // Get attendance records for this member
+          const memberAttendanceRecords = attendance.filter(a => a.memberId === member.id);
           
-          // Filter attendance records to only include sessions after member joined
-          const validMemberAttendance = allMemberAttendance.filter(a => {
-            const event = allSessionsAfterJoining.find(e => e.id === a.eventId);
+          // Filter attendance to only include events after member joined
+          const validAttendanceRecords = memberAttendanceRecords.filter(attendanceRecord => {
+            const event = eventsAfterJoining.find(e => e.id === attendanceRecord.eventId);
             return event !== undefined;
           });
           
           console.log(`Member ${member.name} attendance records:`, {
-            totalAttendanceRecords: allMemberAttendance.length,
-            validAttendanceRecords: validMemberAttendance.length,
-            attendanceDetails: validMemberAttendance.map(a => ({
+            totalAttendanceRecords: memberAttendanceRecords.length,
+            validAttendanceRecords: validAttendanceRecords.length,
+            attendanceDetails: validAttendanceRecords.map(a => ({
               eventId: a.eventId,
               status: a.status,
-              recordedAt: a.recordedAt
+              recordedAt: a.recordedAt,
+              eventDate: events.find(e => e.id === a.eventId)?.date
             }))
           });
           
-          const attendedSessions = validMemberAttendance.filter(a => a.status === 'present').length;
-          const lateArrivals = validMemberAttendance.filter(a => a.status === 'late').length;
-          const excusedAbsences = validMemberAttendance.filter(a => a.status === 'excused').length;
+          // Count attendance statuses
+          const attendedSessions = validAttendanceRecords.filter(a => a.status === 'present').length;
+          const lateArrivals = validAttendanceRecords.filter(a => a.status === 'late').length;
+          const excusedAbsences = validAttendanceRecords.filter(a => a.status === 'excused').length;
           
-          // For overall comparison, use total system sessions (from inception)
+          // Total system events (all events from inception)
           const totalSystemSessions = events.length;
           
-          // For fair individual comparison, use sessions after member joined
-          const totalEligibleSessions = allSessionsAfterJoining.length;
+          // Events eligible for this member (after they joined)
+          const totalEligibleSessions = eventsAfterJoining.length;
           
-          // Calculate attendance rate based on eligible sessions (fair for individual comparison)
+          // Calculate attendance rates
           const attendanceRate = totalEligibleSessions > 0 ? (attendedSessions / totalEligibleSessions) * 100 : 0;
-          
-          // Calculate system-wide attendance rate (for overall ranking)
           const systemWideAttendanceRate = totalSystemSessions > 0 ? (attendedSessions / totalSystemSessions) * 100 : 0;
           
-          // Attendance score (0-100)
           const attendanceScore = Math.min(100, attendanceRate);
 
           console.log(`${member.name} attendance summary:`, {
@@ -176,7 +170,8 @@ const PlayerAnalytics: React.FC = () => {
             attendanceRate: Math.round(attendanceRate),
             systemWideRate: Math.round(systemWideAttendanceRate),
             lateArrivals,
-            excusedAbsences
+            excusedAbsences,
+            validRecordsCount: validAttendanceRecords.length
           });
 
           // Match performance analytics
