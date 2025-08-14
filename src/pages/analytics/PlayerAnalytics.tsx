@@ -753,8 +753,9 @@ const PlayerAnalytics: React.FC = () => {
             <div className="text-center">
               <div className="text-3xl font-bold text-yellow-600 dark:text-yellow-400 mb-2">
                 {playerAnalytics.filter(p => p.overallRating >= 75).length}
-                Excellent Performers (75%+)
               </p>
+              </div>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Excellent Performers (75%+)</p>
             </div>
           </div>
         </Card>
