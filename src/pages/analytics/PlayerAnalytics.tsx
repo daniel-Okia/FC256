@@ -105,18 +105,45 @@ const PlayerAnalytics: React.FC = () => {
           return;
         }
 
+        // Get all training sessions for fair attendance calculation
+        const trainingEvents = events.filter(e => e.type === 'training');
+        console.log('Training events for attendance calculation:', trainingEvents.length);
         // Calculate analytics for each player
         const analytics: PlayerAnalytics[] = activeMembers.map(member => {
-          // Attendance analytics
-          const memberAttendance = attendance.filter(a => a.memberId === member.id);
-          const attendedSessions = memberAttendance.filter(a => a.status === 'present').length;
-          const lateArrivals = memberAttendance.filter(a => a.status === 'late').length;
-          const excusedAbsences = memberAttendance.filter(a => a.status === 'excused').length;
-          const totalSessions = memberAttendance.length;
-          const attendanceRate = totalSessions > 0 ? (attendedSessions / totalSessions) * 100 : 0;
+          // Fair attendance analytics - only count training sessions the member could have attended
+          const memberJoinDate = new Date(member.dateJoined);
+          
+          // Get training sessions that occurred after the member joined
+          const eligibleTrainingSessions = trainingEvents.filter(event => {
+            const eventDate = new Date(event.date);
+            return eventDate >= memberJoinDate;
+          });
+          
+          console.log(`Member ${member.name} eligible for ${eligibleTrainingSessions.length} training sessions (joined: ${member.dateJoined})`);
+          
+          // Get attendance records for training sessions only
+          const memberTrainingAttendance = attendance.filter(a => {
+            const event = events.find(e => e.id === a.eventId);
+            return a.memberId === member.id && 
+                   event && 
+                   event.type === 'training' &&
+                   eligibleTrainingSessions.some(ts => ts.id === event.id);
+          });
+          
+          const attendedTrainingSessions = memberTrainingAttendance.filter(a => a.status === 'present').length;
+          const lateArrivals = memberTrainingAttendance.filter(a => a.status === 'late').length;
+          const excusedAbsences = memberTrainingAttendance.filter(a => a.status === 'excused').length;
+          
+          // Total sessions = eligible training sessions (fair comparison)
+          const totalEligibleSessions = eligibleTrainingSessions.length;
+          
+          // Attendance rate based on eligible sessions only
+          const attendanceRate = totalEligibleSessions > 0 ? (attendedTrainingSessions / totalEligibleSessions) * 100 : 0;
           
           // Attendance score (0-100)
           const attendanceScore = Math.min(100, attendanceRate);
+
+          console.log(`${member.name} attendance: ${attendedTrainingSessions}/${totalEligibleSessions} = ${Math.round(attendanceRate)}%`);
 
           // Match performance analytics
           const friendlyMatches = events.filter(e => 
@@ -226,8 +253,8 @@ const PlayerAnalytics: React.FC = () => {
 
           return {
             member,
-            attendedSessions,
-            totalSessions,
+            attendedSessions: attendedTrainingSessions,
+            totalSessions: totalEligibleSessions,
             attendanceRate,
             lateArrivals,
             excusedAbsences,
@@ -257,6 +284,7 @@ const PlayerAnalytics: React.FC = () => {
           prev.overallRating > current.overallRating ? prev : current, analytics[0]
         );
         
+        // Attendance leader based on attendance rate (fair for all members)
         const attendanceLeader = analytics.reduce((prev, current) => 
           prev.attendanceRate > current.attendanceRate ? prev : current, analytics[0]
         );
@@ -725,8 +753,6 @@ const PlayerAnalytics: React.FC = () => {
             <div className="text-center">
               <div className="text-3xl font-bold text-yellow-600 dark:text-yellow-400 mb-2">
                 {playerAnalytics.filter(p => p.overallRating >= 75).length}
-              </div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Excellent Performers (80+)</p>
                 Excellent Performers (75%+)
               </p>
             </div>
