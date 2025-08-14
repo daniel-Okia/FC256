@@ -110,40 +110,39 @@ const PlayerAnalytics: React.FC = () => {
         console.log('Training events for attendance calculation:', trainingEvents.length);
         // Calculate analytics for each player
         const analytics: PlayerAnalytics[] = activeMembers.map(member => {
-          // Fair attendance analytics - only count training sessions the member could have attended
+          // Fair attendance analytics - only count sessions after member joined
           const memberJoinDate = new Date(member.dateJoined);
           
-          // Get training sessions that occurred after the member joined
-          const eligibleTrainingSessions = trainingEvents.filter(event => {
+          // Get ALL sessions (training + friendlies) that occurred after the member joined
+          const eligibleSessions = events.filter(event => {
             const eventDate = new Date(event.date);
             return eventDate >= memberJoinDate;
           });
           
-          console.log(`Member ${member.name} eligible for ${eligibleTrainingSessions.length} training sessions (joined: ${member.dateJoined})`);
+          console.log(`Member ${member.name} eligible for ${eligibleSessions.length} total sessions (joined: ${member.dateJoined})`);
           
-          // Get attendance records for training sessions only
-          const memberTrainingAttendance = attendance.filter(a => {
+          // Get attendance records for all eligible sessions
+          const memberAttendance = attendance.filter(a => {
             const event = events.find(e => e.id === a.eventId);
             return a.memberId === member.id && 
                    event && 
-                   event.type === 'training' &&
-                   eligibleTrainingSessions.some(ts => ts.id === event.id);
+                   eligibleSessions.some(es => es.id === event.id);
           });
           
-          const attendedTrainingSessions = memberTrainingAttendance.filter(a => a.status === 'present').length;
-          const lateArrivals = memberTrainingAttendance.filter(a => a.status === 'late').length;
-          const excusedAbsences = memberTrainingAttendance.filter(a => a.status === 'excused').length;
+          const attendedSessions = memberAttendance.filter(a => a.status === 'present').length;
+          const lateArrivals = memberAttendance.filter(a => a.status === 'late').length;
+          const excusedAbsences = memberAttendance.filter(a => a.status === 'excused').length;
           
-          // Total sessions = eligible training sessions (fair comparison)
-          const totalEligibleSessions = eligibleTrainingSessions.length;
+          // Total sessions = all eligible sessions after member joined (fair comparison)
+          const totalEligibleSessions = eligibleSessions.length;
           
-          // Attendance rate based on eligible sessions only
-          const attendanceRate = totalEligibleSessions > 0 ? (attendedTrainingSessions / totalEligibleSessions) * 100 : 0;
+          // Attendance rate based on eligible sessions only (fair for all members)
+          const attendanceRate = totalEligibleSessions > 0 ? (attendedSessions / totalEligibleSessions) * 100 : 0;
           
           // Attendance score (0-100)
           const attendanceScore = Math.min(100, attendanceRate);
 
-          console.log(`${member.name} attendance: ${attendedTrainingSessions}/${totalEligibleSessions} = ${Math.round(attendanceRate)}%`);
+          console.log(`${member.name} attendance: ${attendedSessions}/${totalEligibleSessions} = ${Math.round(attendanceRate)}%`);
 
           // Match performance analytics
           const friendlyMatches = events.filter(e => 
@@ -253,7 +252,7 @@ const PlayerAnalytics: React.FC = () => {
 
           return {
             member,
-            attendedSessions: attendedTrainingSessions,
+            attendedSessions: attendedSessions,
             totalSessions: totalEligibleSessions,
             attendanceRate,
             lateArrivals,
