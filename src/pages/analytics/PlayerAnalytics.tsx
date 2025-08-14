@@ -25,7 +25,9 @@ interface PlayerAnalytics {
   member: Member;
   attendedSessions: number;
   totalSessions: number;
+  totalSystemSessions: number;
   attendanceRate: number;
+  systemWideAttendanceRate: number;
   lateArrivals: number;
   excusedAbsences: number;
   attendanceScore: number;
@@ -113,36 +115,69 @@ const PlayerAnalytics: React.FC = () => {
           // Fair attendance analytics - only count sessions after member joined
           const memberJoinDate = new Date(member.dateJoined);
           
-          // Get ALL sessions (training + friendlies) that occurred after the member joined
-          const eligibleSessions = events.filter(event => {
+          // Get ALL sessions that occurred after the member joined (more inclusive approach)
+          const allSessionsAfterJoining = events.filter(event => {
             const eventDate = new Date(event.date);
-            return eventDate >= memberJoinDate;
+            // Include sessions from the day they joined onwards
+            const joinDateOnly = new Date(memberJoinDate.getFullYear(), memberJoinDate.getMonth(), memberJoinDate.getDate());
+            const eventDateOnly = new Date(eventDate.getFullYear(), eventDate.getMonth(), eventDate.getDate());
+            return eventDateOnly >= joinDateOnly;
           });
           
-          console.log(`Member ${member.name} eligible for ${eligibleSessions.length} total sessions (joined: ${member.dateJoined})`);
-          
-          // Get attendance records for all eligible sessions
-          const memberAttendance = attendance.filter(a => {
-            const event = events.find(e => e.id === a.eventId);
-            return a.memberId === member.id && 
-                   event && 
-                   eligibleSessions.some(es => es.id === event.id);
+          console.log(`Member ${member.name}:`, {
+            joinDate: member.dateJoined,
+            eligibleSessions: allSessionsAfterJoining.length,
+            totalSystemSessions: events.length,
+            memberJoinDate: memberJoinDate.toISOString().split('T')[0]
           });
           
-          const attendedSessions = memberAttendance.filter(a => a.status === 'present').length;
-          const lateArrivals = memberAttendance.filter(a => a.status === 'late').length;
-          const excusedAbsences = memberAttendance.filter(a => a.status === 'excused').length;
+          // Get ALL attendance records for this member
+          const allMemberAttendance = attendance.filter(a => a.memberId === member.id);
           
-          // Total sessions = all eligible sessions after member joined (fair comparison)
-          const totalEligibleSessions = eligibleSessions.length;
+          // Filter attendance records to only include sessions after member joined
+          const validMemberAttendance = allMemberAttendance.filter(a => {
+            const event = allSessionsAfterJoining.find(e => e.id === a.eventId);
+            return event !== undefined;
+          });
           
-          // Attendance rate based on eligible sessions only (fair for all members)
+          console.log(`Member ${member.name} attendance records:`, {
+            totalAttendanceRecords: allMemberAttendance.length,
+            validAttendanceRecords: validMemberAttendance.length,
+            attendanceDetails: validMemberAttendance.map(a => ({
+              eventId: a.eventId,
+              status: a.status,
+              recordedAt: a.recordedAt
+            }))
+          });
+          
+          const attendedSessions = validMemberAttendance.filter(a => a.status === 'present').length;
+          const lateArrivals = validMemberAttendance.filter(a => a.status === 'late').length;
+          const excusedAbsences = validMemberAttendance.filter(a => a.status === 'excused').length;
+          
+          // For overall comparison, use total system sessions (from inception)
+          const totalSystemSessions = events.length;
+          
+          // For fair individual comparison, use sessions after member joined
+          const totalEligibleSessions = allSessionsAfterJoining.length;
+          
+          // Calculate attendance rate based on eligible sessions (fair for individual comparison)
           const attendanceRate = totalEligibleSessions > 0 ? (attendedSessions / totalEligibleSessions) * 100 : 0;
+          
+          // Calculate system-wide attendance rate (for overall ranking)
+          const systemWideAttendanceRate = totalSystemSessions > 0 ? (attendedSessions / totalSystemSessions) * 100 : 0;
           
           // Attendance score (0-100)
           const attendanceScore = Math.min(100, attendanceRate);
 
-          console.log(`${member.name} attendance: ${attendedSessions}/${totalEligibleSessions} = ${Math.round(attendanceRate)}%`);
+          console.log(`${member.name} attendance summary:`, {
+            attendedSessions,
+            totalEligibleSessions,
+            totalSystemSessions,
+            attendanceRate: Math.round(attendanceRate),
+            systemWideRate: Math.round(systemWideAttendanceRate),
+            lateArrivals,
+            excusedAbsences
+          });
 
           // Match performance analytics
           const friendlyMatches = events.filter(e => 
@@ -253,8 +288,10 @@ const PlayerAnalytics: React.FC = () => {
           return {
             member,
             attendedSessions: attendedSessions,
-            totalSessions: totalEligibleSessions,
+            totalSessions: totalEligibleSessions, // Sessions since member joined
+            totalSystemSessions: totalSystemSessions, // All sessions from inception
             attendanceRate,
+            systemWideAttendanceRate, // For overall ranking
             lateArrivals,
             excusedAbsences,
             attendanceScore,
@@ -284,8 +321,18 @@ const PlayerAnalytics: React.FC = () => {
         );
         
         // Attendance leader based on attendance rate (fair for all members)
-        const attendanceLeader = analytics.reduce((prev, current) => 
-          prev.attendanceRate > current.attendanceRate ? prev : current, analytics[0]
+        // For attendance leader, consider both attendance rate AND total sessions attended
+        // This gives preference to members who have attended more sessions overall
+        const attendanceLeader = analytics.reduce((prev, current) => {
+          // Primary: Compare system-wide attendance rate
+          if (current.systemWideAttendanceRate > prev.systemWideAttendanceRate) {
+            return current;
+          } else if (current.systemWideAttendanceRate === prev.systemWideAttendanceRate) {
+            // Secondary: If rates are equal, prefer member with more total sessions attended
+            return current.attendedSessions > prev.attendedSessions ? current : prev;
+          }
+          return prev;
+        }, analytics[0]
         );
         
         const topScorer = analytics.reduce((prev, current) => 
@@ -396,7 +443,10 @@ const PlayerAnalytics: React.FC = () => {
             {Math.round(player.attendanceRate)}%
           </div>
           <div className="text-sm text-gray-500 dark:text-gray-400">
-            {player.attendedSessions}/{player.totalSessions} sessions
+            {player.attendedSessions}/{player.totalSessions} eligible
+          </div>
+          <div className="text-xs text-gray-500 dark:text-gray-400">
+            ({player.attendedSessions}/{player.totalSystemSessions} total system)
           </div>
         </div>
       ),
@@ -633,7 +683,14 @@ const PlayerAnalytics: React.FC = () => {
           <Card title="Attendance Champions" className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20">
             <div className="space-y-3">
               {playerAnalytics
-                .sort((a, b) => b.attendanceRate - a.attendanceRate)
+                .sort((a, b) => {
+                  // Primary sort: system-wide attendance rate
+                  if (b.systemWideAttendanceRate !== a.systemWideAttendanceRate) {
+                    return b.systemWideAttendanceRate - a.systemWideAttendanceRate;
+                  }
+                  // Secondary sort: total sessions attended
+                  return b.attendedSessions - a.attendedSessions;
+                })
                 .slice(0, 3)
                 .map((player, index) => (
                   <div key={player.member.id} className="flex items-center justify-between p-3 bg-white dark:bg-neutral-800 rounded-lg">
@@ -648,13 +705,19 @@ const PlayerAnalytics: React.FC = () => {
                           {player.member.name}
                         </div>
                         <div className="text-sm text-gray-500 dark:text-gray-400">
-                          {player.attendedSessions}/{player.totalSessions}
+                          {player.attendedSessions}/{player.totalSessions} eligible
+                        </div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                          {player.attendedSessions}/{player.totalSystemSessions} total
                         </div>
                       </div>
                     </div>
                     <div className="text-right">
                       <div className="font-bold text-green-600 dark:text-green-400">
-                        {Math.round(player.attendanceRate)}%
+                        {Math.round(player.systemWideAttendanceRate)}%
+                      </div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                        system-wide
                       </div>
                     </div>
                   </div>
@@ -730,9 +793,9 @@ const PlayerAnalytics: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <div className="text-center">
               <div className="text-3xl font-bold text-blue-600 dark:text-blue-400 mb-2">
-                {Math.round(playerAnalytics.reduce((sum, p) => sum + p.attendanceRate, 0) / playerAnalytics.length)}%
+                {Math.round(playerAnalytics.reduce((sum, p) => sum + p.systemWideAttendanceRate, 0) / playerAnalytics.length)}%
               </div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Average Attendance Rate</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Average System-Wide Attendance</p>
             </div>
             
             <div className="text-center">
@@ -753,9 +816,34 @@ const PlayerAnalytics: React.FC = () => {
               <div className="text-3xl font-bold text-yellow-600 dark:text-yellow-400 mb-2">
                 {playerAnalytics.filter(p => p.overallRating >= 75).length}
               </div>
-              </div>
               <p className="text-sm text-gray-600 dark:text-gray-400">Excellent Performers (75%+)</p>
             </div>
+          </div>
+          
+          {/* Attendance Details Section */}
+          <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+            <h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-3">
+              Attendance Calculation Details
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+              <div>
+                <h5 className="font-medium text-blue-800 dark:text-blue-200 mb-2">Individual Attendance Rate</h5>
+                <p className="text-blue-700 dark:text-blue-300">
+                  Based on sessions available since the member joined the team (fair individual comparison)
+                </p>
+              </div>
+              <div>
+                <h5 className="font-medium text-blue-800 dark:text-blue-200 mb-2">System-Wide Attendance Rate</h5>
+                <p className="text-blue-700 dark:text-blue-300">
+                  Based on all sessions from system inception (used for overall ranking and attendance champions)
+                </p>
+              </div>
+            </div>
+            <div className="mt-3 text-xs text-blue-600 dark:text-blue-400">
+              <strong>Note:</strong> Members who joined later are not penalized for sessions before they joined, 
+              but overall rankings consider total system contribution for fairness.
+            </div>
+          </div>
         </Card>
       )}
     </div>

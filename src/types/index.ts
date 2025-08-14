@@ -320,3 +320,15 @@ export interface FeeStructure {
   label: string;
   description: string;
 }
+
+interface PlayerAnalytics {
+  member: Member;
+  attendedSessions: number;
+  totalSessions: number;
+  totalSystemSessions: number;
+  attendanceRate: number;
+  systemWideAttendanceRate: number;
+  lateArrivals: number;
+  excusedAbsences: number;
+  attendanceScore: number;
+}
