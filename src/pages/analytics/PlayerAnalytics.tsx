@@ -757,7 +757,6 @@ const PlayerAnalytics: React.FC = () => {
               </div>
               <p className="text-sm text-gray-600 dark:text-gray-400">Excellent Performers (75%+)</p>
             </div>
-          </div>
         </Card>
       )}
     </div>
