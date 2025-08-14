@@ -21,7 +21,6 @@ import PlayerAnalytics from './pages/analytics/PlayerAnalytics';
 import NotFound from './pages/NotFound';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import MembershipFees from './pages/membership/MembershipFees';
-import MembershipFees from './pages/membership/MembershipFees';
 
 function App() {
   return (
