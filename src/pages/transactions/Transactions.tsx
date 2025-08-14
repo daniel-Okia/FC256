@@ -40,7 +40,7 @@ interface ExpenseFormData {
 
 type TransactionType = 'contribution' | 'expense';
 
-const Contributions: React.FC = () => {
+const Transactions: React.FC = () => {
   const { user } = useAuth();
   const [members, setMembers] = useState<Member[]>([]);
   const [contributions, setContributions] = useState<Contribution[]>([]);
@@ -135,8 +135,8 @@ const Contributions: React.FC = () => {
 
   const paymentMethodOptions = [
     { value: 'cash', label: 'Cash' },
-    { value: 'bank transfer', label: 'Bank Transfer' },
-    { value: 'mobile money', label: 'Mobile Money' },
+    { value: 'bank_transfer', label: 'Bank Transfer' },
+    { value: 'mobile_money', label: 'Mobile Money' },
     { value: 'other', label: 'Other' },
   ];
 
@@ -157,6 +157,7 @@ const Contributions: React.FC = () => {
     { value: 'contributions', label: 'Contribution Fund' },
     { value: 'membership_fees', label: 'Membership Fee Fund' },
   ];
+  
   const getMemberById = (id: string) => members.find(m => m.id === id);
 
   // Combine contributions and expenses for display
@@ -436,7 +437,7 @@ const Contributions: React.FC = () => {
   const handleExport = async () => {
     try {
       setExporting(true);
-      console.log('Starting contributions export...');
+      console.log('Starting transactions export...');
       
       // Calculate totals with proper number handling
       const totalContributions = contributions
@@ -473,8 +474,8 @@ const Contributions: React.FC = () => {
         remainingBalance: Math.round(remainingBalance),
       });
     } catch (error) {
-      console.error('Error exporting contributions:', error);
-      alert('Failed to export contributions PDF. Please check the console for details.');
+      console.error('Error exporting transactions:', error);
+      alert('Failed to export transactions PDF. Please check the console for details.');
     } finally {
       setExporting(false);
     }
@@ -508,8 +509,8 @@ const Contributions: React.FC = () => {
   return (
     <div>
       <PageHeader
-        title="Contributions & Expenses"
-        description={`Track team contributions and expenses in UGX (${filteredTransactions.length} transactions)`}
+        title="Transactions"
+        description={`Track team income and expenses in UGX (${filteredTransactions.length} transactions)`}
         actions={
           <div className="flex space-x-2">
             {canCreateTransaction && (
@@ -836,7 +837,6 @@ const Contributions: React.FC = () => {
             />
           </div>
 
-
           <Input
             label="Receipt Reference (Optional)"
             placeholder="Receipt number or reference"
@@ -891,4 +891,4 @@ const Contributions: React.FC = () => {
   );
 };
 
-export default Contributions;
+export default Transactions;

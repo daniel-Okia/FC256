@@ -476,25 +476,25 @@ const Dashboard: React.FC = () => {
         <DashboardCard
           title="Active Members"
           value={stats.activeMembers.toString()}
-          description={`${stats.totalMembers} total`}
+          description={`of ${stats.totalMembers}`}
           icon={<Users className="h-6 w-6 text-primary-600 dark:text-primary-400" />}
-          link={{ text: 'View all members', to: '/members' }}
+          link={{ text: 'View members', to: '/members' }}
         />
         {canViewEvents && (
           <>
             <DashboardCard
               title="Training"
               value={stats.trainingSessionsThisMonth.toString()}
-              description="This month"
+              description="this month"
               icon={<Calendar className="h-6 w-6 text-primary-600 dark:text-primary-400" />}
-              link={{ text: 'View training', to: '/training' }}
+              link={{ text: 'View all', to: '/training' }}
             />
             <DashboardCard
               title="Friendlies"
               value={stats.friendliesThisMonth.toString()}
-              description="This month"
+              description="this month"
               icon={<Award className="h-6 w-6 text-primary-600 dark:text-primary-400" />}
-              link={{ text: 'View friendlies', to: '/friendlies' }}
+              link={{ text: 'View all', to: '/friendlies' }}
             />
           </>
         )}
@@ -503,16 +503,16 @@ const Dashboard: React.FC = () => {
             <DashboardCard
               title="Total Income"
               value={formatUGX(stats.totalContributions + stats.membershipFeesCollected)}
-              description="All sources"
+              description="all sources"
               icon={<CreditCard className="h-6 w-6 text-green-600 dark:text-green-400" />}
-              link={{ text: 'View contributions', to: '/contributions' }}
+              link={{ text: 'View transactions', to: '/transactions' }}
             />
             <DashboardCard
               title="Total Expenses"
               value={formatUGX(stats.totalExpenses)}
-              description="All spending"
+              description="all spending"
               icon={<TrendingDown className="h-6 w-6 text-red-600 dark:text-red-400" />}
-              link={{ text: 'View expenses', to: '/contributions' }}
+              link={{ text: 'View transactions', to: '/transactions' }}
             />
           </>
         )}
@@ -533,9 +533,6 @@ const Dashboard: React.FC = () => {
                   <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
                     Net Balance
                   </h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Total available funds
-                  </p>
                 </div>
                 <div className="text-right">
                   <p className={`text-3xl font-bold ${
@@ -561,11 +558,8 @@ const Dashboard: React.FC = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                    Contribution Fund
+                    Contributions
                   </h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Available from contributions
-                  </p>
                 </div>
                 <div className="text-right">
                   <p className={`text-2xl font-bold ${
@@ -591,11 +585,8 @@ const Dashboard: React.FC = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                    Membership Fund
+                    Membership Fees
                   </h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Available from fees
-                  </p>
                 </div>
                 <div className="text-right">
                   <p className={`text-2xl font-bold ${

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, Users, Trophy, CreditCard, Download, Filter, Eye, Star, Award, Target, Calendar, AlertCircle } from 'lucide-react';
+import { TrendingUp, Users, Trophy, CreditCard, Download, Filter, Eye, Star, Award, Target, Calendar, AlertCircle, CalendarDays } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { MemberService, AttendanceService, EventService, ContributionService } from '../../services/firestore';
 import PageHeader from '../../components/layout/PageHeader';
@@ -63,6 +63,11 @@ const PlayerAnalytics: React.FC = () => {
   const [exporting, setExporting] = useState(false);
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerAnalytics | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [isDateFilterModalOpen, setIsDateFilterModalOpen] = useState(false);
+  const [dateRange, setDateRange] = useState<{ startDate: string; endDate: string }>({
+    startDate: '',
+    endDate: '',
+  });
   const [filters, setFilters] = useState<FilterOptions>({
     position: 'all',
     status: 'all',
@@ -550,22 +555,163 @@ const PlayerAnalytics: React.FC = () => {
   const handleExport = async () => {
     try {
       setExporting(true);
-      const exporter = new PlayerAnalyticsPDFExporter();
-      exporter.exportPlayerAnalytics({
-        playerAnalytics: filteredAnalytics,
-        teamStats: {
-          totalPlayers: playerAnalytics.length,
-          averageRating: Math.round(playerAnalytics.reduce((sum, p) => sum + p.overallRating, 0) / playerAnalytics.length),
-          topPerformer: playerAnalytics.reduce((top, current) => 
-            current.overallRating > top.overallRating ? current : top, playerAnalytics[0]),
-          attendanceLeader: playerAnalytics.reduce((top, current) => 
-            current.attendanceRate > top.attendanceRate ? current : top, playerAnalytics[0]),
-          topScorer: playerAnalytics.reduce((top, current) => 
-            current.goalsScored > top.goalsScored ? current : top, playerAnalytics[0]),
-        },
-      });
+      await exportAnalytics(filteredAnalytics);
     } catch (error) {
       console.error('Error exporting player analytics:', error);
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const exportAnalytics = async (analyticsData: PlayerAnalytics[]) => {
+    const exporter = new PlayerAnalyticsPDFExporter();
+    exporter.exportPlayerAnalytics({
+      playerAnalytics: analyticsData,
+      teamStats: {
+        totalPlayers: analyticsData.length,
+        averageRating: analyticsData.length > 0 ? Math.round(analyticsData.reduce((sum, p) => sum + p.overallRating, 0) / analyticsData.length) : 0,
+        topPerformer: analyticsData.length > 0 ? analyticsData.reduce((top, current) => 
+          current.overallRating > top.overallRating ? current : top, analyticsData[0]) : null,
+        attendanceLeader: analyticsData.length > 0 ? analyticsData.reduce((top, current) => 
+          current.attendanceRate > top.attendanceRate ? current : top, analyticsData[0]) : null,
+        topScorer: analyticsData.length > 0 ? analyticsData.reduce((top, current) => 
+          current.goalsScored > top.goalsScored ? current : top, analyticsData[0]) : null,
+      },
+    });
+  };
+
+  const handleDateFilteredExport = async () => {
+    if (!dateRange.startDate || !dateRange.endDate) {
+      alert('Please select both start and end dates');
+      return;
+    }
+
+    try {
+      setExporting(true);
+      
+      // Filter data by date range
+      const startDate = new Date(dateRange.startDate + 'T00:00:00');
+      const endDate = new Date(dateRange.endDate + 'T23:59:59');
+
+      // Filter attendance by event date
+      const filteredAttendance = attendance.filter(attendanceRecord => {
+        const event = events.find(e => e.id === attendanceRecord.eventId);
+        if (!event) return false;
+        const eventDate = new Date(event.date);
+        return eventDate >= startDate && eventDate <= endDate;
+      });
+
+      // Filter events by date
+      const filteredEvents = events.filter(event => {
+        const eventDate = new Date(event.date);
+        return eventDate >= startDate && eventDate <= endDate;
+      });
+
+      // Filter contributions by date
+      const filteredContributions = contributions.filter(contribution => {
+        const contributionDate = new Date(contribution.date);
+        return contributionDate >= startDate && contributionDate <= endDate;
+      });
+
+      // Recalculate analytics with filtered data
+      const filteredAnalytics = members.map(member => {
+        // Use filtered data for calculations
+        const memberAttendance = filteredAttendance.filter(a => a.memberId === member.id);
+        const memberContributions = filteredContributions.filter(c => c.memberId === member.id);
+        const memberEvents = filteredEvents.filter(e => 
+          e.type === 'friendly' && e.isCompleted && e.matchDetails &&
+          (e.matchDetails.goalScorers?.includes(member.id) ||
+           e.matchDetails.assists?.includes(member.id) ||
+           e.matchDetails.yellowCards?.includes(member.id) ||
+           e.matchDetails.redCards?.includes(member.id) ||
+           e.matchDetails.manOfTheMatch === member.id)
+        );
+
+        // Recalculate stats with filtered data
+        const totalSessions = new Set(memberAttendance.map(a => a.eventId)).size;
+        const attendedSessions = memberAttendance.filter(a => a.status === 'present').length;
+        const attendanceRate = totalSessions > 0 ? (attendedSessions / totalSessions) * 100 : 0;
+
+        // Match performance from filtered events
+        let goalsScored = 0;
+        let assists = 0;
+        let yellowCards = 0;
+        let redCards = 0;
+        let manOfTheMatchAwards = 0;
+
+        memberEvents.forEach(match => {
+          if (match.matchDetails) {
+            if (match.matchDetails.goalScorers?.includes(member.id)) {
+              goalsScored += match.matchDetails.goalScorers.filter(id => id === member.id).length;
+            }
+            if (match.matchDetails.assists?.includes(member.id)) {
+              assists += match.matchDetails.assists.filter(id => id === member.id).length;
+            }
+            if (match.matchDetails.yellowCards?.includes(member.id)) {
+              yellowCards += match.matchDetails.yellowCards.filter(id => id === member.id).length;
+            }
+            if (match.matchDetails.redCards?.includes(member.id)) {
+              redCards += match.matchDetails.redCards.filter(id => id === member.id).length;
+            }
+            if (match.matchDetails.manOfTheMatch === member.id) {
+              manOfTheMatchAwards++;
+            }
+          }
+        });
+
+        // Contribution calculations from filtered data
+        const monetaryContributions = memberContributions.filter(c => c.type === 'monetary').length;
+        const inKindContributions = memberContributions.filter(c => c.type === 'in-kind').length;
+        const totalContributionAmount = memberContributions
+          .filter(c => c.type === 'monetary' && c.amount)
+          .reduce((sum, c) => sum + (c.amount || 0), 0);
+
+        // Score calculations
+        const attendanceScore = Math.min(100, attendanceRate);
+        const positiveActions = goalsScored * 3 + assists * 2 + manOfTheMatchAwards * 5;
+        const negativeActions = yellowCards * 1 + redCards * 3;
+        const performanceScore = Math.max(0, Math.min(100, 50 + ((positiveActions - negativeActions) * 2)));
+        const contributionScore = Math.min(100, (memberContributions.length * 10) + (totalContributionAmount / 10000));
+        
+        const hasActivity = totalSessions > 0 || memberEvents.length > 0 || memberContributions.length > 0;
+        const overallRating = hasActivity ? Math.round(
+          (attendanceScore * 0.50) + 
+          (performanceScore * 0.35) + 
+          (contributionScore * 0.15)
+        ) : 0;
+
+        return {
+          member,
+          attendanceRate,
+          normalizedAttendanceRate: attendanceRate,
+          totalSessions,
+          attendedSessions,
+          lateArrivals: memberAttendance.filter(a => a.status === 'late').length,
+          excusedAbsences: memberAttendance.filter(a => a.status === 'excused').length,
+          goalsScored,
+          assists,
+          yellowCards,
+          redCards,
+          manOfTheMatchAwards,
+          matchesPlayed: memberEvents.length,
+          totalContributions: memberContributions.length,
+          monetaryContributions,
+          inKindContributions,
+          totalContributionAmount,
+          overallRating,
+          attendanceScore,
+          performanceScore,
+          contributionScore,
+          recentAttendance: [],
+          recentMatches: [],
+          recentContributions: [],
+        };
+      });
+
+      await exportAnalytics(filteredAnalytics);
+      setIsDateFilterModalOpen(false);
+    } catch (error) {
+      console.error('Error exporting filtered analytics:', error);
     } finally {
       setExporting(false);
     }
@@ -595,39 +741,49 @@ const PlayerAnalytics: React.FC = () => {
     <div>
       <PageHeader
         title="Player Analytics"
-        description={`Individual performance analysis with weighted ratings for ${teamStats.totalPlayers} players`}
+        description={`Performance analysis (${teamStats.totalPlayers} players)`}
         actions={
           canExport && (
-            <Button
-              onClick={handleExport}
-              leftIcon={<Download size={18} />}
-              isLoading={exporting}
-              variant="outline"
-            >
-              Export Analytics
-            </Button>
+            <div className="flex space-x-2">
+              <Button
+                onClick={handleExport}
+                leftIcon={<Download size={18} />}
+                isLoading={exporting}
+                variant="outline"
+              >
+                Export
+              </Button>
+              <Button
+                onClick={() => setIsDateFilterModalOpen(true)}
+                leftIcon={<CalendarDays size={18} />}
+                variant="primary"
+                className="bg-gradient-to-r from-primary-600 to-yellow-500 hover:from-primary-700 hover:to-yellow-600 text-white"
+              >
+                Date Filter
+              </Button>
+            </div>
           )
         }
       />
 
       {/* Rating System Weights */}
-      <Card className="mb-6 bg-gradient-to-r from-blue-50 to-green-50 dark:from-blue-900/20 dark:to-green-900/20 border border-blue-200 dark:border-blue-800">
+      <Card className="mb-6">
         <div className="text-center">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-            Overall Rating Calculation
+            Rating Weights
           </h3>
           <div className="grid grid-cols-3 gap-6">
             <div>
               <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">50%</div>
-              <div className="text-sm font-medium text-gray-700 dark:text-gray-300">Attendance</div>
+              <div className="text-sm text-gray-700 dark:text-gray-300">Attendance</div>
             </div>
             <div>
               <div className="text-2xl font-bold text-green-600 dark:text-green-400">35%</div>
-              <div className="text-sm font-medium text-gray-700 dark:text-gray-300">Performance</div>
+              <div className="text-sm text-gray-700 dark:text-gray-300">Performance</div>
             </div>
             <div>
               <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">15%</div>
-              <div className="text-sm font-medium text-gray-700 dark:text-gray-300">Contributions</div>
+              <div className="text-sm text-gray-700 dark:text-gray-300">Contributions</div>
             </div>
           </div>
         </div>
@@ -1006,6 +1162,162 @@ const PlayerAnalytics: React.FC = () => {
             </div>
           </div>
         )}
+      </Modal>
+
+      {/* Date Filter Export Modal */}
+      <Modal
+        isOpen={isDateFilterModalOpen}
+        onClose={() => setIsDateFilterModalOpen(false)}
+        title="Export Analytics with Date Filter"
+        size="lg"
+      >
+        <div className="space-y-6">
+          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+            <div className="flex items-center">
+              <CalendarDays size={20} className="text-blue-600 dark:text-blue-400 mr-2" />
+              <div>
+                <h4 className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                  Date Range Analytics
+                </h4>
+                <p className="text-sm text-blue-700 dark:text-blue-300">
+                  Filter player performance data by date range for specific period analysis.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Input
+              label="Start Date"
+              type="date"
+              value={dateRange.startDate}
+              onChange={(e) => setDateRange(prev => ({ ...prev, startDate: e.target.value }))}
+              max={dateRange.endDate || undefined}
+              required
+            />
+            <Input
+              label="End Date"
+              type="date"
+              value={dateRange.endDate}
+              onChange={(e) => setDateRange(prev => ({ ...prev, endDate: e.target.value }))}
+              min={dateRange.startDate || undefined}
+              required
+            />
+          </div>
+
+          {dateRange.startDate && dateRange.endDate && (
+            <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+              <h4 className="text-sm font-medium text-green-900 dark:text-green-100 mb-2">
+                Selected Period
+              </h4>
+              <p className="text-sm text-green-700 dark:text-green-300">
+                <strong>From:</strong> {formatDate(dateRange.startDate, 'MMM d, yyyy')} <br />
+                <strong>To:</strong> {formatDate(dateRange.endDate, 'MMM d, yyyy')} <br />
+                <strong>Duration:</strong> {Math.ceil((new Date(dateRange.endDate + 'T00:00:00').getTime() - new Date(dateRange.startDate + 'T00:00:00').getTime()) / (1000 * 60 * 60 * 24)) + 1} days
+              </p>
+            </div>
+          )}
+
+          {/* Quick Date Range Buttons */}
+          <div className="space-y-3">
+            <h4 className="text-sm font-medium text-gray-900 dark:text-white">
+              Quick Select:
+            </h4>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const today = new Date();
+                  const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+                  const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+                  setDateRange({
+                    startDate: firstDay.toISOString().split('T')[0],
+                    endDate: lastDay.toISOString().split('T')[0],
+                  });
+                }}
+                className="text-xs"
+              >
+                This Month
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const today = new Date();
+                  const firstDay = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+                  const lastDay = new Date(today.getFullYear(), today.getMonth(), 0);
+                  setDateRange({
+                    startDate: firstDay.toISOString().split('T')[0],
+                    endDate: lastDay.toISOString().split('T')[0],
+                  });
+                }}
+                className="text-xs"
+              >
+                Last Month
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const today = new Date();
+                  const thirtyDaysAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+                  setDateRange({
+                    startDate: thirtyDaysAgo.toISOString().split('T')[0],
+                    endDate: today.toISOString().split('T')[0],
+                  });
+                }}
+                className="text-xs"
+              >
+                Last 30 Days
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const today = new Date();
+                  const firstDay = new Date(today.getFullYear(), 0, 1);
+                  setDateRange({
+                    startDate: firstDay.toISOString().split('T')[0],
+                    endDate: today.toISOString().split('T')[0],
+                  });
+                }}
+                className="text-xs"
+              >
+                This Year
+              </Button>
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row justify-end space-y-3 sm:space-y-0 sm:space-x-3 pt-6 border-t border-gray-200 dark:border-gray-700">
+            <Button
+              variant="outline"
+              onClick={() => setDateRange({ startDate: '', endDate: '' })}
+              className="w-full sm:w-auto"
+            >
+              Clear Dates
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setIsDateFilterModalOpen(false)}
+              className="w-full sm:w-auto"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleDateFilteredExport}
+              isLoading={exporting}
+              className="bg-gradient-to-r from-primary-600 to-yellow-500 hover:from-primary-700 hover:to-yellow-600 text-white w-full sm:w-auto"
+              leftIcon={<Download size={18} />}
+            >
+              Export Filtered
+            </Button>
+          </div>
+        </div>
       </Modal>
     </div>
   );
