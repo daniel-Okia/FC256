@@ -116,10 +116,7 @@ const PlayerAnalytics: React.FC = () => {
           const attendanceRate = totalSessions > 0 ? (attendedSessions / totalSessions) * 100 : 0;
           
           // Attendance score (0-100)
-          const attendanceScore = Math.min(100, 
-            (attendanceRate * 0.8) + 
-            (lateArrivals > 0 ? Math.max(0, 20 - (lateArrivals * 2)) : 20) // Penalty for late arrivals
-          );
+          const attendanceScore = Math.min(100, attendanceRate);
 
           // Match performance analytics
           const friendlyMatches = events.filter(e => 
@@ -168,14 +165,43 @@ const PlayerAnalytics: React.FC = () => {
             }
           });
 
-          // Performance score (0-100)
+          // Check if player is defender or goalkeeper
+          const isDefenderOrKeeper = ['Goalkeeper', 'Centre-back', 'Left-back', 'Right-back', 'Sweeper'].includes(member.position);
+          
+          // Calculate defensive bonus for defenders and goalkeepers
+          let defensiveBonus = 0;
+          if (isDefenderOrKeeper && matchesPlayed > 0) {
+            // Get total goals scored by all players in matches this player participated
+            const totalTeamGoals = friendlyMatches.reduce((total, match) => {
+              if (!match.matchDetails?.goalScorers) return total;
+              
+              // Check if this player participated in this match
+              const playerParticipated = 
+                match.matchDetails.goalScorers.includes(member.id) ||
+                match.matchDetails.assists?.includes(member.id) ||
+                match.matchDetails.yellowCards?.includes(member.id) ||
+                match.matchDetails.redCards?.includes(member.id) ||
+                match.matchDetails.manOfTheMatch === member.id;
+              
+              if (playerParticipated) {
+                return total + (match.matchDetails.goalScorers?.length || 0);
+              }
+              return total;
+            }, 0);
+            
+            // Defensive bonus: 30% of total team goals for defenders/keepers who attended matches
+            defensiveBonus = Math.round(totalTeamGoals * 0.3);
+          }
+          
+          // Performance score (0-100) with defensive bonus
           const performanceScore = Math.min(100,
             (goalsScored * 10) + 
             (assists * 5) + 
-            (manOfTheMatchAwards * 15) - 
+            (manOfTheMatchAwards * 15) + 
+            defensiveBonus + // Add defensive bonus
+            (matchesPlayed * 2) - // Participation bonus
             (yellowCards * 2) - 
-            (redCards * 10) +
-            (matchesPlayed * 2) // Participation bonus
+            (redCards * 10)
           );
 
           // Contribution analytics
@@ -187,17 +213,15 @@ const PlayerAnalytics: React.FC = () => {
             .reduce((sum, c) => sum + (c.amount || 0), 0);
           
           // Contribution score (0-100)
-          const contributionScore = Math.min(100,
-            (monetaryContributions * 10) + 
-            (inKindContributions * 5) + 
-            (totalContributionAmount / 1000) // 1 point per 1000 UGX
+          const contributionScore = Math.min(100, 
+            Math.max(0, (totalContributionAmount / 50000) * 100) // Scale based on 50k UGX as 100%
           );
 
-          // Overall rating (weighted average)
+          // Overall rating with new weights: Attendance 50%, Performance 35%, Contribution 15%
           const overallRating = Math.round(
-            (attendanceScore * 0.4) + 
+            (attendanceScore * 0.5) + 
             (performanceScore * 0.35) + 
-            (contributionScore * 0.25)
+            (contributionScore * 0.15)
           );
 
           return {
@@ -331,10 +355,7 @@ const PlayerAnalytics: React.FC = () => {
             player.overallRating >= 60 ? 'text-yellow-600 dark:text-yellow-400' :
             'text-red-600 dark:text-red-400'
           }`}>
-            {player.overallRating}
-          </div>
-          <div className="text-xs text-gray-500 dark:text-gray-400">
-            /100
+            {player.overallRating}%
           </div>
         </div>
       ),
@@ -350,11 +371,6 @@ const PlayerAnalytics: React.FC = () => {
           <div className="text-sm text-gray-500 dark:text-gray-400">
             {player.attendedSessions}/{player.totalSessions} sessions
           </div>
-          {player.lateArrivals > 0 && (
-            <div className="text-xs text-yellow-600 dark:text-yellow-400">
-              {player.lateArrivals} late
-            </div>
-          )}
         </div>
       ),
     },
@@ -363,26 +379,12 @@ const PlayerAnalytics: React.FC = () => {
       title: 'Match Performance',
       render: (player: PlayerAnalytics) => (
         <div className="space-y-1">
-          <div className="flex items-center space-x-2 text-sm">
-            <span>⚽ {player.goalsScored}</span>
-            <span>🎯 {player.assists}</span>
-            {player.manOfTheMatchAwards > 0 && (
-              <span>🏆 {player.manOfTheMatchAwards}</span>
-            )}
+          <div className="font-medium text-gray-900 dark:text-white">
+            {Math.round(player.performanceScore)}%
           </div>
           <div className="text-xs text-gray-500 dark:text-gray-400">
-            {player.matchesPlayed} matches played
+            ⚽{player.goalsScored} 🎯{player.assists} 🏆{player.manOfTheMatchAwards}
           </div>
-          {(player.yellowCards > 0 || player.redCards > 0) && (
-            <div className="text-xs">
-              {player.yellowCards > 0 && (
-                <span className="text-yellow-600 dark:text-yellow-400">🟨 {player.yellowCards}</span>
-              )}
-              {player.redCards > 0 && (
-                <span className="text-red-600 dark:text-red-400 ml-1">🟥 {player.redCards}</span>
-              )}
-            </div>
-          )}
         </div>
       ),
     },
@@ -392,48 +394,10 @@ const PlayerAnalytics: React.FC = () => {
       render: (player: PlayerAnalytics) => (
         <div>
           <div className="font-medium text-gray-900 dark:text-white">
-            {formatUGX(player.totalContributionAmount)}
+            {Math.round(player.contributionScore)}%
           </div>
           <div className="text-sm text-gray-500 dark:text-gray-400">
-            {player.totalContributions} total
-          </div>
-          <div className="text-xs text-gray-500 dark:text-gray-400">
-            {player.monetaryContributions} monetary • {player.inKindContributions} in-kind
-          </div>
-        </div>
-      ),
-    },
-    {
-      key: 'scores',
-      title: 'Category Scores',
-      render: (player: PlayerAnalytics) => (
-        <div className="space-y-1">
-          <div className="flex items-center space-x-2">
-            <span className="text-xs text-gray-500 dark:text-gray-400">Attendance:</span>
-            <Badge 
-              variant={player.attendanceScore >= 80 ? 'success' : player.attendanceScore >= 60 ? 'warning' : 'danger'}
-              size="sm"
-            >
-              {Math.round(player.attendanceScore)}
-            </Badge>
-          </div>
-          <div className="flex items-center space-x-2">
-            <span className="text-xs text-gray-500 dark:text-gray-400">Performance:</span>
-            <Badge 
-              variant={player.performanceScore >= 80 ? 'success' : player.performanceScore >= 60 ? 'warning' : 'danger'}
-              size="sm"
-            >
-              {Math.round(player.performanceScore)}
-            </Badge>
-          </div>
-          <div className="flex items-center space-x-2">
-            <span className="text-xs text-gray-500 dark:text-gray-400">Contribution:</span>
-            <Badge 
-              variant={player.contributionScore >= 80 ? 'success' : player.contributionScore >= 60 ? 'warning' : 'danger'}
-              size="sm"
-            >
-              {Math.round(player.contributionScore)}
-            </Badge>
+            {formatUGX(player.totalContributionAmount)}
           </div>
         </div>
       ),
@@ -708,7 +672,34 @@ const PlayerAnalytics: React.FC = () => {
 
       {/* Performance Insights */}
       {playerAnalytics.length > 0 && (
-        <Card title="Team Performance Insights" className="mt-8">
+        <Card title="Team Performance Insights & Rating System" className="mt-8">
+          {/* Rating System Explanation */}
+          <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+            <h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-3">
+              FC256 Player Rating System
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+              <div>
+                <h5 className="font-medium text-blue-800 dark:text-blue-200 mb-2">Attendance (50%)</h5>
+                <p className="text-blue-700 dark:text-blue-300">
+                  Based on training session and match attendance rate
+                </p>
+              </div>
+              <div>
+                <h5 className="font-medium text-blue-800 dark:text-blue-200 mb-2">Match Performance (35%)</h5>
+                <p className="text-blue-700 dark:text-blue-300">
+                  Goals, assists, MOTM awards, participation. Defenders & goalkeepers get 30% bonus from team goals
+                </p>
+              </div>
+              <div>
+                <h5 className="font-medium text-blue-800 dark:text-blue-200 mb-2">Contributions (15%)</h5>
+                <p className="text-blue-700 dark:text-blue-300">
+                  Financial contributions to team activities and equipment
+                </p>
+              </div>
+            </div>
+          </div>
+          
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <div className="text-center">
               <div className="text-3xl font-bold text-blue-600 dark:text-blue-400 mb-2">
@@ -733,9 +724,11 @@ const PlayerAnalytics: React.FC = () => {
             
             <div className="text-center">
               <div className="text-3xl font-bold text-yellow-600 dark:text-yellow-400 mb-2">
-                {playerAnalytics.filter(p => p.overallRating >= 80).length}
+                {playerAnalytics.filter(p => p.overallRating >= 75).length}
               </div>
               <p className="text-sm text-gray-600 dark:text-gray-400">Excellent Performers (80+)</p>
+                Excellent Performers (75%+)
+              </p>
             </div>
           </div>
         </Card>
