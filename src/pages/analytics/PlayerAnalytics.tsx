@@ -112,38 +112,49 @@ const PlayerAnalytics: React.FC = () => {
           // Get member join date
           const memberJoinDate = new Date(member.dateJoined);
           
-          // Get all events (training and friendlies) that occurred after member joined
+          // Get all events that occurred after member joined (inclusive of join date)
           const eventsAfterJoining = events.filter(event => {
             const eventDate = new Date(event.date);
-            return eventDate >= memberJoinDate;
+            // Set both dates to start of day for fair comparison
+            const memberJoinDateOnly = new Date(memberJoinDate.getFullYear(), memberJoinDate.getMonth(), memberJoinDate.getDate());
+            const eventDateOnly = new Date(eventDate.getFullYear(), eventDate.getMonth(), eventDate.getDate());
+            return eventDateOnly >= memberJoinDateOnly;
           });
           
           console.log(`Member ${member.name}:`, {
             joinDate: member.dateJoined,
+            memberJoinDateOnly: memberJoinDate.toISOString().split('T')[0],
             eligibleEvents: eventsAfterJoining.length,
             totalSystemSessions: events.length,
-            memberJoinDate: memberJoinDate.toISOString().split('T')[0],
             eventsAfterJoining: eventsAfterJoining.map(e => ({ id: e.id, date: e.date, type: e.type }))
           });
           
           // Get attendance records for this member
           const memberAttendanceRecords = attendance.filter(a => a.memberId === member.id);
           
-          // Filter attendance to only include events after member joined
+          // Get valid attendance records that match events after member joined
           const validAttendanceRecords = memberAttendanceRecords.filter(attendanceRecord => {
-            const event = eventsAfterJoining.find(e => e.id === attendanceRecord.eventId);
-            return event !== undefined;
+            // Find the event for this attendance record
+            const event = events.find(e => e.id === attendanceRecord.eventId);
+            if (!event) return false;
+            
+            // Check if this event is in the eligible events list
+            return eventsAfterJoining.some(eligibleEvent => eligibleEvent.id === event.id);
           });
           
           console.log(`Member ${member.name} attendance records:`, {
             totalAttendanceRecords: memberAttendanceRecords.length,
             validAttendanceRecords: validAttendanceRecords.length,
-            attendanceDetails: validAttendanceRecords.map(a => ({
-              eventId: a.eventId,
-              status: a.status,
-              recordedAt: a.recordedAt,
-              eventDate: events.find(e => e.id === a.eventId)?.date
-            }))
+            attendanceDetails: validAttendanceRecords.map(a => {
+              const event = events.find(e => e.id === a.eventId);
+              return {
+                eventId: a.eventId,
+                status: a.status,
+                recordedAt: a.recordedAt,
+                eventDate: event?.date,
+                eventType: event?.type
+              };
+            })
           });
           
           // Count attendance statuses
@@ -157,9 +168,35 @@ const PlayerAnalytics: React.FC = () => {
           // Events eligible for this member (after they joined)
           const totalEligibleSessions = eventsAfterJoining.length;
           
-          // Calculate attendance rates
-          const attendanceRate = totalEligibleSessions > 0 ? (attendedSessions / totalEligibleSessions) * 100 : 0;
-          const systemWideAttendanceRate = totalSystemSessions > 0 ? (attendedSessions / totalSystemSessions) * 100 : 0;
+          // Calculate attendance rates with better handling
+          let attendanceRate = 0;
+          let systemWideAttendanceRate = 0;
+          
+          if (totalEligibleSessions > 0) {
+            attendanceRate = (attendedSessions / totalEligibleSessions) * 100;
+          }
+          
+          if (totalSystemSessions > 0) {
+            systemWideAttendanceRate = (attendedSessions / totalSystemSessions) * 100;
+          }
+          
+          // If member has no eligible sessions but has attendance records, 
+          // it means they attended sessions before officially joining
+          if (totalEligibleSessions === 0 && memberAttendanceRecords.length > 0) {
+            // Count all their attendance records for system-wide rate
+            const allAttendedSessions = memberAttendanceRecords.filter(a => a.status === 'present').length;
+            systemWideAttendanceRate = totalSystemSessions > 0 ? (allAttendedSessions / totalSystemSessions) * 100 : 0;
+            
+            // For individual rate, use a fair calculation based on their actual participation
+            attendanceRate = memberAttendanceRecords.length > 0 ? (allAttendedSessions / memberAttendanceRecords.length) * 100 : 0;
+            
+            console.log(`Member ${member.name} - Special case (no eligible sessions but has records):`, {
+              allAttendanceRecords: memberAttendanceRecords.length,
+              allAttendedSessions,
+              calculatedAttendanceRate: attendanceRate,
+              calculatedSystemWideRate: systemWideAttendanceRate
+            });
+          }
           
           const attendanceScore = Math.min(100, attendanceRate);
 
@@ -282,8 +319,8 @@ const PlayerAnalytics: React.FC = () => {
 
           return {
             member,
-            attendedSessions: attendedSessions,
-            totalSessions: totalEligibleSessions, // Sessions since member joined
+            attendedSessions,
+            totalSessions: Math.max(totalEligibleSessions, memberAttendanceRecords.length), // Use the higher value for display
             totalSystemSessions: totalSystemSessions, // All sessions from inception
             attendanceRate,
             systemWideAttendanceRate, // For overall ranking
@@ -437,12 +474,25 @@ const PlayerAnalytics: React.FC = () => {
           <div className="font-medium text-gray-900 dark:text-white">
             {Math.round(player.attendanceRate)}%
           </div>
-          <div className="text-sm text-gray-500 dark:text-gray-400">
-            {player.attendedSessions}/{player.totalSessions} eligible
-          </div>
-          <div className="text-xs text-gray-500 dark:text-gray-400">
-            ({player.attendedSessions}/{player.totalSystemSessions} total system)
-          </div>
+          {player.totalSessions > 0 ? (
+            <div>
+              <div className="text-sm text-gray-500 dark:text-gray-400">
+                {player.attendedSessions}/{player.totalSessions} eligible
+              </div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">
+                ({player.attendedSessions}/{player.totalSystemSessions} total system)
+              </div>
+            </div>
+          ) : (
+            <div>
+              <div className="text-sm text-gray-500 dark:text-gray-400">
+                {player.attendedSessions}/{player.totalSystemSessions} total
+              </div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">
+                (No eligible sessions since join date)
+              </div>
+            </div>
+          )}
         </div>
       ),
     },
@@ -568,9 +618,11 @@ const PlayerAnalytics: React.FC = () => {
                 <p className="text-lg font-bold text-purple-900 dark:text-purple-100">
                   {teamStats.attendanceLeader?.member.name.split(' ')[0] || 'N/A'}
                 </p>
-                <p className="text-xs text-purple-700 dark:text-purple-300">
-                  {Math.round(teamStats.attendanceLeader?.attendanceRate || 0)}%
-                </p>
+                {teamStats.attendanceLeader && (
+                  <p className="text-xs text-purple-700 dark:text-purple-300">
+                    {Math.round(teamStats.attendanceLeader.systemWideAttendanceRate || 0)}% system-wide
+                  </p>
+                )}
               </div>
               <Calendar className="h-8 w-8 text-purple-600 dark:text-purple-400" />
             </div>
@@ -699,12 +751,25 @@ const PlayerAnalytics: React.FC = () => {
                         <div className="font-medium text-gray-900 dark:text-white">
                           {player.member.name}
                         </div>
-                        <div className="text-sm text-gray-500 dark:text-gray-400">
-                          {player.attendedSessions}/{player.totalSessions} eligible
-                        </div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400">
-                          {player.attendedSessions}/{player.totalSystemSessions} total
-                        </div>
+                        {player.totalSessions > 0 ? (
+                          <div>
+                            <div className="text-sm text-gray-500 dark:text-gray-400">
+                              {player.attendedSessions}/{player.totalSessions} eligible
+                            </div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                              {player.attendedSessions}/{player.totalSystemSessions} total
+                            </div>
+                          </div>
+                        ) : (
+                          <div>
+                            <div className="text-sm text-gray-500 dark:text-gray-400">
+                              {player.attendedSessions}/{player.totalSystemSessions} total
+                            </div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                              No eligible sessions
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                     <div className="text-right">
@@ -836,7 +901,8 @@ const PlayerAnalytics: React.FC = () => {
             </div>
             <div className="mt-3 text-xs text-blue-600 dark:text-blue-400">
               <strong>Note:</strong> Members who joined later are not penalized for sessions before they joined, 
-              but overall rankings consider total system contribution for fairness.
+              but overall rankings consider total system contribution for fairness. Members with no eligible sessions 
+              since their join date will show their total system attendance instead.
             </div>
           </div>
         </Card>
