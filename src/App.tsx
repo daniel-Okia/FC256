@@ -17,7 +17,6 @@ import Transactions from './pages/transactions/Transactions';
 import Attendance from './pages/attendance/Attendance';
 import Profile from './pages/profile/Profile';
 import Inventory from './pages/inventory/Inventory';
-import PlayerAnalytics from './pages/analytics/PlayerAnalytics';
 import NotFound from './pages/NotFound';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import MembershipFees from './pages/membership/MembershipFees';
@@ -131,15 +130,6 @@ function App() {
               element={
                 <ProtectedRoute>
                   <Profile />
-                </ProtectedRoute>
-              } 
-            />
-            
-            <Route 
-              path="/analytics" 
-              element={
-                <ProtectedRoute>
-                  <PlayerAnalytics />
                 </ProtectedRoute>
               } 
             />

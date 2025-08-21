@@ -11,7 +11,6 @@ import {
   X,
   ClipboardList,
   Package,
-  TrendingUp,
   CreditCard as MembershipIcon
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
@@ -86,12 +85,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       name: 'Profile', 
       path: '/profile', 
       icon: User, 
-      roles: Permissions.VIEW_DASHBOARD 
-    },
-    { 
-      name: 'Analytics', 
-      path: '/analytics', 
-      icon: TrendingUp, 
       roles: Permissions.VIEW_DASHBOARD 
     },
   ];
