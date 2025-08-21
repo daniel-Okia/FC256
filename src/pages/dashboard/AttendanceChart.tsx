@@ -118,10 +118,28 @@ const AttendanceChart: React.FC<AttendanceChartProps> = ({ className }) => {
       const sixtyDaysAgo = new Date();
       sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
       
-      // Filter training events from the last 60 days
+      // Filter training events from the last 60 days that have actually occurred
+      const now = new Date();
       const recentTrainingEvents = events.filter(event => {
         const eventDate = new Date(event.date);
-        return event.type === 'training' && eventDate >= sixtyDaysAgo && eventDate <= new Date();
+        
+        // Create a proper datetime by combining date and time
+        const eventDateTime = new Date(event.date);
+        if (event.time) {
+          const [hours, minutes] = event.time.split(':').map(Number);
+          eventDateTime.setHours(hours, minutes, 0, 0);
+        } else {
+          // If no time specified, assume it's at end of day to be safe
+          eventDateTime.setHours(23, 59, 59, 999);
+        }
+        
+        // Only include training sessions that:
+        // 1. Are training type
+        // 2. Are within the last 60 days
+        // 3. Have actually occurred (datetime has passed)
+        return event.type === 'training' && 
+               eventDate >= sixtyDaysAgo && 
+               eventDateTime <= now;
       });
 
       console.log('Recent training events:', recentTrainingEvents.length);

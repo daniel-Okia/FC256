@@ -259,6 +259,20 @@ const Friendlies: React.FC = () => {
             </Button>
           )}
           {new Date(friendly.date) <= new Date() && !friendly.isCompleted && canEditFriendly && (
+          {(() => {
+            // Create proper datetime by combining date and time
+            const eventDateTime = new Date(friendly.date);
+            if (friendly.time) {
+              const [hours, minutes] = friendly.time.split(':').map(Number);
+              eventDateTime.setHours(hours, minutes, 0, 0);
+            } else {
+              // If no time specified, assume it's at end of day
+              eventDateTime.setHours(23, 59, 59, 999);
+            }
+            
+            // Only show "Add Result" button if the match time has passed
+            return eventDateTime <= new Date() && !friendly.isCompleted && canEditFriendly;
+          })() && (
             <Button
               size="sm"
               variant="success"

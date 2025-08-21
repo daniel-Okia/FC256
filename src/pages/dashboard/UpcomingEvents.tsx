@@ -24,14 +24,22 @@ const UpcomingEvents: React.FC<UpcomingEventsProps> = ({ className }) => {
         const allEvents = await EventService.getAllEvents();
         
         // Filter for upcoming events (today and future)
-        const now = new Date();
-        now.setHours(0, 0, 0, 0); // Set to start of today
+        const now = new Date(); // Keep current time for proper comparison
         
         const upcomingEvents = allEvents
           .filter(event => {
-            const eventDate = new Date(event.date);
-            eventDate.setHours(0, 0, 0, 0); // Set to start of event day
-            return eventDate >= now;
+            // Create proper datetime by combining date and time
+            const eventDateTime = new Date(event.date);
+            if (event.time) {
+              const [hours, minutes] = event.time.split(':').map(Number);
+              eventDateTime.setHours(hours, minutes, 0, 0);
+            } else {
+              // If no time specified, assume it's at start of day
+              eventDateTime.setHours(0, 0, 0, 0);
+            }
+            
+            // Only show events that haven't occurred yet
+            return eventDateTime > now;
           })
           .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()) // Earliest first for upcoming
           .slice(0, 5); // Limit to next 5 events
@@ -54,14 +62,22 @@ const UpcomingEvents: React.FC<UpcomingEventsProps> = ({ className }) => {
     // Set up real-time listener
     const unsubscribe = EventService.subscribeToEvents((allEvents) => {
       try {
-        const now = new Date();
-        now.setHours(0, 0, 0, 0); // Set to start of today
+        const now = new Date(); // Keep current time for proper comparison
         
         const upcoming = allEvents
           .filter(event => {
-            const eventDate = new Date(event.date);
-            eventDate.setHours(0, 0, 0, 0); // Set to start of event day
-            return eventDate >= now;
+            // Create proper datetime by combining date and time
+            const eventDateTime = new Date(event.date);
+            if (event.time) {
+              const [hours, minutes] = event.time.split(':').map(Number);
+              eventDateTime.setHours(hours, minutes, 0, 0);
+            } else {
+              // If no time specified, assume it's at start of day
+              eventDateTime.setHours(0, 0, 0, 0);
+            }
+            
+            // Only show events that haven't occurred yet
+            return eventDateTime > now;
           })
           .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()) // Earliest first for upcoming
           .slice(0, 5);

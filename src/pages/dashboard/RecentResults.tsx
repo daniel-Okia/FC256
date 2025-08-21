@@ -36,7 +36,20 @@ const RecentResults: React.FC<RecentResultsProps> = ({ className }) => {
             event.type === 'friendly' && 
             event.isCompleted && 
             event.matchDetails &&
-            new Date(event.date) <= new Date()
+            (() => {
+              // Create proper datetime by combining date and time
+              const eventDateTime = new Date(event.date);
+              if (event.time) {
+                const [hours, minutes] = event.time.split(':').map(Number);
+                eventDateTime.setHours(hours, minutes, 0, 0);
+              } else {
+                // If no time specified, assume it occurred at end of day
+                eventDateTime.setHours(23, 59, 59, 999);
+              }
+              
+              // Only include matches that have actually occurred
+              return eventDateTime <= new Date();
+            })()
           )
           .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()) // Latest first
           .slice(0, 8); // Get last 8 matches
@@ -74,7 +87,20 @@ const RecentResults: React.FC<RecentResultsProps> = ({ className }) => {
             event.type === 'friendly' && 
             event.isCompleted && 
             event.matchDetails &&
-            new Date(event.date) <= new Date()
+            (() => {
+              // Create proper datetime by combining date and time
+              const eventDateTime = new Date(event.date);
+              if (event.time) {
+                const [hours, minutes] = event.time.split(':').map(Number);
+                eventDateTime.setHours(hours, minutes, 0, 0);
+              } else {
+                // If no time specified, assume it occurred at end of day
+                eventDateTime.setHours(23, 59, 59, 999);
+              }
+              
+              // Only include matches that have actually occurred
+              return eventDateTime <= new Date();
+            })()
           )
           .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
           .slice(0, 8);
